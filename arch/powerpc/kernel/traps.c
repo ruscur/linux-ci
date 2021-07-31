@@ -562,7 +562,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
-#define get_reason(regs)	((regs)->dsisr)
+#define get_reason(regs)	((regs)->esr)
 #define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		(ESR_PIL | ESR_PUO)
 #define REASON_PRIVILEGED	ESR_PPR
@@ -1609,7 +1609,10 @@ DEFINE_INTERRUPT_HANDLER(alignment_exception)
 	}
 bad:
 	if (user_mode(regs))
-		_exception(sig, regs, code, regs->dar);
+		if (IS_ENABLED(CONFIG_4xx) || IS_ENABLED(CONFIG_BOOKE))
+			_exception(sig, regs, code, regs->dear);
+		else
+			_exception(sig, regs, code, regs->dar);
 	else
 		bad_page_fault(regs, sig);
 }

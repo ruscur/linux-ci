@@ -43,8 +43,14 @@ struct pt_regs
 			unsigned long mq;
 #endif
 			unsigned long trap;
-			unsigned long dar;
-			unsigned long dsisr;
+			union {
+				unsigned long dar;
+				unsigned long dear;
+			};
+			union {
+				unsigned long dsisr;
+				unsigned long esr;
+			};
 			unsigned long result;
 		};
 	};
