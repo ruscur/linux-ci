@@ -80,7 +80,7 @@ struct lppaca {
 	u8	ebb_regs_in_use;
 	u8	reserved7[6];
 	u8	dtl_enable_mask;	/* Dispatch Trace Log mask */
-	u8	donate_dedicated_cpu;	/* Donate dedicated CPU cycles */
+	u8	byte_b9; /* Donate dedicated CPU cycles & Expropriation int */
 	u8	fpregs_in_use;
 	u8	pmcregs_in_use;
 	u8	reserved8[28];
@@ -104,7 +104,17 @@ struct lppaca {
 	volatile __be32 dispersion_count; /* dispatch changed physical cpu */
 	volatile __be64 cmo_faults;	/* CMO page fault count */
 	volatile __be64 cmo_fault_time;	/* CMO page fault time */
-	u8	reserved10[104];
+
+	/*
+	 * TODO: Insert this at correct offset
+	 * 0x17D - Exp flags (1 byte)
+	 * 0x17E - Exp corr number (2 bytes)
+	 *
+	 * Here I am using only exp corr number at an easy to insert
+	 * offset.
+	 */
+	__be16 exp_corr_nr; /* Exproppriation correlation number */
+	u8	reserved10[102];
 
 	/* cacheline 4-5 */
 
@@ -115,6 +125,12 @@ struct lppaca {
 } ____cacheline_aligned;
 
 #define lppaca_of(cpu)	(*paca_ptrs[cpu]->lppaca_ptr)
+
+/*
+ * Flags for Byte offset 0xB9
+ */
+#define LPPACA_DONATE_DED_CPU_CYCLES   0x1
+#define LPPACA_EXP_INT_ENABLED         0x2
 
 /*
  * We are using a non architected field to determine if a partition is
