@@ -45,8 +45,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Load ccache
+      uses: actions/cache@v2
+      with:
+        path: ~/.ccache
+        key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
+
     - name: Build
-      run: ./arch/powerpc/tools/ci-build.sh
+      run: |
+        mkdir -p ~/.ccache
+        ls -l ~/.ccache
+        CCACHE=1 ./arch/powerpc/tools/ci-build.sh
 
     - name: powerpc sparse errors
       run: grep /linux/arch/powerpc ~/output/sparse.log
