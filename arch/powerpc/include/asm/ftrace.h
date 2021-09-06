@@ -62,6 +62,10 @@ struct dyn_arch_ftrace {
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+int __init ftrace_dyn_arch_init(void);
+#endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #endif
 #endif /* CONFIG_FUNCTION_TRACER */
