@@ -33,6 +33,7 @@
 #include <asm/kup.h>
 #include <asm/bug.h>
 #include <asm/interrupt.h>
+#include <asm/code-patching-asm.h>
 
 #include "head_32.h"
 
@@ -73,6 +74,34 @@ prepare_transfer_to_handler:
 _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 #endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_E500 */
 
+#if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
+	.globl	__kuep_lock
+__kuep_lock:
+0:	blr	/* lwz	r9, current->thread.sr0(r2) */
+	update_user_segments_by_4 r9, r10, r11, r12
+	blr
+	patch_site	0b, patch__kuep_lock
+
+__kuep_unlock:
+0:	blr	/* lwz	r9, current->thread.sr0(r2) */
+	rlwinm  r9,r9,0,~SR_NX
+	update_user_segments_by_4 r9, r10, r11, r12
+	blr
+	patch_site	0b, patch__kuep_unlock
+
+.macro	kuep_lock
+	bl	__kuep_lock
+.endm
+.macro	kuep_unlock
+	bl	__kuep_unlock
+.endm
+#else
+.macro	kuep_lock
+.endm
+.macro	kuep_unlock
+.endm
+#endif
+
 	.globl	transfer_to_syscall
 transfer_to_syscall:
 	stw	r11, GPR1(r1)
@@ -94,6 +123,7 @@ transfer_to_syscall:
 	SAVE_2GPRS(7, r1)
 	addi	r2,r10,-THREAD
 	SAVE_NVGPRS(r1)
+	kuep_lock
 
 	/* Calling convention has r9 = orig r0, r10 = regs */
 	addi	r10,r1,STACK_FRAME_OVERHEAD
@@ -110,6 +140,7 @@ ret_from_syscall:
 	cmplwi	cr0,r5,0
 	bne-	2f
 #endif /* CONFIG_PPC_47x */
+	kuep_unlock
 	lwz	r4,_LINK(r1)
 	lwz	r5,_CCR(r1)
 	mtlr	r4
@@ -273,6 +304,7 @@ interrupt_return:
 	beq	.Lkernel_interrupt_return
 	bl	interrupt_exit_user_prepare
 	cmpwi	r3,0
+	kuep_unlock
 	bne-	.Lrestore_nvgprs
 
 .Lfast_user_interrupt_return:
