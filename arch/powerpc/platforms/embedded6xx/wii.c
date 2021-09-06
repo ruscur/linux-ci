@@ -143,8 +143,7 @@ static void wii_power_off(void)
 
 static void __noreturn wii_halt(void)
 {
-	if (ppc_md.restart)
-		ppc_md.restart(NULL);
+	ppc_md_call_cond(restart)(NULL);
 	wii_spin();
 }
 
@@ -158,6 +157,15 @@ static int __init wii_probe(void)
 {
 	if (!of_machine_is_compatible("nintendo,wii"))
 		return 0;
+
+	ppc_md_update(setup_arch, wii_setup_arch);
+	ppc_md_update(restart, wii_restart);
+	ppc_md_update(halt, wii_halt);
+	ppc_md_update(init_IRQ, wii_pic_probe);
+	ppc_md_update(get_irq, flipper_pic_get_irq);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+	ppc_md_update(progress, udbg_progress);
+	ppc_md_update(machine_shutdown, wii_shutdown);
 
 	pm_power_off = wii_power_off;
 
@@ -190,12 +198,4 @@ device_initcall(wii_device_probe);
 define_machine(wii) {
 	.name			= "wii",
 	.probe			= wii_probe,
-	.setup_arch		= wii_setup_arch,
-	.restart		= wii_restart,
-	.halt			= wii_halt,
-	.init_IRQ		= wii_pic_probe,
-	.get_irq		= flipper_pic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= udbg_progress,
-	.machine_shutdown	= wii_shutdown,
 };

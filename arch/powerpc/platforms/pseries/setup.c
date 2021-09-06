@@ -459,7 +459,7 @@ void pseries_little_endian_exceptions(void)
 		mdelay(get_longbusy_msecs(rc));
 	}
 	if (rc) {
-		ppc_md.progress("H_SET_MODE LE exception fail", 0);
+		ppc_md_call(progress)("H_SET_MODE LE exception fail", 0);
 		panic("Could not enable little endian exceptions");
 	}
 }
@@ -821,22 +821,19 @@ static void __init pSeries_setup_arch(void)
 			pv_spinlocks_init();
 		}
 
-		ppc_md.power_save = pseries_lpar_idle;
-		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
+		ppc_md_update(power_save, pseries_lpar_idle);
+		ppc_md_update(enable_pmcs, pseries_lpar_enable_pmcs);
 #ifdef CONFIG_PCI_IOV
-		ppc_md.pcibios_fixup_resources =
-			pseries_pci_fixup_resources;
-		ppc_md.pcibios_fixup_sriov =
-			pseries_pci_fixup_iov_resources;
-		ppc_md.pcibios_iov_resource_alignment =
-			pseries_pci_iov_resource_alignment;
+		ppc_md_update(pcibios_fixup_resources, pseries_pci_fixup_resources);
+		ppc_md_update(pcibios_fixup_sriov, pseries_pci_fixup_iov_resources);
+		ppc_md_update(pcibios_iov_resource_alignment, pseries_pci_iov_resource_alignment);
 #endif
 	} else {
 		/* No special idle routine */
-		ppc_md.enable_pmcs = power4_enable_pmcs;
+		ppc_md_update(enable_pmcs, power4_enable_pmcs);
 	}
 
-	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
+	ppc_md_update(pcibios_root_bridge_prepare, pseries_root_bridge_prepare);
 
 	if (swiotlb_force == SWIOTLB_FORCE)
 		ppc_swiotlb_enable = 1;
@@ -852,11 +849,11 @@ static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 #ifdef __BIG_ENDIAN__
-	ppc_md.progress("Linux ppc64\n", 0);
+	ppc_md_call(progress)("Linux ppc64\n", 0);
 #else
-	ppc_md.progress("Linux ppc64le\n", 0);
+	ppc_md_call(progress)("Linux ppc64le\n", 0);
 #endif
-	ppc_md.progress(init_utsname()->version, 0);
+	ppc_md_call(progress)(init_utsname()->version, 0);
 
 	return 0;
 }
@@ -991,12 +988,12 @@ static void __init pseries_init(void)
 		hvc_vio_init_early();
 #endif
 	if (firmware_has_feature(FW_FEATURE_XDABR))
-		ppc_md.set_dabr = pseries_set_xdabr;
+		ppc_md_update(set_dabr, pseries_set_xdabr);
 	else if (firmware_has_feature(FW_FEATURE_DABR))
-		ppc_md.set_dabr = pseries_set_dabr;
+		ppc_md_update(set_dabr, pseries_set_dabr);
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE))
-		ppc_md.set_dawr = pseries_set_dawr;
+		ppc_md_update(set_dawr, pseries_set_dawr);
 
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
@@ -1044,6 +1041,31 @@ static int __init pSeries_probe(void)
 	    of_machine_is_compatible("IBM,CBEA"))
 		return 0;
 
+	ppc_md_update(setup_arch, pSeries_setup_arch);
+	ppc_md_update(init_IRQ, pseries_init_irq);
+	ppc_md_update(show_cpuinfo, pSeries_show_cpuinfo);
+	ppc_md_update(log_error, pSeries_log_error);
+	ppc_md_update(discover_phbs, pSeries_discover_phbs);
+	ppc_md_update(pcibios_fixup, pSeries_final_fixup);
+	ppc_md_update(restart, rtas_restart);
+	ppc_md_update(halt, rtas_halt);
+	ppc_md_update(panic, pseries_panic);
+	ppc_md_update(get_boot_time, rtas_get_boot_time);
+	ppc_md_update(get_rtc_time, rtas_get_rtc_time);
+	ppc_md_update(set_rtc_time, rtas_set_rtc_time);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+	ppc_md_update(progress, rtas_progress);
+	ppc_md_update(system_reset_exception , pSeries_system_reset_exception);
+	ppc_md_update(machine_check_early, pseries_machine_check_realmode);
+	ppc_md_update(machine_check_exception , pSeries_machine_check_exception);
+#ifdef CONFIG_KEXEC_CORE
+	ppc_md_update(machine_kexec, pSeries_machine_kexec);
+	ppc_md_update(kexec_cpu_down, pseries_kexec_cpu_down);
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	ppc_md_update(memory_block_size, pseries_memory_block_size);
+#endif
+
 	pm_power_off = pseries_power_off;
 
 	pr_debug("Machine is%s LPAR !\n",
@@ -1068,28 +1090,4 @@ struct pci_controller_ops pseries_pci_controller_ops = {
 define_machine(pseries) {
 	.name			= "pSeries",
 	.probe			= pSeries_probe,
-	.setup_arch		= pSeries_setup_arch,
-	.init_IRQ		= pseries_init_irq,
-	.show_cpuinfo		= pSeries_show_cpuinfo,
-	.log_error		= pSeries_log_error,
-	.discover_phbs		= pSeries_discover_phbs,
-	.pcibios_fixup		= pSeries_final_fixup,
-	.restart		= rtas_restart,
-	.halt			= rtas_halt,
-	.panic			= pseries_panic,
-	.get_boot_time		= rtas_get_boot_time,
-	.get_rtc_time		= rtas_get_rtc_time,
-	.set_rtc_time		= rtas_set_rtc_time,
-	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= rtas_progress,
-	.system_reset_exception = pSeries_system_reset_exception,
-	.machine_check_early	= pseries_machine_check_realmode,
-	.machine_check_exception = pSeries_machine_check_exception,
-#ifdef CONFIG_KEXEC_CORE
-	.machine_kexec          = pSeries_machine_kexec,
-	.kexec_cpu_down         = pseries_kexec_cpu_down,
-#endif
-#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-	.memory_block_size	= pseries_memory_block_size,
-#endif
 };

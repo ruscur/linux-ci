@@ -190,8 +190,7 @@ static void __init efika_setup_arch(void)
 	mpc52xx_pm_init();
 #endif
 
-	if (ppc_md.progress)
-		ppc_md.progress("Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
+	ppc_md_call_cond(progress)("Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
 }
 
 static int __init efika_probe(void)
@@ -202,6 +201,23 @@ static int __init efika_probe(void)
 		return 0;
 	if (strcmp(model, "EFIKA5K2"))
 		return 0;
+
+	ppc_md_update(setup_arch, efika_setup_arch);
+	ppc_md_update(discover_phbs, efika_pcisetup);
+	ppc_md_update(init, mpc52xx_declare_of_platform_devices);
+	ppc_md_update(show_cpuinfo, efika_show_cpuinfo);
+	ppc_md_update(init_IRQ, mpc52xx_init_irq);
+	ppc_md_update(get_irq, mpc52xx_get_irq);
+	ppc_md_update(restart, rtas_restart);
+	ppc_md_update(halt, rtas_halt);
+	ppc_md_update(set_rtc_time, rtas_set_rtc_time);
+	ppc_md_update(get_rtc_time, rtas_get_rtc_time);
+	ppc_md_update(progress, rtas_progress);
+	ppc_md_update(get_boot_time, rtas_get_boot_time);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+#ifdef CONFIG_PCI
+	ppc_md_update(phys_mem_access_prot, pci_phys_mem_access_prot);
+#endif
 
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
@@ -215,21 +231,5 @@ define_machine(efika)
 {
 	.name			= EFIKA_PLATFORM_NAME,
 	.probe			= efika_probe,
-	.setup_arch		= efika_setup_arch,
-	.discover_phbs		= efika_pcisetup,
-	.init			= mpc52xx_declare_of_platform_devices,
-	.show_cpuinfo		= efika_show_cpuinfo,
-	.init_IRQ		= mpc52xx_init_irq,
-	.get_irq		= mpc52xx_get_irq,
-	.restart		= rtas_restart,
-	.halt			= rtas_halt,
-	.set_rtc_time		= rtas_set_rtc_time,
-	.get_rtc_time		= rtas_get_rtc_time,
-	.progress		= rtas_progress,
-	.get_boot_time		= rtas_get_boot_time,
-	.calibrate_decr		= generic_calibrate_decr,
-#ifdef CONFIG_PCI
-	.phys_mem_access_prot	= pci_phys_mem_access_prot,
-#endif
 };
 

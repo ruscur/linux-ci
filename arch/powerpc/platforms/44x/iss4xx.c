@@ -61,7 +61,7 @@ static void __init iss4xx_init_irq(void)
 	/* Check type and do appropriate initialization */
 	if (of_device_is_compatible(np, "ibm,uic")) {
 		uic_init_tree();
-		ppc_md.get_irq = uic_get_irq;
+		ppc_md_update(get_irq, uic_get_irq);
 #ifdef CONFIG_MPIC
 	} else if (of_device_is_compatible(np, "chrp,open-pic")) {
 		/* The MPIC driver will get everything it needs from the
@@ -70,7 +70,7 @@ static void __init iss4xx_init_irq(void)
 		struct mpic *mpic = mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
 		BUG_ON(mpic == NULL);
 		mpic_init(mpic);
-		ppc_md.get_irq = mpic_get_irq;
+		ppc_md_update(get_irq, mpic_get_irq);
 #endif
 	} else
 		panic("Unrecognized top level interrupt controller");
@@ -148,15 +148,16 @@ static int __init iss4xx_probe(void)
 	if (!of_machine_is_compatible("ibm,iss-4xx"))
 		return 0;
 
+	ppc_md_update(progress, udbg_progress);
+	ppc_md_update(init_IRQ, iss4xx_init_irq);
+	ppc_md_update(setup_arch, iss4xx_setup_arch);
+	ppc_md_update(restart, ppc4xx_reset_system);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+
 	return 1;
 }
 
 define_machine(iss4xx) {
 	.name			= "ISS-4xx",
 	.probe			= iss4xx_probe,
-	.progress		= udbg_progress,
-	.init_IRQ		= iss4xx_init_irq,
-	.setup_arch		= iss4xx_setup_arch,
-	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };

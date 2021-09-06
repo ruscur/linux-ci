@@ -147,8 +147,7 @@ static void lite5200_resume_finish(void __iomem *mbar)
 
 static void __init lite5200_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("lite5200_setup_arch()", 0);
+	ppc_md_call_cond(progress)("lite5200_setup_arch()", 0);
 
 	/* Map important registers from the internal memory map */
 	mpc52xx_map_common_devices();
@@ -178,17 +177,21 @@ static const char * const board[] __initconst = {
  */
 static int __init lite5200_probe(void)
 {
-	return of_device_compatible_match(of_root, board);
+	if (!of_device_compatible_match(of_root, board))
+		return 0;
+
+	ppc_md_update(setup_arch, lite5200_setup_arch);
+	ppc_md_update(discover_phbs, mpc52xx_setup_pci);
+	ppc_md_update(init, mpc52xx_declare_of_platform_devices);
+	ppc_md_update(init_IRQ, mpc52xx_init_irq);
+	ppc_md_update(get_irq, mpc52xx_get_irq);
+	ppc_md_update(restart, mpc52xx_restart);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+
+	return 1;
 }
 
 define_machine(lite5200) {
 	.name 		= "lite5200",
 	.probe 		= lite5200_probe,
-	.setup_arch 	= lite5200_setup_arch,
-	.discover_phbs	= mpc52xx_setup_pci,
-	.init		= mpc52xx_declare_of_platform_devices,
-	.init_IRQ 	= mpc52xx_init_irq,
-	.get_irq 	= mpc52xx_get_irq,
-	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

@@ -89,7 +89,7 @@ static void __noreturn avr_reset_system(char *cmd)
 static int avr_probe(struct i2c_client *client)
 {
 	avr_i2c_client = client;
-	ppc_md.restart = avr_reset_system;
+	ppc_md_update(restart, avr_reset_system);
 	pm_power_off = avr_power_off_system;
 	return 0;
 }
@@ -137,7 +137,7 @@ static void __init ppc47x_init_irq(void)
 			mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
 		BUG_ON(mpic == NULL);
 		mpic_init(mpic);
-		ppc_md.get_irq = mpic_get_irq;
+		ppc_md_update(get_irq, mpic_get_irq);
 	} else
 		panic("Unrecognized top level interrupt controller");
 }
@@ -271,23 +271,23 @@ static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
  */
 static int __init ppc47x_probe(void)
 {
-	if (of_machine_is_compatible("ibm,akebono"))
-		return 1;
+	if (!of_machine_is_compatible("ibm,akebono") &&
+	    !of_machine_is_compatible("ibm,currituck"))
+		return 0;
 
-	if (of_machine_is_compatible("ibm,currituck")) {
-		ppc_md.pci_irq_fixup = ppc47x_pci_irq_fixup;
-		return 1;
-	}
+	ppc_md_update(progress, udbg_progress);
+	ppc_md_update(init_IRQ, ppc47x_init_irq);
+	ppc_md_update(setup_arch, ppc47x_setup_arch);
+	ppc_md_update(restart, ppc4xx_reset_system);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
 
-	return 0;
+	if (of_machine_is_compatible("ibm,currituck"))
+		ppc_md_update(pci_irq_fixup, ppc47x_pci_irq_fixup);
+
+	return 1;
 }
 
 define_machine(ppc47x) {
 	.name			= "PowerPC 47x",
 	.probe			= ppc47x_probe,
-	.progress		= udbg_progress,
-	.init_IRQ		= ppc47x_init_irq,
-	.setup_arch		= ppc47x_setup_arch,
-	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };

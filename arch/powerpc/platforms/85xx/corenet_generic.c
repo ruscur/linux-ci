@@ -37,7 +37,7 @@ void __init corenet_gen_pic_init(void)
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
 		MPIC_NO_RESET;
 
-	if (ppc_md.get_irq == mpic_get_coreint_irq)
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) && !IS_ENABLED(CONFIG_KEXEC_CORE))
 		flags |= MPIC_ENABLE_COREINT;
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 512, " OpenPIC  ");
@@ -139,6 +139,34 @@ static const char * const boards[] __initconst = {
 	NULL
 };
 
+static void __init corenet_generic_populate(void)
+{
+	ppc_md_update(setup_arch, corenet_gen_setup_arch);
+	ppc_md_update(init_IRQ, corenet_gen_pic_init);
+#ifdef CONFIG_PCI
+	ppc_md_update(pcibios_fixup_bus, fsl_pcibios_fixup_bus);
+	ppc_md_update(pcibios_fixup_phb, fsl_pcibios_fixup_phb);
+#endif
+/*
+ * Core reset may cause issues if using the proxy mode of MPICppc_md_update(
+ * So); use the mixed mode of MPIC if enabling CPU hotplugppc_md_update(
+ *
+ * Likewise); problems have been seen with kexec when coreint is enabledppc_md_update(
+ */
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC_CORE)
+	ppc_md_update(get_irq, mpic_get_irq);
+#else
+	ppc_md_update(get_irq, mpic_get_coreint_irq);
+#endif
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+	ppc_md_update(progress, udbg_progress);
+#ifdef CONFIG_PPC64
+	ppc_md_update(power_save, book3e_idle);
+#else
+	ppc_md_update(power_save, e500_idle);
+#endif
+}
+
 /*
  * Called very early, device-tree isn't unflattened
  */
@@ -150,19 +178,23 @@ static int __init corenet_generic_probe(void)
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_device_compatible_match(of_root, boards))
+	if (of_device_compatible_match(of_root, boards)) {
+		corenet_generic_populate();
 		return 1;
+	}
 
 	/* Check if we're running under the Freescale hypervisor */
 	for (i = 0; boards[i]; i++) {
 		snprintf(hv_compat, sizeof(hv_compat), "%s-hv", boards[i]);
 		if (of_machine_is_compatible(hv_compat)) {
-			ppc_md.init_IRQ = ehv_pic_init;
+			corenet_generic_populate();
 
-			ppc_md.get_irq = ehv_pic_get_irq;
-			ppc_md.restart = fsl_hv_restart;
+			ppc_md_update(init_IRQ, ehv_pic_init);
+
+			ppc_md_update(get_irq, ehv_pic_get_irq);
+			ppc_md_update(restart, fsl_hv_restart);
 			pm_power_off = fsl_hv_halt;
-			ppc_md.halt = fsl_hv_halt;
+			ppc_md_update(halt, fsl_hv_halt);
 #ifdef CONFIG_SMP
 			/*
 			 * Disable the timebase sync operations because we
@@ -182,28 +214,4 @@ static int __init corenet_generic_probe(void)
 define_machine(corenet_generic) {
 	.name			= "CoreNet Generic",
 	.probe			= corenet_generic_probe,
-	.setup_arch		= corenet_gen_setup_arch,
-	.init_IRQ		= corenet_gen_pic_init,
-#ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
-#endif
-/*
- * Core reset may cause issues if using the proxy mode of MPIC.
- * So, use the mixed mode of MPIC if enabling CPU hotplug.
- *
- * Likewise, problems have been seen with kexec when coreint is enabled.
- */
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC_CORE)
-	.get_irq		= mpic_get_irq,
-#else
-	.get_irq		= mpic_get_coreint_irq,
-#endif
-	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= udbg_progress,
-#ifdef CONFIG_PPC64
-	.power_save		= book3e_idle,
-#else
-	.power_save		= e500_idle,
-#endif
 };

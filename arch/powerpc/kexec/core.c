@@ -48,19 +48,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	default_machine_crash_shutdown(regs);
 }
 
-/*
- * Do what every setup is needed on image and the
- * reboot code buffer to allow us to avoid allocations
- * later.
- */
-int machine_kexec_prepare(struct kimage *image)
-{
-	if (ppc_md.machine_kexec_prepare)
-		return ppc_md.machine_kexec_prepare(image);
-	else
-		return default_machine_kexec_prepare(image);
-}
-
 void machine_kexec_cleanup(struct kimage *image)
 {
 }
@@ -100,8 +87,8 @@ void machine_kexec(struct kimage *image)
 	save_ftrace_enabled = __ftrace_enabled_save();
 	this_cpu_disable_ftrace();
 
-	if (ppc_md.machine_kexec)
-		ppc_md.machine_kexec(image);
+	if (ppc_md_has(machine_kexec))
+		ppc_md_call(machine_kexec)(image);
 	else
 		default_machine_kexec(image);
 

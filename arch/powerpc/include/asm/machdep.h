@@ -7,13 +7,9 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/static_call.h>
 
 #include <asm/setup.h>
-
-/* We export this macro for external modules like Alsa to know if
- * ppc_md.feature_call is implemented or not
- */
-#define CONFIG_PPC_HAS_FEATURE_CALLS
 
 struct pt_regs;
 struct pci_bus;	
@@ -27,9 +23,12 @@ struct pci_host_bridge;
 
 struct machdep_calls {
 	char		*name;
+	int		(*probe)(void);
+};
+
+struct machdep_ops {
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PM
-	void		(*iommu_save)(void);
 	void		(*iommu_restore)(void);
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
@@ -39,11 +38,9 @@ struct machdep_calls {
 
 	void		(*dma_set_mask)(struct device *dev, u64 dma_mask);
 
-	int		(*probe)(void);
 	void		(*setup_arch)(void); /* Optional, may be NULL */
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
-	void		(*show_percpuinfo)(struct seq_file *m, int i);
 	/* Returns the current operating frequency of "cpu" in Hz */
 	unsigned long  	(*get_proc_freq)(unsigned int cpu);
 
@@ -74,8 +71,6 @@ struct machdep_calls {
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
 	time64_t	(*get_boot_time)(void);
-	unsigned char 	(*rtc_read_val)(int addr);
-	void		(*rtc_write_val)(int addr, unsigned char val);
 
 	void		(*calibrate_decr)(void);
 
@@ -141,8 +136,6 @@ struct machdep_calls {
 	   May be NULL. */
 	void		(*init)(void);
 
-	void		(*kgdb_map_scc)(void);
-
 	/*
 	 * optional PCI "hooks"
 	 */
@@ -187,13 +180,6 @@ struct machdep_calls {
 #ifdef CONFIG_KEXEC_CORE
 	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
 
-	/* Called to do what every setup is needed on image and the
-	 * reboot code buffer. Returns 0 on success.
-	 * Provide your own (maybe dummy) implementation if your platform
-	 * claims to support kexec.
-	 */
-	int (*machine_kexec_prepare)(struct kimage *image);
-
 	/* Called to perform the _real_ kexec.
 	 * Do NOT allocate memory or fail here. We are past the point of
 	 * no return.
@@ -220,6 +206,98 @@ struct machdep_calls {
 	int (*get_random_seed)(unsigned long *v);
 #endif
 };
+
+#define ppc_md_call(func)		static_call(ppc_md_##func)
+#define ppc_md_has(func)		static_call_query(ppc_md_##func)
+#define ppc_md_call_cond(func)		static_call_cond(ppc_md_##func)
+#define ppc_md_update(func, f)		static_call_update(ppc_md_##func, f)
+
+#ifdef GENERATING_PPC_MD_STATIC_CALLS_DEFINITIONS
+#define PPC_MD_CALL(f)	DEFINE_STATIC_CALL_NULL(ppc_md_##f, (*((struct machdep_ops *)NULL)->f))
+#else
+#define PPC_MD_CALL(f)	DECLARE_STATIC_CALL(ppc_md_##f, (*((struct machdep_ops *)NULL)->f))
+#endif
+
+#ifdef CONFIG_PPC64
+#ifdef CONFIG_PM
+PPC_MD_CALL(iommu_restore);
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+PPC_MD_CALL(memory_block_size);
+#endif
+#endif /* CONFIG_PPC64 */
+PPC_MD_CALL(dma_set_mask);
+PPC_MD_CALL(setup_arch);
+PPC_MD_CALL(show_cpuinfo);
+PPC_MD_CALL(get_proc_freq);
+PPC_MD_CALL(init_IRQ);
+PPC_MD_CALL(get_irq);
+PPC_MD_CALL(pcibios_fixup);
+PPC_MD_CALL(pci_irq_fixup);
+PPC_MD_CALL(pcibios_root_bridge_prepare);
+PPC_MD_CALL(discover_phbs);
+PPC_MD_CALL(pci_setup_phb);
+PPC_MD_CALL(restart);
+PPC_MD_CALL(halt);
+PPC_MD_CALL(panic);
+PPC_MD_CALL(time_init);
+PPC_MD_CALL(set_rtc_time);
+PPC_MD_CALL(get_rtc_time);
+PPC_MD_CALL(get_boot_time);
+PPC_MD_CALL(calibrate_decr);
+PPC_MD_CALL(progress);
+PPC_MD_CALL(log_error);
+PPC_MD_CALL(nvram_read_val);
+PPC_MD_CALL(nvram_write_val);
+PPC_MD_CALL(nvram_write);
+PPC_MD_CALL(nvram_read);
+PPC_MD_CALL(nvram_size);
+PPC_MD_CALL(nvram_sync);
+PPC_MD_CALL(system_reset_exception);
+PPC_MD_CALL(machine_check_exception);
+PPC_MD_CALL(handle_hmi_exception);
+PPC_MD_CALL(hmi_exception_early);
+PPC_MD_CALL(machine_check_early);
+PPC_MD_CALL(mce_check_early_recovery);
+PPC_MD_CALL(feature_call);
+PPC_MD_CALL(pci_get_legacy_ide_irq);
+PPC_MD_CALL(phys_mem_access_prot);
+PPC_MD_CALL(power_save);
+PPC_MD_CALL(enable_pmcs);
+PPC_MD_CALL(set_dabr);
+PPC_MD_CALL(set_dawr);
+#ifdef CONFIG_PPC32
+PPC_MD_CALL(init);
+PPC_MD_CALL(pcibios_after_init);
+#endif
+PPC_MD_CALL(pci_exclude_device);
+PPC_MD_CALL(pcibios_fixup_resources);
+PPC_MD_CALL(pcibios_fixup_bus);
+PPC_MD_CALL(pcibios_fixup_phb);
+PPC_MD_CALL(pcibios_bus_add_device);
+PPC_MD_CALL(pcibios_default_alignment);
+#ifdef CONFIG_PCI_IOV
+PPC_MD_CALL(pcibios_fixup_sriov);
+PPC_MD_CALL(pcibios_iov_resource_alignment);
+PPC_MD_CALL(pcibios_sriov_enable);
+PPC_MD_CALL(pcibios_sriov_disable);
+#endif
+PPC_MD_CALL(machine_shutdown);
+#ifdef CONFIG_KEXEC_CORE
+PPC_MD_CALL(kexec_cpu_down);
+PPC_MD_CALL(machine_kexec);
+#endif
+#ifdef CONFIG_SUSPEND
+PPC_MD_CALL(suspend_disable_irqs);
+PPC_MD_CALL(suspend_enable_irqs);
+#endif
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+PPC_MD_CALL(cpu_probe);
+PPC_MD_CALL(cpu_release);
+#endif
+#ifdef CONFIG_ARCH_RANDOM
+PPC_MD_CALL(get_random_seed);
+#endif
 
 extern void e500_idle(void);
 extern void power4_idle(void);
@@ -248,27 +326,9 @@ extern struct machdep_calls *machine_id;
 		machine_id == &mach_##name; \
 	})
 
-extern void probe_machine(void);
-
-#ifdef CONFIG_PPC_PMAC
-/*
- * Power macintoshes have either a CUDA, PMU or SMU controlling
- * system reset, power, NVRAM, RTC.
- */
-typedef enum sys_ctrler_kind {
-	SYS_CTRLER_UNKNOWN = 0,
-	SYS_CTRLER_CUDA = 1,
-	SYS_CTRLER_PMU = 2,
-	SYS_CTRLER_SMU = 3,
-} sys_ctrler_t;
-extern sys_ctrler_t sys_ctrler;
-
-#endif /* CONFIG_PPC_PMAC */
-
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {
-	if (ppc_md.log_error)
-		ppc_md.log_error(buf, err_type, fatal);
+	ppc_md_call_cond(log_error)(buf, err_type, fatal);
 }
 
 #define __define_machine_initcall(mach, fn, id) \

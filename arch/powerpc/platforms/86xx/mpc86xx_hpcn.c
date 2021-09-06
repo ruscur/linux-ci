@@ -57,11 +57,10 @@ static int mpc86xx_exclude_device(struct pci_controller *hose,
 static void __init
 mpc86xx_hpcn_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc86xx_hpcn_setup_arch()", 0);
+	ppc_md_call_cond(progress)("mpc86xx_hpcn_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
-	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
+	ppc_md_update(pci_exclude_device, mpc86xx_exclude_device);
 #endif
 
 	printk("MPC86xx HPCN board from Freescale Semiconductor\n");
@@ -92,16 +91,21 @@ mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc86xx_hpcn_probe(void)
 {
-	if (of_machine_is_compatible("fsl,mpc8641hpcn"))
-		return 1;	/* Looks good */
+	if (!of_machine_is_compatible("fsl,mpc8641hpcn"))
+		return 0;	/* Looks good */
 
-	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
-	if (of_machine_is_compatible("mpc86xx")) {
-		pr_warn("WARNING: your dts/dtb is old. You must update before the next kernel release.\n");
-		return 1;
-	}
+	ppc_md_update(setup_arch, mpc86xx_hpcn_setup_arch);
+	ppc_md_update(init_IRQ, mpc86xx_init_irq);
+	ppc_md_update(show_cpuinfo, mpc86xx_hpcn_show_cpuinfo);
+	ppc_md_update(get_irq, mpic_get_irq);
+	ppc_md_update(time_init, mpc86xx_time_init);
+	ppc_md_update(calibrate_decr, generic_calibrate_decr);
+	ppc_md_update(progress, udbg_progress);
+#ifdef CONFIG_PCI
+	ppc_md_update(pcibios_fixup_bus, fsl_pcibios_fixup_bus);
+#endif
 
-	return 0;
+	return 1;
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {
@@ -121,14 +125,4 @@ machine_arch_initcall(mpc86xx_hpcn, declare_of_platform_devices);
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",
 	.probe			= mpc86xx_hpcn_probe,
-	.setup_arch		= mpc86xx_hpcn_setup_arch,
-	.init_IRQ		= mpc86xx_init_irq,
-	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
-	.get_irq		= mpic_get_irq,
-	.time_init		= mpc86xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= udbg_progress,
-#ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-#endif
 };
