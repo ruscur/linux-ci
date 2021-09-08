@@ -90,11 +90,20 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Register gcc problem matcher
-      run: echo "::add-matcher::.github/problem-matchers/gcc.json"
+    - name: Load ccache
+      uses: actions/cache@v2
+      with:
+        path: ~/.ccache
+        key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
+
+#   - name: Register gcc problem matcher
+#     run: echo "::add-matcher::.github/problem-matchers/gcc.json"
 
     - name: build
-      run: ./arch/powerpc/tools/ci-build.sh
+      run: |
+        mkdir -p ~/.ccache
+        ls -l ~/.ccache
+        CCACHE=1 ./arch/powerpc/tools/ci-build.sh
 
     - name: Archive artifacts
       uses: actions/upload-artifact@v2
