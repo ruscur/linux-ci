@@ -45,11 +45,34 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Build
-      run: ./arch/powerpc/tools/ci-build.sh
+    - name: Load ccache
+      uses: actions/cache@v2
+      with:
+        path: ~/.ccache
+        key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
 
-    - name: powerpc sparse errors
-      run: grep /linux/arch/powerpc ~/output/sparse.log
+    - name: Build
+      run: |
+        mkdir -p ~/.ccache
+        ls -l ~/.ccache
+        CCACHE=1 ./arch/powerpc/tools/ci-build.sh
+
+    - name: Get sparse results from base tree
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: powerpc-sparse.yml
+        workflow_conclusion: success
+        branch: merge # this is race condition-y.  start simple for now but needs fix
+        name: sparse-${{ matrix.defconfig }}-${{ matrix.image }}.log
+        path: base_logs
+
+    - name: Register sparse problem matcher
+      run: echo "::add-matcher::.github/problem-matchers/sparse.json"
+
+    - name: Compare sparse results with base
+      run: |
+        wget https://github.com/daxtens/smart-sparse-diff/raw/master/smart-sparse-diff.py
+        python3 smart-sparse-diff.py base_logs/sparse.log ~/output/sparse.log | tee -a ~/output/sparse-diff.log
 
     - name: Archive artifacts
       uses: actions/upload-artifact@v2
@@ -57,3 +80,4 @@ jobs:
         name: sparse-${{ matrix.defconfig }}-${{ matrix.image }}.log
         path: |
           ~/output/sparse.log
+          ~/output/sparse-diff.log
