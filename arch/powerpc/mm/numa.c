@@ -1079,6 +1079,73 @@ void __init dump_numa_cpu_topology(void)
 	}
 }
 
+/*
+ * Scheduler expects unique number of node distances to be available at
+ * boot. It uses node distance to calculate this unique node distances. On
+ * POWER, node distances for offline nodes is not available. However, POWER
+ * already knows unique possible node distances. Fake the offline node's
+ * distance_lookup_table entries so that all possible node distances are
+ * updated.
+ */
+static void __init fake_update_distance_lookup_table(void)
+{
+	unsigned long distance_map;
+	int i, cur_depth, max_depth, node;
+
+	if (!numa_enabled)
+		return;
+
+	if (affinity_form != FORM1_AFFINITY)
+		return;
+
+	/*
+	 * distance_ref_points_depth lists the unique numa domains
+	 * available. However it ignore LOCAL_DISTANCE. So add +1
+	 * to get the actual number of unique distances.
+	 */
+	max_depth = distance_ref_points_depth + 1;
+
+	if (max_depth > sizeof(distance_map)) {
+		WARN(1, "Max depth %d > %ld\n", max_depth, sizeof(distance_map));
+		max_depth = sizeof(distance_map);
+	}
+
+	bitmap_zero(&distance_map, max_depth);
+	bitmap_set(&distance_map, 0, 1);
+
+	for_each_online_node(node) {
+		int nd, distance;
+
+		if (node == first_online_node)
+			continue;
+
+		nd = __node_distance(node, first_online_node);
+		for (i = 0, distance = LOCAL_DISTANCE; i < max_depth; i++, distance *= 2) {
+			if (distance == nd) {
+				bitmap_set(&distance_map, i, 1);
+				break;
+			}
+		}
+		cur_depth = bitmap_weight(&distance_map, max_depth);
+		if (cur_depth == max_depth)
+			return;
+	}
+
+	for_each_node(node) {
+		if (node_online(node))
+			continue;
+
+		i = find_first_zero_bit(&distance_map, max_depth);
+		bitmap_set(&distance_map, i, 1);
+		while (i--)
+			distance_lookup_table[node][i] = node;
+
+		cur_depth = bitmap_weight(&distance_map, max_depth);
+		if (cur_depth == max_depth)
+			return;
+	}
+}
+
 /* Initialize NODE_DATA for a node on the local memory */
 static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 {
@@ -1201,6 +1268,7 @@ void __init mem_topology_setup(void)
 		 */
 		numa_setup_cpu(cpu);
 	}
+	fake_update_distance_lookup_table();
 }
 
 void __init initmem_init(void)
