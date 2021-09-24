@@ -10,11 +10,9 @@
 
 #include <asm-generic/sections.h>
 
-extern bool init_mem_is_free;
-
 static inline int arch_is_kernel_initmem_freed(unsigned long addr)
 {
-	if (!init_mem_is_free)
+	if (system_state < SYSTEM_RUNNING)
 		return 0;
 
 	return addr >= (unsigned long)__init_begin &&
