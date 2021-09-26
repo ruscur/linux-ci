@@ -19,7 +19,7 @@ if NET_VENDOR_IBM
 
 config IBMVETH
 	tristate "IBM LAN Virtual Ethernet support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES || COMPILE_TEST
 	help
 	  This driver supports virtual ethernet adapters on newer IBM iSeries
 	  and pSeries systems.
@@ -40,7 +40,7 @@ config EHEA
 
 config IBMVNIC
 	tristate "IBM Virtual NIC support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES || COMPILE_TEST
 	help
 	  This driver supports Virtual NIC adapters on IBM i and IBM System p
 	  systems.
