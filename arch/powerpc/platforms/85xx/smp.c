@@ -40,7 +40,6 @@ struct epapr_spin_table {
 	u32	pir;
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
 static u64 timebase;
 static int tb_req;
 static int tb_valid;
@@ -112,6 +111,7 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void smp_85xx_cpu_offline_self(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -499,17 +499,16 @@ void __init mpc85xx_smp_init(void)
 #ifdef CONFIG_FSL_CORENET_RCPM
 	fsl_rcpm_init();
 #endif
-
-#ifdef CONFIG_FSL_PMC
-	mpc85xx_setup_pmc();
 #endif
+	mpc85xx_setup_pmc();
 	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
+#ifdef CONFIG_HOTPLUG_CPU
 		smp_85xx_ops.cpu_offline_self = smp_85xx_cpu_offline_self;
 		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
-	}
 #endif
+	}
 	smp_ops = &smp_85xx_ops;
 
 #ifdef CONFIG_KEXEC_CORE
