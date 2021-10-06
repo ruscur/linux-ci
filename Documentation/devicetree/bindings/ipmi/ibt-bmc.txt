@@ -1,4 +1,4 @@
-* Aspeed BT (Block Transfer) IPMI interface
+* BT (Block Transfer) IPMI interface
 
 The Aspeed SOCs (AST2400 and AST2500) are commonly used as BMCs
 (BaseBoard Management Controllers) and the BT interface can be used to
@@ -9,6 +9,7 @@ Required properties:
 - compatible : should be one of
 	"aspeed,ast2400-ibt-bmc"
 	"aspeed,ast2500-ibt-bmc"
+	"ibm,microwatt-ibt-bmc"
 - reg: physical address and size of the registers
 
 Optional properties:

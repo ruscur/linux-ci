@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
+#include <linux/of_device.h>
 
 /*
  * This is a BMC device used to communicate to the host
@@ -26,19 +27,25 @@
 #define BT_IO_BASE	0xe4
 #define BT_IRQ		10
 
-#define BT_CR0		0x0
+#define ASPEED_BT_CR0	0x0
 #define   BT_CR0_IO_BASE		16
 #define   BT_CR0_IRQ			12
 #define   BT_CR0_EN_CLR_SLV_RDP		0x8
 #define   BT_CR0_EN_CLR_SLV_WRP		0x4
 #define   BT_CR0_ENABLE_IBT		0x1
-#define BT_CR1		0x4
+#define ASPEED_BT_CR1	0x4
 #define   BT_CR1_IRQ_H2B	0x01
 #define   BT_CR1_IRQ_HBUSY	0x40
-#define BT_CR2		0x8
+#define ASPEED_BT_CR2	0x8
 #define   BT_CR2_IRQ_H2B	0x01
 #define   BT_CR2_IRQ_HBUSY	0x40
-#define BT_CR3		0xc
+#define ASPEED_BT_CR3	0xc
+
+#define MICROWATT_IRQ_MASK	0x0
+#define MICROWATT_IRQ_STATUS	0x4
+#define   IRQ_HOST_TO_BMC_ATTN	0x1
+#define   IRQ_HOST_NOT_BUSY	0x2
+
 #define BT_CTRL		0x10
 #define   BT_CTRL_B_BUSY		0x80
 #define   BT_CTRL_H_BUSY		0x40
@@ -372,13 +379,13 @@ static void poll_timer(struct timer_list *t)
 	add_timer(&bt_bmc->poll_timer);
 }
 
-static irqreturn_t bt_bmc_irq(int irq, void *arg)
+static irqreturn_t aspeed_bt_bmc_irq(int irq, void *arg)
 {
 	struct bt_bmc *bt_bmc = arg;
 	u32 reg;
 	int rc;
 
-	rc = regmap_read(bt_bmc->map, bt_bmc->offset + BT_CR2, &reg);
+	rc = regmap_read(bt_bmc->map, bt_bmc->offset + ASPEED_BT_CR2, &reg);
 	if (rc)
 		return IRQ_NONE;
 
@@ -387,13 +394,34 @@ static irqreturn_t bt_bmc_irq(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* ack pending IRQs */
-	regmap_write(bt_bmc->map, bt_bmc->offset + BT_CR2, reg);
+	regmap_write(bt_bmc->map, bt_bmc->offset + ASPEED_BT_CR2, reg);
 
 	wake_up(&bt_bmc->queue);
 	return IRQ_HANDLED;
 }
 
-static int bt_bmc_config_irq(struct bt_bmc *bt_bmc,
+static irqreturn_t microwatt_bt_bmc_irq(int irq, void *arg)
+{
+	struct bt_bmc *bt_bmc = arg;
+	u32 reg;
+	int rc;
+
+	rc = regmap_read(bt_bmc->map, bt_bmc->offset + MICROWATT_IRQ_STATUS, &reg);
+	if (rc)
+		return IRQ_NONE;
+
+	/* Interrupt wasn't something we knew about */
+	if (!(reg & (IRQ_HOST_TO_BMC_ATTN | IRQ_HOST_NOT_BUSY)))
+		return IRQ_NONE;
+
+	/* ack all pending IRQs */
+	regmap_write(bt_bmc->map, bt_bmc->offset + MICROWATT_IRQ_STATUS, 0);
+
+	wake_up(&bt_bmc->queue);
+	return IRQ_HANDLED;
+}
+
+static int aspeed_bt_bmc_config_irq(struct bt_bmc *bt_bmc,
 			     struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -403,7 +431,7 @@ static int bt_bmc_config_irq(struct bt_bmc *bt_bmc,
 	if (bt_bmc->irq < 0)
 		return bt_bmc->irq;
 
-	rc = devm_request_irq(dev, bt_bmc->irq, bt_bmc_irq, IRQF_SHARED,
+	rc = devm_request_irq(dev, bt_bmc->irq, aspeed_bt_bmc_irq, IRQF_SHARED,
 			      DEVICE_NAME, bt_bmc);
 	if (rc < 0) {
 		dev_warn(dev, "Unable to request IRQ %d\n", bt_bmc->irq);
@@ -417,21 +445,88 @@ static int bt_bmc_config_irq(struct bt_bmc *bt_bmc,
 	 * will be cleared (along with B2H) when we can write the next
 	 * message to the BT buffer
 	 */
-	rc = regmap_update_bits(bt_bmc->map, bt_bmc->offset + BT_CR1,
+	rc = regmap_update_bits(bt_bmc->map, bt_bmc->offset + ASPEED_BT_CR1,
 				(BT_CR1_IRQ_H2B | BT_CR1_IRQ_HBUSY),
 				(BT_CR1_IRQ_H2B | BT_CR1_IRQ_HBUSY));
 
 	return rc;
 }
 
+static void aspeed_enable_bt(struct bt_bmc *bt_bmc)
+{
+	regmap_write(bt_bmc->map, bt_bmc->offset + ASPEED_BT_CR0,
+		     (BT_IO_BASE << BT_CR0_IO_BASE) |
+		     (BT_IRQ << BT_CR0_IRQ) |
+		     BT_CR0_EN_CLR_SLV_RDP |
+		     BT_CR0_EN_CLR_SLV_WRP |
+		     BT_CR0_ENABLE_IBT);
+}
+
+struct bt_bmc_ops {
+	int (*config_irq)(struct bt_bmc *bt_bmc, struct platform_device *pdev);
+	void (*enable_bt)(struct bt_bmc *bt_bmc);
+};
+
+static const struct bt_bmc_ops aspeed_bt_bmc_ops = {
+	.config_irq = aspeed_bt_bmc_config_irq,
+	.enable_bt = aspeed_enable_bt,
+};
+
+static int microwatt_bt_bmc_config_irq(struct bt_bmc *bt_bmc,
+			     struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	int rc;
+
+	bt_bmc->irq = platform_get_irq_optional(pdev, 0);
+	if (bt_bmc->irq < 0)
+		return bt_bmc->irq;
+
+	rc = devm_request_irq(dev, bt_bmc->irq, microwatt_bt_bmc_irq, IRQF_SHARED,
+			      DEVICE_NAME, bt_bmc);
+	if (rc < 0) {
+		dev_warn(dev, "Unable to request IRQ %d\n", bt_bmc->irq);
+		bt_bmc->irq = rc;
+		return rc;
+	}
+
+	/*
+	 * Configure the hardware to give us an interrupt whenever the H2B
+	 * bit is set or the HBUSY bit is cleared.
+	 *
+	 * H2B will be asserted when the bmc has data for us; HBUSY
+	 * will be cleared (along with B2H) when we can write the next
+	 * message to the BT buffer
+	 */
+	rc = regmap_update_bits(bt_bmc->map, bt_bmc->offset + MICROWATT_IRQ_MASK,
+				(IRQ_HOST_TO_BMC_ATTN | IRQ_HOST_NOT_BUSY),
+				(IRQ_HOST_TO_BMC_ATTN | IRQ_HOST_NOT_BUSY));
+
+	return rc;
+}
+
+static void microwatt_enable_bt(struct bt_bmc *bt_bmc)
+{
+}
+
+static const struct bt_bmc_ops microwatt_bt_bmc_ops = {
+	.config_irq = microwatt_bt_bmc_config_irq,
+	.enable_bt = microwatt_enable_bt,
+};
+
 static int bt_bmc_probe(struct platform_device *pdev)
 {
 	struct bt_bmc *bt_bmc;
 	struct device *dev;
 	int rc;
+	const struct bt_bmc_ops *ops;
 
 	dev = &pdev->dev;
 	dev_info(dev, "Found bt bmc device\n");
+
+	ops = of_device_get_match_data(&pdev->dev);
+	if (!ops)
+		return -ENODEV;
 
 	bt_bmc = devm_kzalloc(dev, sizeof(*bt_bmc), GFP_KERNEL);
 	if (!bt_bmc)
@@ -472,7 +567,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	bt_bmc_config_irq(bt_bmc, pdev);
+	ops->config_irq(bt_bmc, pdev);
 
 	if (bt_bmc->irq >= 0) {
 		dev_info(dev, "Using IRQ %d\n", bt_bmc->irq);
@@ -483,12 +578,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 		add_timer(&bt_bmc->poll_timer);
 	}
 
-	regmap_write(bt_bmc->map, bt_bmc->offset + BT_CR0,
-		     (BT_IO_BASE << BT_CR0_IO_BASE) |
-		     (BT_IRQ << BT_CR0_IRQ) |
-		     BT_CR0_EN_CLR_SLV_RDP |
-		     BT_CR0_EN_CLR_SLV_WRP |
-		     BT_CR0_ENABLE_IBT);
+	ops->enable_bt(bt_bmc);
 
 	clr_b_busy(bt_bmc);
 
@@ -506,8 +596,9 @@ static int bt_bmc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id bt_bmc_match[] = {
-	{ .compatible = "aspeed,ast2400-ibt-bmc" },
-	{ .compatible = "aspeed,ast2500-ibt-bmc" },
+	{ .compatible = "aspeed,ast2400-ibt-bmc", .data = &aspeed_bt_bmc_ops },
+	{ .compatible = "aspeed,ast2500-ibt-bmc", .data = &aspeed_bt_bmc_ops },
+	{ .compatible = "ibm,microwatt-ibt-bmc", .data = &microwatt_bt_bmc_ops },
 	{ },
 };
 
