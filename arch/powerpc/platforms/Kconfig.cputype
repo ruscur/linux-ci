@@ -31,7 +31,6 @@ config PPC_BOOK3S_32
 	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
@@ -43,7 +42,6 @@ config PPC_8xx
 	select ARCH_SUPPORTS_HUGETLBFS
 	select FSL_SOC
 	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	select HAVE_ARCH_VMAP_STACK
 	select HUGETLBFS
 
@@ -107,7 +105,6 @@ config PPC_BOOK3S_64
 	select IRQ_WORK
 	select PPC_MM_SLICES
 	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -278,6 +275,11 @@ config BOOKE
 	depends on E500 || 44x || PPC_BOOK3E
 	default y
 
+config BOOKE_OR_40x
+	bool
+	depends on BOOKE || 40x
+	default y
+
 config FSL_BOOKE
 	bool
 	depends on E500 && PPC32
@@ -399,12 +401,8 @@ config PPC_KUEP
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUAP
-	bool
-
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
-	depends on PPC_HAVE_KUAP
 	default y
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
