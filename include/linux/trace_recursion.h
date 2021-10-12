@@ -214,7 +214,14 @@ static __always_inline void trace_clear_recursion(int bit)
 static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
 							 unsigned long parent_ip)
 {
-	return trace_test_and_set_recursion(ip, parent_ip, TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+	int bit;
+
+	preempt_disable_notrace();
+	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+	if (bit < 0)
+		preempt_enable_notrace();
+
+	return bit;
 }
 
 /**
@@ -226,6 +233,7 @@ static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
 static __always_inline void ftrace_test_recursion_unlock(int bit)
 {
 	trace_clear_recursion(bit);
+	preempt_enable_notrace();
 }
 
 #endif /* CONFIG_TRACING */
