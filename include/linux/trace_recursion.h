@@ -214,7 +214,18 @@ static __always_inline void trace_clear_recursion(int bit)
 static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
 							 unsigned long parent_ip)
 {
-	return trace_test_and_set_recursion(ip, parent_ip, TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+	int bit;
+
+	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+	/*
+	 * The zero bit indicate we are nested
+	 * in another trylock(), which means the
+	 * preemption already disabled.
+	 */
+	if (bit > 0)
+		preempt_disable_notrace();
+
+	return bit;
 }
 
 /**
@@ -222,9 +233,13 @@ static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
  * @bit: The return of a successful ftrace_test_recursion_trylock()
  *
  * This is used at the end of a ftrace callback.
+ *
+ * Preemption will be enabled (if it was previously enabled).
  */
 static __always_inline void ftrace_test_recursion_unlock(int bit)
 {
+	if (bit)
+		preempt_enable_notrace();
 	trace_clear_recursion(bit);
 }
 
