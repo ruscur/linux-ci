@@ -1036,6 +1036,16 @@
 			The filter can be disabled or changed to another
 			driver later using sysfs.
 
+	doorbell=off	[PPC]
+			On processors with a XIVE interrupt controller
+			(POWER9 and above), the kernel can use either
+			doorbells or XIVE to generate CPU IPIs.	Sending
+			doorbell is generally preferred to using the XIVE
+			IC because it is faster. There are cases where
+			we want to avoid doorbells and use XIVE only,
+			for debug or performance. Only useful on
+			POWER9 and above.
+
 	driver_async_probe=  [KNL]
 			List of driver names to be probed asynchronously.
 			Format: <driver_name1>,<driver_name2>...
@@ -6400,6 +6410,12 @@
 			off       Fallback to firmware control of XIVE interrupt
 				  controller on both pseries and powernv
 				  platforms. Only useful on POWER9 and above.
+
+	xive.store-eoi=off	[PPC]
+			By default on POWER10 and above, the kernel will use
+			stores for EOI handling when the XIVE interrupt mode
+			is active. This option allows the XIVE driver to use
+			loads instead, as on POWER9.
 
 	xhci-hcd.quirks		[USB,KNL]
 			A hex value specifying bitmask with supplemental xhci
