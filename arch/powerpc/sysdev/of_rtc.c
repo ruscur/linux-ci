@@ -44,6 +44,7 @@ void __init of_instantiate_rtc(void)
 				printk(KERN_ERR "OF RTC: Error "
 				       "translating resources for %pOF\n",
 				       node);
+				kfree(res);
 				continue;
 			}
 
