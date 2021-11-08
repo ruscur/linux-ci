@@ -597,6 +597,9 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 		irq_work_run();
 	}
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	mce_run_late_handlers();
+#endif
 	now = get_tb();
 	if (now >= *next_tb) {
 		*next_tb = ~(u64)0;
