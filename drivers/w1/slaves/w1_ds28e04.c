@@ -339,10 +339,7 @@ static BIN_ATTR_RW(pio, 1);
 static ssize_t crccheck_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	if (put_user(w1_enable_crccheck + 0x30, buf))
-		return -EFAULT;
-
-	return sizeof(w1_enable_crccheck);
+	return sprintf(buf, "%d", w1_enable_crccheck);
 }
 
 static ssize_t crccheck_store(struct device *dev, struct device_attribute *attr,
@@ -353,11 +350,8 @@ static ssize_t crccheck_store(struct device *dev, struct device_attribute *attr,
 	if (count != 1 || !buf)
 		return -EINVAL;
 
-	if (get_user(val, buf))
-		return -EFAULT;
-
 	/* convert to decimal */
-	val = val - 0x30;
+	val = *buf - 0x30;
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
