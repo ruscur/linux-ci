@@ -31,6 +31,7 @@
 #include <linux/percpu.h>
 #include <linux/memblock.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
 #include <asm/io.h>
@@ -839,6 +840,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Set a half-reasonable default so udelay does something sensible */
 	loops_per_jiffy = 500000000 / HZ;
+
+	of_reserved_mem_init();
 
 	/* Unflatten the device-tree passed by prom_init or kexec */
 	unflatten_device_tree();

@@ -32,6 +32,7 @@
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/device.h>
 
 #include <asm/sections.h>
@@ -298,6 +299,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 	paging_init();
+
+	of_reserved_mem_init();
 
 	*cmdline_p = boot_command_line;
 

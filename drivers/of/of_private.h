@@ -163,8 +163,14 @@ static inline int of_dma_get_range(struct device_node *np,
 }
 #endif
 
-void fdt_init_reserved_mem(void);
-void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
-			       phys_addr_t base, phys_addr_t size);
+bool of_fdt_device_is_available(const void *blob, unsigned long node);
+int early_init_dt_reserve_memory_arch(phys_addr_t base,
+					phys_addr_t size, bool nomap);
+#ifdef CONFIG_OF_RESERVED_MEM
+int fdt_scan_reserved_mem(void);
+#else
+static inline int fdt_scan_reserved_mem(void) { }
+#endif
+
 
 #endif /* _LINUX_OF_PRIVATE_H */

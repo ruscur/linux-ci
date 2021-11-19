@@ -27,6 +27,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/dmi.h>
 #include <linux/crash_dump.h>
 
@@ -775,6 +776,8 @@ void __init setup_arch(char **cmdline_p)
 
 	cpu_cache_init();
 	paging_init();
+
+	of_reserved_mem_init();
 
 	memblock_dump_all();
 }

@@ -20,6 +20,7 @@
 #include <linux/kexec.h>
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -1153,6 +1154,7 @@ void __init setup_arch(char **cmdline_p)
 	early_ioremap_reset();
 
 	paging_init(mdesc);
+	of_reserved_mem_init();
 	kasan_init();
 	request_standard_resources(mdesc);
 

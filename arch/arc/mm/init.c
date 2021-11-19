@@ -10,6 +10,7 @@
 #include <linux/initrd.h>
 #endif
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
@@ -164,6 +165,8 @@ void __init setup_arch_memory(void)
 	max_mapnr = max_low_pfn - min_low_pfn;
 
 #endif /* CONFIG_HIGHMEM */
+
+	of_reserved_mem_init();
 
 	free_area_init(max_zone_pfn);
 }

@@ -6,6 +6,7 @@
 #include <linux/initrd.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/start_kernel.h>
 #include <linux/dma-map-ops.h>
 #include <linux/screen_info.h>
@@ -63,6 +64,8 @@ static void __init csky_memblock_init(void)
 	highend_pfn   = max_pfn;
 #endif
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
+
+	of_reserved_mem_init();
 
 	dma_contiguous_reserve(0);
 

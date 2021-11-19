@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/proc-fns.h>
@@ -300,6 +301,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 	paging_init();
+
+	of_reserved_mem_init();
 
 	/* invalidate all TLB entries because the new mapping is created */
 	__nds32__tlbop_flua();

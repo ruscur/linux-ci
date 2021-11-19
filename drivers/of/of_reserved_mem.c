@@ -20,14 +20,14 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
 #include <linux/slab.h>
+#include <linux/libfdt.h>
 #include <linux/memblock.h>
 #include <linux/kmemleak.h>
 
 #include "of_private.h"
 
-#define MAX_RESERVED_REGIONS	64
-static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
-static int reserved_mem_count;
+static struct reserved_mem *reserved_mems;
+static int reserved_mem_count, reserved_mem_max_count;
 
 static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
@@ -56,12 +56,12 @@ static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 /*
  * fdt_reserved_mem_save_node() - save fdt node for second pass initialization
  */
-void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
+static void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 				      phys_addr_t base, phys_addr_t size)
 {
-	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
+	struct reserved_mem *rmem = &reserved_mems[reserved_mem_count];
 
-	if (reserved_mem_count == ARRAY_SIZE(reserved_mem)) {
+	if (reserved_mem_count == reserved_mem_max_count) {
 		pr_err("not enough space for all defined regions.\n");
 		return;
 	}
@@ -173,29 +173,116 @@ static const struct of_device_id __rmem_of_table_sentinel
 	__used __section("__reservedmem_of_table_end");
 
 /*
- * __reserved_mem_init_node() - call region specific reserved memory init code
+ * __reserved_mem_check_root() - check if #size-cells, #address-cells provided
+ * in /reserved-memory matches the values supported by the current implementation,
+ * also check if ranges property has been provided
  */
-static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
+static int __init __reserved_mem_check_root(unsigned long node)
 {
-	extern const struct of_device_id __reservedmem_of_table[];
-	const struct of_device_id *i;
-	int ret = -ENOENT;
+	const __be32 *prop;
 
-	for (i = __reservedmem_of_table; i < &__rmem_of_table_sentinel; i++) {
-		reservedmem_of_init_fn initfn = i->data;
-		const char *compat = i->compatible;
+	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
+	if (!prop || be32_to_cpup(prop) != dt_root_size_cells)
+		return -EINVAL;
 
-		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
-			continue;
+	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
+	if (!prop || be32_to_cpup(prop) != dt_root_addr_cells)
+		return -EINVAL;
 
-		ret = initfn(rmem);
-		if (ret == 0) {
-			pr_info("initialized node %s, compatible id %s\n",
-				rmem->name, compat);
+	prop = of_get_flat_dt_prop(node, "ranges", NULL);
+	if (!prop)
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * __reserved_mem_reserve_reg() - reserve all memory described in 'reg' property
+ */
+static int __init __reserved_mem_reserve_reg(unsigned long node,
+					     const char *uname, bool reserve_only)
+{
+	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
+	phys_addr_t base, size;
+	int len;
+	const __be32 *prop;
+	bool nomap;
+
+	prop = of_get_flat_dt_prop(node, "reg", &len);
+	if (!prop)
+		return -ENOENT;
+
+	if (len && len % t_len != 0) {
+		pr_err("Reserved memory: invalid reg property in '%s', skipping node.\n",
+		       uname);
+		return -EINVAL;
+	}
+
+	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
+
+	while (len >= t_len) {
+		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
+		size = dt_mem_next_cell(dt_root_size_cells, &prop);
+
+		if (reserve_only) {
+			if (size &&
+				early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
+				pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
+					uname, &base, (unsigned long)(size / SZ_1M));
+			else
+				pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
+					uname, &base, (unsigned long)(size / SZ_1M));
+		} else {
+			fdt_reserved_mem_save_node(node, uname, base, size);
 			break;
 		}
+		len -= t_len;
 	}
-	return ret;
+	return 0;
+}
+
+/*
+ * fdt_scan_reserved_mem() - scan /reserved-memory node
+ *
+ * Get the max count of regions in the first pass. Early allocator is
+ * not fully available yet. Store information of reserved region to
+ * reserved_mems array in the second pass.
+ */
+int __init fdt_scan_reserved_mem(void)
+{
+	int node, child, regions = 0;
+	const void *fdt = initial_boot_params;
+	static bool first = true;
+
+	node = fdt_path_offset(fdt, "/reserved-memory");
+	if (node < 0)
+		return -ENODEV;
+
+	if (__reserved_mem_check_root(node) != 0) {
+		pr_err("Reserved memory: unsupported node format, ignoring\n");
+		return -EINVAL;
+	}
+
+	fdt_for_each_subnode(child, fdt, node) {
+		const char *uname;
+		int err;
+
+		if (!of_fdt_device_is_available(fdt, child))
+			continue;
+
+		regions++;
+		uname = fdt_get_name(fdt, child, NULL);
+
+		err = __reserved_mem_reserve_reg(child, uname, first);
+		if (err == -ENOENT && of_get_flat_dt_prop(child, "size", NULL) && !first)
+			fdt_reserved_mem_save_node(child, uname, 0, 0);
+	}
+
+	if (first) {
+		reserved_mem_max_count = regions;
+		first = false;
+	}
+
+	return 0;
 }
 
 static int __init __rmem_cmp(const void *a, const void *b)
@@ -228,13 +315,13 @@ static void __init __rmem_check_for_overlap(void)
 	if (reserved_mem_count < 2)
 		return;
 
-	sort(reserved_mem, reserved_mem_count, sizeof(reserved_mem[0]),
+	sort(reserved_mems, reserved_mem_count, sizeof(reserved_mems[0]),
 	     __rmem_cmp, NULL);
 	for (i = 0; i < reserved_mem_count - 1; i++) {
 		struct reserved_mem *this, *next;
 
-		this = &reserved_mem[i];
-		next = &reserved_mem[i + 1];
+		this = &reserved_mems[i];
+		next = &reserved_mems[i + 1];
 
 		if (this->base + this->size > next->base) {
 			phys_addr_t this_end, next_end;
@@ -248,18 +335,58 @@ static void __init __rmem_check_for_overlap(void)
 	}
 }
 
-/**
- * fdt_init_reserved_mem() - allocate and init all saved reserved memory regions
+/*
+ * __reserved_mem_init_node() - call region specific reserved memory init code
  */
-void __init fdt_init_reserved_mem(void)
+static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
+{
+	extern const struct of_device_id __reservedmem_of_table[];
+	const struct of_device_id *i;
+	int ret = -ENOENT;
+
+	for (i = __reservedmem_of_table; i < &__rmem_of_table_sentinel; i++) {
+		reservedmem_of_init_fn initfn = i->data;
+		const char *compat = i->compatible;
+
+		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
+			continue;
+
+		ret = initfn(rmem);
+		if (ret == 0) {
+			pr_info("initialized node %s, compatible id %s\n",
+				rmem->name, compat);
+			break;
+		}
+	}
+	return ret;
+}
+
+/**
+ * of_reserved_mem_init() - allocate and init all saved reserved memory regions
+ */
+void __init of_reserved_mem_init(void)
 {
 	int i;
+
+	if (!reserved_mem_max_count)
+		return;
+
+	reserved_mems = memblock_alloc(
+			sizeof(struct reserved_mem) * reserved_mem_max_count,
+			SMP_CACHE_BYTES);
+	if (!reserved_mems) {
+		reserved_mem_max_count = 0;
+		pr_err("failed to allocate reserved_mems array.\n");
+		return;
+	}
+
+	fdt_scan_reserved_mem();
 
 	/* check for overlapping reserved regions */
 	__rmem_check_for_overlap();
 
 	for (i = 0; i < reserved_mem_count; i++) {
-		struct reserved_mem *rmem = &reserved_mem[i];
+		struct reserved_mem *rmem = &reserved_mems[i];
 		unsigned long node = rmem->fdt_node;
 		int len;
 		const __be32 *prop;
@@ -299,8 +426,8 @@ static inline struct reserved_mem *__find_rmem(struct device_node *node)
 		return NULL;
 
 	for (i = 0; i < reserved_mem_count; i++)
-		if (reserved_mem[i].phandle == node->phandle)
-			return &reserved_mem[i];
+		if (reserved_mems[i].phandle == node->phandle)
+			return &reserved_mems[i];
 	return NULL;
 }
 
@@ -442,8 +569,8 @@ struct reserved_mem *of_reserved_mem_lookup(struct device_node *np)
 
 	name = kbasename(np->full_name);
 	for (i = 0; i < reserved_mem_count; i++)
-		if (!strcmp(reserved_mem[i].name, name))
-			return &reserved_mem[i];
+		if (!strcmp(reserved_mems[i].name, name))
+			return &reserved_mems[i];
 
 	return NULL;
 }

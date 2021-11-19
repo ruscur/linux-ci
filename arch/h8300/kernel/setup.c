@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/clk-provider.h>
 #include <linux/memblock.h>
 #include <linux/screen_info.h>
@@ -87,6 +88,7 @@ static void __init bootmem_init(void)
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
+	of_reserved_mem_init();
 
 	memblock_dump_all();
 }

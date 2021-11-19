@@ -19,6 +19,7 @@
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/screen_info.h>
 
 #include <asm/mmu_context.h>
@@ -173,6 +174,7 @@ void __init setup_arch(char **cmdline_p)
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
+	of_reserved_mem_init();
 
 	unflatten_and_copy_device_tree();
 

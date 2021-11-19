@@ -16,6 +16,7 @@
 #include <linux/screen_info.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/sched/task.h>
 #include <linux/smp.h>
 #include <linux/efi.h>
@@ -273,6 +274,7 @@ void __init setup_arch(char **cmdline_p)
 
 	efi_init();
 	paging_init();
+	of_reserved_mem_init();
 #if IS_ENABLED(CONFIG_BUILTIN_DTB)
 	unflatten_and_copy_device_tree();
 #else

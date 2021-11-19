@@ -31,6 +31,7 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/mount.h>
 #include <asm/io.h>
@@ -325,6 +326,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Let earlyprintk output early console messages */
 	sh_early_platform_driver_probe("earlyprintk", 1, 1);
+
+	of_reserved_mem_init();
 
 #ifdef CONFIG_OF_FLATTREE
 #ifdef CONFIG_USE_BUILTIN_DTB
