@@ -161,6 +161,7 @@ static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
 
 	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
 	if (map_patch_area(addr, text_poke_addr)) {
+		WARN_ON_ONCE(1);
 		err = -1;
 		goto out;
 	}
@@ -187,11 +188,15 @@ static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
+static bool skip_addr_verif = false;
+
 int patch_instruction(u32 *addr, struct ppc_inst instr)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (!kernel_text_address((unsigned long)addr))
+	if (!skip_addr_verif && !kernel_text_address((unsigned long)addr)) {
+		WARN_ON_ONCE(1);
 		return 0;
+	}
 
 	return do_patch_instruction(addr, instr);
 }
@@ -417,9 +422,11 @@ static void __init test_branch_iform(void)
 {
 	int err;
 	struct ppc_inst instr;
-	u32 tmp[2];
-	u32 *iptr = tmp;
-	unsigned long addr = (unsigned long)tmp;
+	u32 *iptr;
+	unsigned long addr;
+
+	iptr = (u32 *)ppc_function_entry(test_trampoline);
+	addr = (unsigned long)iptr;
 
 	/* The simplest case, branch to self, no flags */
 	check(instr_is_branch_iform(ppc_inst(0x48000000)));
@@ -511,12 +518,12 @@ static void __init test_create_function_call(void)
 static void __init test_branch_bform(void)
 {
 	int err;
-	unsigned long addr;
 	struct ppc_inst instr;
-	u32 tmp[2];
-	u32 *iptr = tmp;
+	u32 *iptr;
+	unsigned long addr;
 	unsigned int flags;
 
+	iptr = (u32 *)ppc_function_entry(test_trampoline);
 	addr = (unsigned long)iptr;
 
 	/* The simplest case, branch to self, no flags */
@@ -597,6 +604,12 @@ static void __init test_translate_branch(void)
 	check(buf);
 	if (!buf)
 		return;
+
+	/*
+	 * Have to disable the address bounds check for patch_instruction
+	 * because we are patching vmalloc space here.
+	 */
+	skip_addr_verif = true;
 
 	/* Simple case, branch to self moved a little */
 	p = buf;
@@ -709,6 +722,8 @@ static void __init test_translate_branch(void)
 	patch_instruction(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
+
+	skip_addr_verif = false;
 
 	/* Free the buffer we were using */
 	vfree(buf);
