@@ -12,19 +12,25 @@ bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size)
 	return is_kernel_addr((unsigned long)unsafe_src);
 }
 
-int copy_inst_from_kernel_nofault(struct ppc_inst *inst, u32 *src)
+int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
 {
 	unsigned int val, suffix;
-	int err;
 
-	err = copy_from_kernel_nofault(&val, src, sizeof(val));
-	if (err)
-		return err;
+	if (unlikely(!is_kernel_addr((unsigned long)src)))
+		return -ERANGE;
+
+	pagefault_disable();
+	__get_kernel_nofault(&val, src, u32, Efault);
 	if (IS_ENABLED(CONFIG_PPC64) && get_op(val) == OP_PREFIX) {
-		err = copy_from_kernel_nofault(&suffix, src + 1, sizeof(suffix));
+		__get_kernel_nofault(&suffix, src + 1, u32, Efault);
+		pagefault_enable();
 		*inst = ppc_inst_prefix(val, suffix);
 	} else {
+		pagefault_enable();
 		*inst = ppc_inst(val);
 	}
-	return err;
+	return 0;
+Efault:
+	pagefault_enable();
+	return -EFAULT;
 }
