@@ -39,13 +39,11 @@ copy_oldmem_page(unsigned long pfn, char *buf,
 
 	if (!csize)
 		return 0;
+
 	vaddr = __va(pfn<<PAGE_SHIFT);
-	if (userbuf) {
-		if (copy_to_user(buf, (vaddr + offset), csize)) {
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, (vaddr + offset), csize);
+	if (copy_to(buf, vaddr + offset, csize, userbuf))
+		return -EFAULT;
+
 	return csize;
 }
 

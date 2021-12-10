@@ -24,13 +24,8 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		return 0;
 
 	vaddr = kmap_local_pfn(pfn);
-
-	if (!userbuf) {
-		memcpy(buf, vaddr + offset, csize);
-	} else {
-		if (copy_to_user(buf, vaddr + offset, csize))
-			csize = -EFAULT;
-	}
+	if (copy_to(buf, vaddr + offset, csize, userbuf))
+		csize = -EFAULT;
 
 	kunmap_local(vaddr);
 

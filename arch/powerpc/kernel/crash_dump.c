@@ -71,11 +71,8 @@ void __init setup_kdump_trampoline(void)
 static size_t copy_oldmem_vaddr(void *vaddr, char *buf, size_t csize,
                                unsigned long offset, int userbuf)
 {
-	if (userbuf) {
-		if (copy_to_user((char __user *)buf, (vaddr + offset), csize))
-			return -EFAULT;
-	} else
-		memcpy(buf, (vaddr + offset), csize);
+	if (copy_to(buf, vaddr + offset, csize, userbuf))
+		return -EFAULT;
 
 	return csize;
 }

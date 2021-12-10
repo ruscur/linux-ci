@@ -29,13 +29,8 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 	if (!vaddr)
 		return -ENOMEM;
 
-	if (userbuf) {
-		if (copy_to_user((void __user *)buf, vaddr + offset, csize)) {
-			iounmap((void __iomem *)vaddr);
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, vaddr + offset, csize);
+	if (copy_to(buf, vaddr + offset, csize, userbuf))
+		csize = -EFAULT;
 
 	set_iounmap_nonlazy();
 	iounmap((void __iomem *)vaddr);

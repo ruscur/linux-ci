@@ -201,6 +201,20 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 
+/*
+ * Copy to either kernel or user space
+ */
+static inline int copy_to(void *target, void *src, size_t size, int userbuf)
+{
+	if (userbuf) {
+		if (copy_to_user((char __user *) target, src, size))
+			return -EFAULT;
+	} else {
+		memcpy(target, src, size);
+	}
+	return 0;
+}
+
 #ifndef copy_mc_to_kernel
 /*
  * Without arch opt-in this generic copy_mc_to_kernel() will not handle
