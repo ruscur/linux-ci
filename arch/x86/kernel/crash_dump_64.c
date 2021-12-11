@@ -13,7 +13,7 @@
 #include <linux/cc_platform.h>
 
 static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
-				  unsigned long offset, int userbuf,
+				  unsigned long offset, bool userbuf,
 				  bool encrypted)
 {
 	void  *vaddr;
@@ -29,13 +29,8 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 	if (!vaddr)
 		return -ENOMEM;
 
-	if (userbuf) {
-		if (copy_to_user((void __user *)buf, vaddr + offset, csize)) {
-			iounmap((void __iomem *)vaddr);
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, vaddr + offset, csize);
+	if (copy_to_user_or_kernel(buf, vaddr + offset, csize, userbuf))
+		csize = -EFAULT;
 
 	set_iounmap_nonlazy();
 	iounmap((void __iomem *)vaddr);
@@ -56,7 +51,7 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
  * mapped in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
-			 unsigned long offset, int userbuf)
+			 unsigned long offset, bool userbuf)
 {
 	return __copy_oldmem_page(pfn, buf, csize, offset, userbuf, false);
 }
@@ -67,7 +62,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
  * machines.
  */
 ssize_t copy_oldmem_page_encrypted(unsigned long pfn, char *buf, size_t csize,
-				   unsigned long offset, int userbuf)
+				   unsigned long offset, bool userbuf)
 {
 	return __copy_oldmem_page(pfn, buf, csize, offset, userbuf, true);
 }

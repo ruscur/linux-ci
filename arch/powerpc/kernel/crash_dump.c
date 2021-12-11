@@ -69,13 +69,10 @@ void __init setup_kdump_trampoline(void)
 #endif /* CONFIG_NONSTATIC_KERNEL */
 
 static size_t copy_oldmem_vaddr(void *vaddr, char *buf, size_t csize,
-                               unsigned long offset, int userbuf)
+				unsigned long offset, bool userbuf)
 {
-	if (userbuf) {
-		if (copy_to_user((char __user *)buf, (vaddr + offset), csize))
-			return -EFAULT;
-	} else
-		memcpy(buf, (vaddr + offset), csize);
+	if (copy_to_user_or_kernel(buf, vaddr + offset, csize, userbuf))
+		return -EFAULT;
 
 	return csize;
 }
@@ -94,7 +91,7 @@ static size_t copy_oldmem_vaddr(void *vaddr, char *buf, size_t csize,
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
-			size_t csize, unsigned long offset, int userbuf)
+			size_t csize, unsigned long offset, bool userbuf)
 {
 	void  *vaddr;
 	phys_addr_t paddr;

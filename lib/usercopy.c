@@ -90,3 +90,18 @@ err_fault:
 	return -EFAULT;
 }
 EXPORT_SYMBOL(check_zeroed_user);
+
+/*
+ * Copy to either user or kernel space
+ */
+int copy_to_user_or_kernel(void *target, void *src, size_t size, bool userbuf)
+{
+	if (userbuf) {
+		if (copy_to_user((char __user *) target, src, size))
+			return -EFAULT;
+	} else {
+		memcpy(target, src, size);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(copy_to_user_or_kernel);

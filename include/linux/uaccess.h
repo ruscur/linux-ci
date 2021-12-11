@@ -283,6 +283,7 @@ __copy_from_user_inatomic_nocache(void *to, const void __user *from,
 #endif		/* ARCH_HAS_NOCACHE_UACCESS */
 
 extern __must_check int check_zeroed_user(const void __user *from, size_t size);
+extern __must_check int copy_to_user_or_kernel(void *target, void *src, size_t size, bool userbuf);
 
 /**
  * copy_struct_from_user: copy a struct from userspace
