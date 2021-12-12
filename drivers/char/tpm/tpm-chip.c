@@ -101,6 +101,9 @@ int tpm_chip_start(struct tpm_chip *chip)
 {
 	int ret;
 
+	if (!chip->ops)
+		return -EINVAL;
+
 	tpm_clk_enable(chip);
 
 	if (chip->locality == -1) {
