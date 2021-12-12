@@ -232,8 +232,9 @@ void *patch_memory(void *dest, const void *src, size_t size)
 	     bytes_written < size;
 	     bytes_written += write_size) {
 		// Write as much as possible without crossing a page boundary.
-		write_size = min(size - bytes_written,
-				 PAGE_SIZE - offset_in_page(dest + bytes_written));
+		write_size = min_t(size_t,
+				   size - bytes_written,
+				   PAGE_SIZE - offset_in_page(dest + bytes_written));
 
 		if (do_patch_memory(dest + bytes_written,
 				    src + bytes_written,
