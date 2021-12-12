@@ -722,8 +722,10 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 	gpt->dev = &ofdev->dev;
 	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
 	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
-	if (!gpt->regs)
+	if (!gpt->regs) {
+		devm_kfree(&ofdev->dev, gpt);
 		return -ENOMEM;
+	}
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 
