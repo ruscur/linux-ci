@@ -896,7 +896,8 @@ out:
 	return tg;
 }
 
-static int update_mask_from_threadgroup(cpumask_var_t *mask, struct thread_groups *tg, int cpu, int cpu_group_start)
+static int __init update_mask_from_threadgroup(cpumask_var_t *mask, struct thread_groups *tg,
+					       int cpu, int cpu_group_start)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i;
@@ -1642,7 +1643,7 @@ int setup_profiling_timer(unsigned int multiplier)
 }
 #endif
 
-static void fixup_topology(void)
+static void __init fixup_topology(void)
 {
 	int i;
 

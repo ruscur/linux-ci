@@ -32,7 +32,7 @@ void setup_panic(void);
 extern bool pseries_enable_reloc_on_exc(void);
 extern void pseries_disable_reloc_on_exc(void);
 extern void pseries_big_endian_exceptions(void);
-extern void pseries_little_endian_exceptions(void);
+void __init pseries_little_endian_exceptions(void);
 #else
 static inline bool pseries_enable_reloc_on_exc(void) { return false; }
 static inline void pseries_disable_reloc_on_exc(void) {}
@@ -55,7 +55,7 @@ void setup_entry_flush(bool enable);
 void setup_uaccess_flush(bool enable);
 void do_rfi_flush_fixups(enum l1d_flush_type types);
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
-void setup_barrier_nospec(void);
+void __init setup_barrier_nospec(void);
 #else
 static inline void setup_barrier_nospec(void) { }
 #endif
@@ -71,11 +71,11 @@ static inline void do_barrier_nospec_fixups_range(bool enable, void *start, void
 #endif
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-void setup_spectre_v2(void);
+void __init setup_spectre_v2(void);
 #else
 static inline void setup_spectre_v2(void) {}
 #endif
-void do_btb_flush_fixups(void);
+void __init do_btb_flush_fixups(void);
 
 #endif /* !__ASSEMBLY__ */
 
