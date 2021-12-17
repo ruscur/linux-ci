@@ -460,6 +460,7 @@ extern void clear_shadow_from_swap_cache(int type, unsigned long begin,
 extern void free_swap_cache(struct page *);
 extern void free_page_and_swap_cache(struct page *);
 extern void free_pages_and_swap_cache(struct page **, int);
+extern void free_pages_and_swap_cache_nolru(struct page **, int);
 extern struct page *lookup_swap_cache(swp_entry_t entry,
 				      struct vm_area_struct *vma,
 				      unsigned long addr);
@@ -565,7 +566,9 @@ static inline struct address_space *swap_address_space(swp_entry_t entry)
 #define free_page_and_swap_cache(page) \
 	put_page(page)
 #define free_pages_and_swap_cache(pages, nr) \
-	release_pages((pages), (nr));
+	release_pages((pages), (nr))
+#define free_pages_and_swap_cache_nolru(pages, nr) \
+	release_pages((pages), (nr))
 
 static inline void free_swap_cache(struct page *page)
 {

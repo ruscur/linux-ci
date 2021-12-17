@@ -66,6 +66,14 @@ static inline void __tlb_remove_table(void *_table)
 	pgtable_free(table, shift);
 }
 
+static inline void __tlb_remove_tables(void **tables, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		__tlb_remove_table(tables[i]);
+}
+
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 				  unsigned long address)
 {

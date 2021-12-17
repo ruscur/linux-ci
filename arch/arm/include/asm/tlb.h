@@ -34,6 +34,11 @@ static inline void __tlb_remove_table(void *_table)
 	free_page_and_swap_cache((struct page *)_table);
 }
 
+static inline void __tlb_remove_tables(void **tables, int nr)
+{
+	free_pages_and_swap_cache_nolru((struct page **)tables, nr);
+}
+
 #include <asm-generic/tlb.h>
 
 static inline void

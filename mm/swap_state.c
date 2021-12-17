@@ -307,17 +307,29 @@ void free_page_and_swap_cache(struct page *page)
 
 /*
  * Passed an array of pages, drop them all from swapcache and then release
- * them.  They are removed from the LRU and freed if this is their last use.
+ * them.  They are optionally removed from the LRU and freed if this is their
+ * last use.
  */
-void free_pages_and_swap_cache(struct page **pages, int nr)
+static void __free_pages_and_swap_cache(struct page **pages, int nr,
+		bool do_lru)
 {
-	struct page **pagep = pages;
 	int i;
 
-	lru_add_drain();
+	if (do_lru)
+		lru_add_drain();
 	for (i = 0; i < nr; i++)
-		free_swap_cache(pagep[i]);
-	release_pages(pagep, nr);
+		free_swap_cache(pages[i]);
+	release_pages(pages, nr);
+}
+
+void free_pages_and_swap_cache(struct page **pages, int nr)
+{
+	__free_pages_and_swap_cache(pages, nr, true);
+}
+
+void free_pages_and_swap_cache_nolru(struct page **pages, int nr)
+{
+	__free_pages_and_swap_cache(pages, nr, false);
 }
 
 static inline bool swap_use_vma_readahead(void)

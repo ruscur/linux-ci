@@ -315,6 +315,14 @@ void __tlb_remove_table(void *_table)
 	}
 }
 
+void __tlb_remove_tables(void **tables, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		__tlb_remove_table(tables[i]);
+}
+
 /*
  * Base infrastructure required to generate basic asces, region, segment,
  * and page tables that do not make use of enhanced features like EDAT1.

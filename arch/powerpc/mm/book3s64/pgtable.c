@@ -414,6 +414,14 @@ void __tlb_remove_table(void *_table)
 	return pgtable_free(table, index);
 }
 
+void __tlb_remove_tables(void **tables, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		__tlb_remove_table(tables[i]);
+}
+
 #ifdef CONFIG_PROC_FS
 atomic_long_t direct_pages_count[MMU_PAGE_COUNT];
 

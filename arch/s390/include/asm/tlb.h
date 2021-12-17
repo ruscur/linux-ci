@@ -23,6 +23,7 @@
  */
 
 void __tlb_remove_table(void *_table);
+void __tlb_remove_tables(void **tables, int nr);
 static inline void tlb_flush(struct mmu_gather *tlb);
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
 					  struct page *page, int page_size);

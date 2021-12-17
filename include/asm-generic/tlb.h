@@ -148,7 +148,7 @@
  *  Useful if your architecture has non-page page directories.
  *
  *  When used, an architecture is expected to provide __tlb_remove_table()
- *  which does the actual freeing of these pages.
+ *  and __tlb_remove_tables() which do the actual freeing of these pages.
  *
  *  MMU_GATHER_RCU_TABLE_FREE
  *

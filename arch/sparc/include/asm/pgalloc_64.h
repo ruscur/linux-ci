@@ -92,6 +92,14 @@ static inline void __tlb_remove_table(void *_table)
 		is_page = true;
 	pgtable_free(table, is_page);
 }
+
+static inline void __tlb_remove_tables(void **tables, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		__tlb_remove_table(tables[i]);
+}
 #else /* CONFIG_SMP */
 static inline void pgtable_free_tlb(struct mmu_gather *tlb, void *table, bool is_page)
 {
