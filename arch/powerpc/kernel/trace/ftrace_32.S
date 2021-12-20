@@ -27,24 +27,38 @@ _GLOBAL(_mcount)
 EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_caller)
-	MCOUNT_SAVE_FRAME
-	/* r3 ends up with link register */
+	stwu	r1, -INT_FRAME_SIZE(r1)
+
+	SAVE_GPRS(3, 10, r1)
+
+	addi	r8, r1, INT_FRAME_SIZE
+	stw	r8, GPR1(r1)
+
+	mflr	r3
+	stw	r3, _NIP(r1)
 	subi	r3, r3, MCOUNT_INSN_SIZE
+
+	stw	r0, _LINK(r1)
+	mr	r4, r0
+
 	lis	r5,function_trace_op@ha
 	lwz	r5,function_trace_op@l(r5)
-	li	r6, 0
+
+	addi	r6, r1, STACK_FRAME_OVERHEAD
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
 	nop
-	MCOUNT_RESTORE_FRAME
-ftrace_caller_common:
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-.globl ftrace_graph_call
-ftrace_graph_call:
-	b	ftrace_graph_stub
-_GLOBAL(ftrace_graph_stub)
-#endif
+
+	lwz	r3, _NIP(r1)
+	mtctr	r3
+
+	REST_GPRS(3, 10, r1)
+
+	lwz	r0, _LINK(r1)
+	mtlr	r0
+
+	addi	r1, r1, INT_FRAME_SIZE
 	/* old link register ends up in ctr reg */
 	bctr
 
@@ -53,9 +67,6 @@ _GLOBAL(ftrace_stub)
 	blr
 
 _GLOBAL(ftrace_regs_caller)
-	/* Save the original return address in A's stack frame */
-	stw	r0,LRSAVE(r1)
-
 	/* Create our stack frame + pt_regs */
 	stwu	r1,-INT_FRAME_SIZE(r1)
 
@@ -117,70 +128,24 @@ ftrace_regs_call:
 
 	/* Pop our stack frame */
 	addi r1, r1, INT_FRAME_SIZE
-
-	b	ftrace_caller_common
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-_GLOBAL(ftrace_graph_caller)
-	stwu	r1,-48(r1)
-	stw	r3, 12(r1)
-	stw	r4, 16(r1)
-	stw	r5, 20(r1)
-	stw	r6, 24(r1)
-	stw	r7, 28(r1)
-	stw	r8, 32(r1)
-	stw	r9, 36(r1)
-	stw	r10,40(r1)
-
-	addi	r5, r1, 48
-	mfctr	r4		/* ftrace_caller has moved local addr here */
-	stw	r4, 44(r1)
-	mflr	r3		/* ftrace_caller has restored LR from stack */
-	subi	r4, r4, MCOUNT_INSN_SIZE
-
-	bl	prepare_ftrace_return
-	nop
-
-        /*
-         * prepare_ftrace_return gives us the address we divert to.
-         * Change the LR in the callers stack frame to this.
-         */
-	stw	r3,52(r1)
-	mtlr	r3
-	lwz	r0,44(r1)
-	mtctr	r0
-
-	lwz	r3, 12(r1)
-	lwz	r4, 16(r1)
-	lwz	r5, 20(r1)
-	lwz	r6, 24(r1)
-	lwz	r7, 28(r1)
-	lwz	r8, 32(r1)
-	lwz	r9, 36(r1)
-	lwz	r10,40(r1)
-
-	addi	r1, r1, 48
-
+	/* old link register ends up in ctr reg */
 	bctr
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(return_to_handler)
 	/* need to save return values */
-	stwu	r1, -32(r1)
-	stw	r3, 20(r1)
-	stw	r4, 16(r1)
-	stw	r31, 12(r1)
-	mr	r31, r1
+	stwu	r1, -16(r1)
+	stw	r3, 8(r1)
+	stw	r4, 12(r1)
 
 	bl	ftrace_return_to_handler
-	nop
 
 	/* return value has real return address */
 	mtlr	r3
 
-	lwz	r3, 20(r1)
-	lwz	r4, 16(r1)
-	lwz	r31,12(r1)
-	lwz	r1, 0(r1)
+	lwz	r3, 8(r1)
+	lwz	r4, 12(r1)
+	addi	r1, r1, 16
 
 	/* Jump back to real return address */
 	blr
