@@ -8,10 +8,6 @@
 #ifndef _ASM_POWERPC_SECURITY_FEATURES_H
 #define _ASM_POWERPC_SECURITY_FEATURES_H
 
-
-extern u64 powerpc_security_features;
-extern bool rfi_flush;
-
 /* These are bit flags */
 enum stf_barrier_type {
 	STF_BARRIER_NONE	= 0x1,
@@ -19,6 +15,10 @@ enum stf_barrier_type {
 	STF_BARRIER_EIEIO	= 0x4,
 	STF_BARRIER_SYNC_ORI	= 0x8,
 };
+
+#ifdef CONFIG_PPC_BARRIER_NOSPEC
+extern u64 powerpc_security_features;
+extern bool rfi_flush;
 
 void setup_stf_barrier(void);
 void do_stf_barrier_fixups(enum stf_barrier_type types);
@@ -44,6 +44,13 @@ enum stf_barrier_type stf_barrier_type_get(void);
 #else
 static inline enum stf_barrier_type stf_barrier_type_get(void) { return STF_BARRIER_NONE; }
 #endif
+
+#else /* CONFIG_PPC_BARRIER_NOSPEC */
+static inline void security_ftr_set(u64 feature) { }
+static inline void security_ftr_clear(u64 feature) { }
+static inline bool security_ftr_enabled(u64 feature) { return false; }
+static inline enum stf_barrier_type stf_barrier_type_get(void) { return STF_BARRIER_NONE; }
+#endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
 // Features indicating support for Spectre/Meltdown mitigations
 
