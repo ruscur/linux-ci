@@ -14,32 +14,28 @@
 #include <crypto/public_key.h>
 #include "module-internal.h"
 
-/*
- * Verify the signature on a module.
+/**
+ * verify_appended_signature - Verify the signature on a module
+ * @data: The data to be verified
+ * @len: Size of @data.
+ * @trusted_keys: Keyring to use for verification
+ * @purpose: The use to which the key is being put
  */
-int mod_verify_sig(const void *mod, struct load_info *info)
+int verify_appended_signature(const void *data, unsigned long *len,
+			      struct key *trusted_keys,
+			      enum key_being_used_for purpose)
 {
-	struct module_signature ms;
-	size_t sig_len, modlen = info->len;
+	unsigned long sig_len;
 	int ret;
 
-	pr_devel("==>%s(,%zu)\n", __func__, modlen);
+	pr_devel("==>%s %s(,%lu)\n", __func__, key_being_used_for[purpose], *len);
 
-	if (modlen <= sizeof(ms))
-		return -EBADMSG;
-
-	memcpy(&ms, mod + (modlen - sizeof(ms)), sizeof(ms));
-
-	ret = mod_check_sig(&ms, modlen, "module");
+	ret = mod_parse_sig(data, len, &sig_len, key_being_used_for[purpose]);
 	if (ret)
 		return ret;
 
-	sig_len = be32_to_cpu(ms.sig_len);
-	modlen -= sig_len + sizeof(ms);
-	info->len = modlen;
-
-	return verify_pkcs7_signature(mod, modlen, mod + modlen, sig_len,
-				      VERIFY_USE_SECONDARY_KEYRING,
-				      VERIFYING_MODULE_SIGNATURE,
+	return verify_pkcs7_signature(data, *len, data + *len, sig_len,
+				      trusted_keys,
+				      purpose,
 				      NULL, NULL);
 }
