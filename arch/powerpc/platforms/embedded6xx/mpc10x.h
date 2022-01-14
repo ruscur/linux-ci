@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common routines for the Motorola SPS MPC106/8240/107 Host bridge/Mem
  * ctlr/EPIC/etc.

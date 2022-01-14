@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*arch/powerpc/platforms/8xx/mpc86xads_setup.c
  *
  * Platform setup for the Freescale mpc86xads board

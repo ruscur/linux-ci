@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * A collection of structures, addresses, and values associated with
  * the Freescale MPC86xADS board.

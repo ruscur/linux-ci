@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI code for the Freescale MPC52xx embedded CPU.
  *

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Copyright © 2016 IBM Corporation
 
 # This program is free software; you can redistribute it and/or

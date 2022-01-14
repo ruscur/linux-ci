@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-ppc/mpc52xx_psc.h
  *

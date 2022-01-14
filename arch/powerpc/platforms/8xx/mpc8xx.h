@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Prototypes, etc. for the Freescale MPC8xx embedded cpu chips
  * May need to be cleaned as the port goes on ...

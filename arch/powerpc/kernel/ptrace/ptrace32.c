@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ptrace for 32-bit processes running on a 64-bit kernel.
  *

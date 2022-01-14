@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corporation, 2015
  * Author Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>

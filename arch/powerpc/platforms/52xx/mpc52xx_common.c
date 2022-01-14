@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * Utility functions for the Freescale MPC52xx.

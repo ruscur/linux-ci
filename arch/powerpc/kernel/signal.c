@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common signal handling code for both 32 and 64 bits
  *

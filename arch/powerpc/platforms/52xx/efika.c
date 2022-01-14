@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Efika 5K2 platform code
  * Some code really inspired from the lite5200b platform.

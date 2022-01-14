@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Platform setup for the Embedded Planet EP88xC board
  *

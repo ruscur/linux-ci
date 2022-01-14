@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The PowerPC (32/64) specific defines / externs for KGDB.  Based on
  * the previous 32bit and 64bit specific files, which had the following

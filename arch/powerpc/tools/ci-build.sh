@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 if [[ -z "$TARGET" || -z "$IMAGE" ]]; then
     echo "Error: required environment variables not set!"

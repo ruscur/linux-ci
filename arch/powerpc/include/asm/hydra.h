@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  include/asm-ppc/hydra.h -- Mac I/O `Hydra' definitions
  *
