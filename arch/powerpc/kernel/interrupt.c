@@ -81,9 +81,30 @@ notrace long system_call_exception(long r3, long r4, long r5,
 {
 	syscall_fn f;
 
-	kuap_lock();
-
 	regs->orig_gpr3 = r3;
+
+	if (IS_ENABLED(CONFIG_PPC64) &&
+			unlikely(arch_irq_disabled_regs(regs))) {
+		irq_soft_mask_regs_set_state(regs, IRQS_ENABLED);
+		/*
+		 * The first stack frame entry will have IRQS_ENABLED except
+		 * in the case of syscall emulation, where the syscall entry
+		 * code is returned-to with MSR[EE] disabled, which requires
+		 * regs->softe is IRQS_DISABLED to avoid triggering the
+		 * interrupt return code warning for returning to local irqs
+		 * enabled but MSR[EE]=0. Not a big deal to re-set it here.
+		 */
+#ifdef CONFIG_PPC_BOOK3S_64
+		set_kuap(AMR_KUAP_BLOCKED);
+#endif
+		if (trap_is_scv(regs))
+			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+		/* XXX: pkey save? Did we save the wrong values in stack
+		 * from userspace now? */
+		goto skip_user_entry;
+	}
+
+	kuap_lock();
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
@@ -95,7 +116,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 
 	BUG_ON(regs_is_unrecoverable(regs));
 	BUG_ON(!(regs->msr & MSR_PR));
-	BUG_ON(arch_irq_disabled_regs(regs));
 
 #ifdef CONFIG_PPC_PKEY
 	if (mmu_has_feature(MMU_FTR_PKEY)) {
@@ -129,14 +149,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
 
 	account_stolen_time();
 
-	/*
-	 * This is not required for the syscall exit path, but makes the
-	 * stack frame look nicer. If this was initialised in the first stack
-	 * frame, or if the unwinder was taught the first stack frame always
-	 * returns to user with IRQS_ENABLED, this store could be avoided!
-	 */
-	irq_soft_mask_regs_set_state(regs, IRQS_ENABLED);
-
+skip_user_entry:
 	/*
 	 * If system call is called with TM active, set _TIF_RESTOREALL to
 	 * prevent RFSCV being used to return to userspace, because POWER9

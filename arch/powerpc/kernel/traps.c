@@ -58,6 +58,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/rio.h>
 #include <asm/fadump.h>
+#include <asm/sstep.h>
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/debug.h>
@@ -1778,6 +1779,49 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 		return;
 	}
 
+	if (status == FSCR_SCV_LG) {
+		u32 lev;
+		ppc_inst_t instr;
+
+		/* If we didn't advertise the feature to userspace, SIGILL */
+		if (!(cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_SCV))
+			goto out_msg;
+
+		/*
+		 * PR KVM disables the FSCR[SCV] facility even if the rest of
+		 * the kernel and userspace thought SCV was enabled. THis
+		 * causes scv instructions executed by both the host and the
+		 * guest to come here, in their respective kernels.
+		 *
+		 * If radix is enabled then PR KVM can not be in use and can
+		 * not be our hypervisor, so treat this as a normal illegal
+		 * instruction. If we are hash guest or host, we might need
+		 * to emulate a legitimate scv interrupt here.
+		 */
+		if (radix_enabled())
+			goto out_msg;
+
+		/*
+		 * User is making SCV call with SCV disabled. Emulate it.
+		 */
+		if (get_user_instr(instr, (void __user *)regs->nip)) {
+			pr_err("Failed to fetch the user instruction\n");
+			return;
+		}
+
+		instword = ppc_inst_val(instr);
+		if (WARN_ON_ONCE((instword & 0xfffff01f) != 0x44000001))
+			goto out;
+
+		lev = (instword >> 5) & 0x7f;
+		if (lev == 0) {
+			if (emulate_step(regs, instr) > 0)
+				return;
+			else
+				pr_err_ratelimited("Failed to emulate SCV\n");
+		}
+	}
+
 	if (status == FSCR_TM_LG) {
 		/*
 		 * If we're here then the hardware is TM aware because it
@@ -1799,6 +1843,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 		return;
 	}
 
+out_msg:
 	pr_err_ratelimited("%sFacility '%s' unavailable (%d), exception at 0x%lx, MSR=%lx\n",
 		hv ? "Hypervisor " : "", facility, status, regs->nip, regs->msr);
 

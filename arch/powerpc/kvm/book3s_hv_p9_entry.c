@@ -373,6 +373,12 @@ void save_p9_host_os_sprs(struct p9_host_os_sprs *host_os_sprs)
 }
 EXPORT_SYMBOL_GPL(save_p9_host_os_sprs);
 
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+bool pr_kvm_disabled_reloc_exc(void);
+#else
+static inline bool pr_kvm_disabled_reloc_exc(void) { return false; }
+#endif
+
 /* vcpu guest regs must already be saved */
 void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 			     struct p9_host_os_sprs *host_os_sprs)
@@ -395,8 +401,12 @@ void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 		mtspr(SPRN_UAMOR, 0);
 	if (host_os_sprs->amr != vcpu->arch.amr)
 		mtspr(SPRN_AMR, host_os_sprs->amr);
-	if (current->thread.fscr != vcpu->arch.fscr)
-		mtspr(SPRN_FSCR, current->thread.fscr);
+	if (current->thread.fscr != vcpu->arch.fscr) {
+		if (pr_kvm_disabled_reloc_exc())
+			mtspr(SPRN_FSCR, current->thread.fscr & ~FSCR_SCV);
+		else
+			mtspr(SPRN_FSCR, current->thread.fscr);
+	}
 	if (current->thread.dscr != vcpu->arch.dscr)
 		mtspr(SPRN_DSCR, current->thread.dscr);
 	if (vcpu->arch.pspb != 0)

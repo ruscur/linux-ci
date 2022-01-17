@@ -140,9 +140,12 @@ static void kvmppc_core_vcpu_load_pr(struct kvm_vcpu *vcpu, int cpu)
 #endif
 
 	/* Disable AIL if supported */
-	if (cpu_has_feature(CPU_FTR_HVMODE) &&
-	    cpu_has_feature(CPU_FTR_ARCH_207S))
-		mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~LPCR_AIL);
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		if (cpu_has_feature(CPU_FTR_ARCH_207S))
+			mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~LPCR_AIL);
+		if (cpu_has_feature(CPU_FTR_ARCH_300) && (current->thread.fscr & FSCR_SCV))
+			mtspr(SPRN_FSCR, mfspr(SPRN_FSCR) & ~FSCR_SCV);
+	}
 
 	vcpu->cpu = smp_processor_id();
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -175,9 +178,12 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 	kvmppc_save_tm_pr(vcpu);
 
 	/* Enable AIL if supported */
-	if (cpu_has_feature(CPU_FTR_HVMODE) &&
-	    cpu_has_feature(CPU_FTR_ARCH_207S))
-		mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_AIL_3);
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		if (cpu_has_feature(CPU_FTR_ARCH_207S))
+			mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_AIL_3);
+		if (cpu_has_feature(CPU_FTR_ARCH_300) && (current->thread.fscr & FSCR_SCV))
+			mtspr(SPRN_FSCR, mfspr(SPRN_FSCR) | FSCR_SCV);
+	}
 
 	vcpu->cpu = -1;
 }
@@ -1037,6 +1043,8 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 
 void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
 {
+	if (fscr & FSCR_SCV)
+		fscr &= ~FSCR_SCV; /* SCV must not be enabled */
 	if ((vcpu->arch.fscr & FSCR_TAR) && !(fscr & FSCR_TAR)) {
 		/* TAR got dropped, drop it in shadow too */
 		kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
@@ -1990,6 +1998,21 @@ static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 static unsigned int kvm_global_user_count = 0;
 static DEFINE_SPINLOCK(kvm_global_user_count_lock);
 
+bool pr_kvm_disabled_reloc_exc(void)
+{
+	return kvm_global_user_count != 0;
+}
+
+static void disable_scv(void *dummy)
+{
+	mtspr(SPRN_FSCR, mfspr(SPRN_FSCR) & ~FSCR_SCV);
+}
+
+static void enable_scv(void *dummy)
+{
+	mtspr(SPRN_FSCR, mfspr(SPRN_FSCR) | FSCR_SCV);
+}
+
 static int kvmppc_core_init_vm_pr(struct kvm *kvm)
 {
 	mutex_init(&kvm->arch.hpt_mutex);
@@ -2001,8 +2024,17 @@ static int kvmppc_core_init_vm_pr(struct kvm *kvm)
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
-		if (++kvm_global_user_count == 1)
+		if (++kvm_global_user_count == 1) {
+			/*
+			 * FSCR isn't context switched except for KVM HV
+			 * entry/exit, so only have to care to keep that
+			 * part up to date.
+			 */
+			if (cpu_has_feature(CPU_FTR_ARCH_300) && (current->thread.fscr & FSCR_SCV))
+				smp_call_function(disable_scv, NULL, 0);
+			/* SCV must be disabled first */
 			pseries_disable_reloc_on_exc();
+		}
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 	return 0;
@@ -2017,8 +2049,12 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
 		BUG_ON(kvm_global_user_count == 0);
-		if (--kvm_global_user_count == 0)
+		if (--kvm_global_user_count == 0) {
 			pseries_enable_reloc_on_exc();
+			/* reloc must be enabled irst */
+			if (cpu_has_feature(CPU_FTR_ARCH_300) && (current->thread.fscr & FSCR_SCV))
+				smp_call_function(enable_scv, NULL, 0);
+		}
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 }

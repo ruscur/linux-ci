@@ -16,7 +16,7 @@
 #include <asm/disassemble.h>
 
 extern char system_call_common[];
-extern char system_call_vectored_emulate[];
+extern char system_call_vectored_common[];
 
 #ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
@@ -3667,6 +3667,8 @@ int emulate_step(struct pt_regs *regs, ppc_inst_t instr)
 		regs->gpr[11] = regs->nip + 4;
 		regs->gpr[12] = regs->msr & MSR_MASK;
 		regs->gpr[13] = (unsigned long) get_paca();
+		// Return code needs regs->softe to match regs->msr & MSR_EE
+		regs->softe = IRQS_ALL_DISABLED;
 		regs_set_return_ip(regs, (unsigned long) &system_call_common);
 		regs_set_return_msr(regs, MSR_KERNEL);
 		return 1;
@@ -3674,11 +3676,12 @@ int emulate_step(struct pt_regs *regs, ppc_inst_t instr)
 #ifdef CONFIG_PPC_BOOK3S_64
 	case SYSCALL_VECTORED_0:	/* scv 0 */
 		regs->gpr[9] = regs->gpr[13];
-		regs->gpr[10] = MSR_KERNEL;
 		regs->gpr[11] = regs->nip + 4;
 		regs->gpr[12] = regs->msr & MSR_MASK;
 		regs->gpr[13] = (unsigned long) get_paca();
-		regs_set_return_ip(regs, (unsigned long) &system_call_vectored_emulate);
+		// Return code needs regs->softe to match regs->msr & MSR_EE
+		regs->softe = IRQS_ALL_DISABLED;
+		regs_set_return_ip(regs, (unsigned long) &system_call_vectored_common);
 		regs_set_return_msr(regs, MSR_KERNEL);
 		return 1;
 #endif
