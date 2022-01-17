@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AVR power-management chip interface for the Buffalo Linkstation /
  * Kurobox Platform.

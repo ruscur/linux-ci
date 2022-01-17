@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR OpenIB BSD */
 /*
  * IBM PowerPC eBus Infrastructure Support.
  *

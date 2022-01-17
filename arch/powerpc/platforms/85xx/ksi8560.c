@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Board setup routines for the Emerson KSI8560
  *

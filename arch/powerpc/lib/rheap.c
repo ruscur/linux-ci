@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * A Remote Heap.  Remote means that we don't touch the memory that the
  * heap points to. Normal heap implementations use the memory they manage

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ */
 /* ppc.h -- Header file for PowerPC opcode table
    Copyright (C) 1994-2016 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support

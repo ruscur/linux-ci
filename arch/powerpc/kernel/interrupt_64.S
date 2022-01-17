@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <asm/asm-offsets.h>
 #include <asm/bug.h>
 #ifdef CONFIG_PPC_BOOK3S

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Platform setup for the MPC8xx based boards from TQM.
  *

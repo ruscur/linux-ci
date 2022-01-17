@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Microwatt FPGA-based SoC platform setup code.
  *

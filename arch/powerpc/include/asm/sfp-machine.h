@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.0+ */
 /* Machine-dependent software floating-point definitions.  PPC version.
    Copyright (C) 1997 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
