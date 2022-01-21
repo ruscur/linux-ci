@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-ppc/mpc52xx_psc.h
  *
@@ -13,10 +14,6 @@
  *
  * Copyright (C) 2004 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2003 MontaVista, Software, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #ifndef __ASM_MPC52xx_PSC_H__

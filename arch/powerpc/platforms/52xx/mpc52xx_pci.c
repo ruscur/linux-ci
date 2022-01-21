@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI code for the Freescale MPC52xx embedded CPU.
  *
  * Copyright (C) 2006 Secret Lab Technologies Ltd.
  *                        Grant Likely <grant.likely@secretlab.ca>
  * Copyright (C) 2004 Sylvain Munaut <tnt@246tNt.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #undef DEBUG

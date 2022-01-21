@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * P1022DS board specific routines
  *
@@ -10,10 +11,6 @@
  * This file is taken from the Freescale P1022DS BSP, with modifications:
  * 2) No AMP support
  * 3) No PCI endpoint support
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/fsl/guts.h>

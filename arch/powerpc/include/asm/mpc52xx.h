@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Prototypes, etc. for the Freescale MPC52xx embedded cpu chips
  * May need to be cleaned as the port goes on ...
  *
  * Copyright (C) 2004-2005 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2003 MontaVista, Software, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #ifndef __ASM_POWERPC_MPC52xx_H__

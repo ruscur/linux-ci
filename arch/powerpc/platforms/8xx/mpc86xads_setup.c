@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*arch/powerpc/platforms/8xx/mpc86xads_setup.c
  *
  * Platform setup for the Freescale mpc86xads board
@@ -8,10 +9,6 @@
  *
  * Heavily modified by Scott Wood <scottwood@freescale.com>
  * Copyright 2007 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/init.h>

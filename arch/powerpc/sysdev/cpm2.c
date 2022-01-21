@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * General Purpose functions for the global management of the
  * 8260 Communication Processor Module.
@@ -8,10 +9,6 @@
  * 2006 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  * 	Merged to arch/powerpc from arch/ppc/syslib/cpm2_common.c
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /*

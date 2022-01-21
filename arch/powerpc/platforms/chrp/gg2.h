@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  include/asm-ppc/gg2.h -- VLSI VAS96011/12 `Golden Gate 2' register definitions
  *
@@ -7,10 +8,6 @@
  *
  *	The VAS96011/12 Chipset, Data Book, Edition 1.0
  *	VLSI Technology, Inc.
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of this archive
- *  for more details.
  */
 
 #ifndef _ASMPPC_GG2_H

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PCI / PCI-X / PCI-Express support for 4xx parts
  *

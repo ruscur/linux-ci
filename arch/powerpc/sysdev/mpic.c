@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  arch/powerpc/kernel/mpic.c
  *
@@ -7,10 +8,6 @@
  *
  *  Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
  *  Copyright 2010-2012 Freescale Semiconductor, Inc.
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of this archive
- *  for more details.
  */
 
 #undef DEBUG

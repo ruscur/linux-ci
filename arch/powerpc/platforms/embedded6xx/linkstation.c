@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Board setup routines for the Buffalo Linkstation / Kurobox Platform.
  *
  * Copyright (C) 2006 G. Liakhovetski (g.liakhovetski@gmx.de)
  *
  * Based on sandpoint.c by Mark A. Greer
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of
- * any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>

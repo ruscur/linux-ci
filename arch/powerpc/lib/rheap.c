@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * A Remote Heap.  Remote means that we don't touch the memory that the
  * heap points to. Normal heap implementations use the memory they manage
@@ -7,10 +8,7 @@
  *
  * Author: Pantelis Antoniou <panto@intracom.gr>
  *
- * 2004 (c) INTRACOM S.A. Greece. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2004 (c) INTRACOM S.A. Greece.
  */
 #include <linux/types.h>
 #include <linux/errno.h>

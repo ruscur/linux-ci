@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * Utility functions for the Freescale MPC52xx.
  *
  * Copyright (C) 2006 Sylvain Munaut <tnt@246tNt.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- *
  */
 
 #undef DEBUG

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ptrace for 32-bit processes running on a 64-bit kernel.
  *
@@ -11,10 +12,6 @@
  *
  * Modified by Cort Dougan (cort@hq.fsmlabs.com)
  * and Paul Mackerras (paulus@samba.org).
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License.  See the file COPYING in the main directory of
- * this archive for more details.
  */
 
 #include <linux/ptrace.h>

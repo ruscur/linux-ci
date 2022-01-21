@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-ppc/rheap.h
  *
@@ -5,10 +6,7 @@
  *
  * Author: Pantelis Antoniou <panto@intracom.gr>
  *
- * 2004 (c) INTRACOM S.A. Greece. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2004 (c) INTRACOM S.A. Greece.
  */
 
 #ifndef __ASM_PPC_RHEAP_H__

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Board setup routines for the Emerson KSI8560
  *
@@ -5,10 +6,7 @@
  *
  * Based on mpc85xx_ads.c maintained by Kumar Gala
  *
- * 2008 (c) MontaVista, Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2008 (c) MontaVista, Software, Inc.
  *
  */
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The PowerPC (32/64) specific defines / externs for KGDB.  Based on
  * the previous 32bit and 64bit specific files, which had the following
@@ -12,10 +13,7 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  * Author: Tom Rini <trini@kernel.crashing.org>
  *
- * 2006 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2006 (c) MontaVista Software, Inc.
  */
 #ifdef __KERNEL__
 #ifndef __POWERPC_KGDB_H__

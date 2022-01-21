@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Platform setup for the Embedded Planet EP88xC board
  *
  * Author: Scott Wood <scottwood@freescale.com>
  * Copyright 2007 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/init.h>

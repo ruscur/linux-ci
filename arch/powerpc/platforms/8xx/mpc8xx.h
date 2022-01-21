@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Prototypes, etc. for the Freescale MPC8xx embedded cpu chips
  * May need to be cleaned as the port goes on ...
  *
  * Copyright (C) 2008 Jochen Friedrich <jochen@scram.de>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 #ifndef __MPC8xx_H
 #define __MPC8xx_H

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Force alignment of .toc section.  */
 SECTIONS
 {
