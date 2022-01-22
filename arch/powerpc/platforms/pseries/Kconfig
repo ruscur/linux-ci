@@ -142,6 +142,23 @@ config IBMEBUS
 	help
 	  Bus device driver for GX bus based adapters.
 
+config PSERIES_PKS
+	depends on PPC_PSERIES
+	tristate "Support for the Platform Key Storage"
+	help
+	  PowerVM provides an isolated Platform Keystore(PKS) storage
+	  allocation for each partition with individually managed
+	  access controls to store sensitive information securely. Select
+	  this config to enable operating system interface to hypervisor to
+	  access this space.
+
+config PSERIES_PKS_SYSFS
+	depends on PSERIES_PKS
+	tristate "Support for sysfs interface the Platform Key Storage"
+	help
+	  Enable sysfs based user interace to add/delete/modify variables
+	  stored in Platform Keystore.
+
 config PAPR_SCM
 	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
 	tristate "Support for the PAPR Storage Class Memory interface"
