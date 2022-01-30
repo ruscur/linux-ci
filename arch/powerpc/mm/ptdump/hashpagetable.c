@@ -261,11 +261,11 @@ static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *
 		if (lpar_rc)
 			continue;
 		for (j = 0; j < 4; j++) {
-			if (HPTE_V_COMPARE(ptes[j].v, want_v) &&
-					(ptes[j].v & HPTE_V_VALID)) {
+			if (HPTE_V_COMPARE(be64_to_cpu(ptes[j].v), want_v) &&
+			    (be64_to_cpu(ptes[j].v) & HPTE_V_VALID)) {
 				/* HPTE matches */
-				*v = ptes[j].v;
-				*r = ptes[j].r;
+				*v = be64_to_cpu(ptes[j].v);
+				*r = be64_to_cpu(ptes[j].r);
 				return 0;
 			}
 		}
