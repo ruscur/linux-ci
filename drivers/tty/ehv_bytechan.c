@@ -324,8 +324,9 @@ static int __init ehv_bc_console_init(void)
 #endif
 
 	/* add_preferred_console() must be called before register_console(),
-	   otherwise it won't work.  However, we don't want to enumerate all the
-	   byte channels here, either, since we only care about one. */
+	 * otherwise it won't work.  However, we don't want to enumerate all the
+	 * byte channels here, either, since we only care about one.
+	 */
 
 	add_preferred_console(ehv_bc_console.name, ehv_bc_console.index, NULL);
 	register_console(&ehv_bc_console);
