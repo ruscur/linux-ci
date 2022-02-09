@@ -22,8 +22,16 @@
 #define KSM_MERGE_ACROSS_NODES_DEFAULT true
 #define MB (1ul << 20)
 
+#ifdef __powerpc64__
+#define PAGE_SHIFT	16
+/*
+ * This will only work with radix 2M hugepage size
+ */
+#define HPAGE_SHIFT 21
+#else
 #define PAGE_SHIFT 12
 #define HPAGE_SHIFT 21
+#endif
 
 #define PAGE_SIZE (1 << PAGE_SHIFT)
 #define HPAGE_SIZE (1 << HPAGE_SHIFT)
