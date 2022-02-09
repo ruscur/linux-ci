@@ -51,7 +51,7 @@ struct dpaa2_io_store {
 
 /* keep a per cpu array of DPIOs for fast access */
 static struct dpaa2_io *dpio_by_cpu[NR_CPUS];
-static struct list_head dpio_list = LIST_HEAD_INIT(dpio_list);
+static LIST_HEAD(dpio_list);
 static DEFINE_SPINLOCK(dpio_list_lock);
 
 static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
