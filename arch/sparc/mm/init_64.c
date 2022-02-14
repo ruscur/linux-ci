@@ -709,9 +709,6 @@ static void __init inherit_prom_mappings(void)
 
 void prom_world(int enter)
 {
-	if (!enter)
-		set_fs(get_fs());
-
 	__asm__ __volatile__("flushw");
 }
 

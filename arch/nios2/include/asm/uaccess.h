@@ -18,30 +18,9 @@
 #include <asm/page.h>
 
 #include <asm/extable.h>
-
-/*
- * Segment stuff
- */
-#define MAKE_MM_SEG(s)		((mm_segment_t) { (s) })
-#define USER_DS			MAKE_MM_SEG(0x80000000UL)
-#define KERNEL_DS		MAKE_MM_SEG(0)
-
-
-#define get_fs()		(current_thread_info()->addr_limit)
-#define set_fs(seg)		(current_thread_info()->addr_limit = (seg))
-
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-
-#define __access_ok(addr, len)			\
-	(((signed long)(((long)get_fs().seg) &	\
-		((long)(addr) | (((long)(addr)) + (len)) | (len)))) == 0)
-
-#define access_ok(addr, len)		\
-	likely(__access_ok((unsigned long)(addr), (unsigned long)(len)))
+#include <asm-generic/access_ok.h>
 
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
-
-#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 /*
  * Zero Userspace

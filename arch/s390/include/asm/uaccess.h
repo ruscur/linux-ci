@@ -20,18 +20,13 @@
 
 void debug_user_asce(int exit);
 
-static inline int __range_ok(unsigned long addr, unsigned long size)
+static inline int __access_ok(const void __user *addr, unsigned long size)
 {
 	return 1;
 }
+#define __access_ok __access_ok
 
-#define __access_ok(addr, size)				\
-({							\
-	__chk_user_ptr(addr);				\
-	__range_ok((unsigned long)(addr), (size));	\
-})
-
-#define access_ok(addr, size) __access_ok(addr, size)
+#include <asm-generic/access_ok.h>
 
 unsigned long __must_check
 raw_copy_from_user(void *to, const void __user *from, unsigned long n);
@@ -281,8 +276,6 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 
 int copy_to_user_real(void __user *dest, void *src, unsigned long count);
 void *s390_kernel_write(void *dst, const void *src, size_t size);
-
-#define HAVE_GET_KERNEL_NOFAULT
 
 int __noreturn __put_kernel_bad(void);
 

@@ -17,9 +17,13 @@
  * We just let the page fault handler do the right thing. This also means
  * that put_user is the same as __put_user, etc.
  */
-
-#define access_ok(uaddr, size)	\
-	( (uaddr) == (uaddr) )
+static inline int __access_ok(const void __user *addr, unsigned long size)
+{
+	return 1;
+}
+#define __access_ok __access_ok
+#define TASK_SIZE_MAX DEFAULT_TASK_SIZE
+#include <asm-generic/access_ok.h>
 
 #define put_user __put_user
 #define get_user __get_user
@@ -95,7 +99,6 @@ struct exception_table_entry {
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
 
-#define HAVE_GET_KERNEL_NOFAULT
 #define __get_kernel_nofault(dst, src, type, err_label)	\
 {							\
 	type __z;					\
