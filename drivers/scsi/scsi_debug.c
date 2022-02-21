@@ -7272,15 +7272,16 @@ static int resp_not_ready(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return check_condition_result;
 }
 
-static int sdebug_map_queues(struct Scsi_Host *shost)
+static int sdebug_map_queues(struct blk_mq_tag_set *set)
 {
 	int i, qoff;
+	struct Scsi_Host *shost = set->driver_data;
 
 	if (shost->nr_hw_queues == 1)
 		return 0;
 
 	for (i = 0, qoff = 0; i < HCTX_MAX_TYPES; i++) {
-		struct blk_mq_queue_map *map = &shost->tag_set.map[i];
+		struct blk_mq_queue_map *map = &set->map[i];
 
 		map->nr_queues  = 0;
 
@@ -7614,7 +7615,7 @@ static int sdebug_driver_probe(struct device *dev)
 	 */
 	hpnt->nr_hw_queues = submit_queues;
 	if (sdebug_host_max_queue)
-		hpnt->host_tagset = 1;
+		hpnt->hctx_share_tags = 1;
 
 	/* poll queues are possible for nr_hw_queues > 1 */
 	if (hpnt->nr_hw_queues == 1 || (poll_queues < 1)) {

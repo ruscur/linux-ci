@@ -3168,12 +3168,14 @@ megasas_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 	return 0;
 }
 
-static int megasas_map_queues(struct Scsi_Host *shost)
+static int megasas_map_queues(struct blk_mq_tag_set *set)
 {
+	struct Scsi_Host *shost;
 	struct megasas_instance *instance;
 	int qoff = 0, offset;
 	struct blk_mq_queue_map *map;
 
+	shost = set->driver_data;
 	instance = (struct megasas_instance *)shost->hostdata;
 
 	if (shost->nr_hw_queues == 1)
@@ -6950,14 +6952,14 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	 * Single msix_vectors in kdump, so shared host tag is also disabled.
 	 */
 
-	host->host_tagset = 0;
+	host->hctx_share_tags = 0;
 	host->nr_hw_queues = 1;
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 		(instance->msix_vectors > instance->low_latency_index_start) &&
 		host_tagset_enable &&
 		instance->smp_affinity_enable) {
-		host->host_tagset = 1;
+		host->hctx_share_tags = 1;
 		host->nr_hw_queues = instance->msix_vectors -
 			instance->low_latency_index_start + instance->iopoll_q_count;
 		if (instance->iopoll_q_count)

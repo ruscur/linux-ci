@@ -11868,8 +11868,9 @@ out:
  * scsih_map_queues - map reply queues with request queues
  * @shost: SCSI host pointer
  */
-static int scsih_map_queues(struct Scsi_Host *shost)
+static int scsih_map_queues(struct blk_mq_tag_set *set)
 {
+	struct Scsi_Host *shost = set->driver_data;
 	struct MPT3SAS_ADAPTER *ioc =
 	    (struct MPT3SAS_ADAPTER *)shost->hostdata;
 	struct blk_mq_queue_map *map;
@@ -12322,10 +12323,10 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_thread_fail;
 	}
 
-	shost->host_tagset = 0;
+	shost->hctx_share_tags = 0;
 
 	if (ioc->is_gen35_ioc && host_tagset_enable)
-		shost->host_tagset = 1;
+		shost->hctx_share_tags = 1;
 
 	ioc->is_driver_loading = 1;
 	if ((mpt3sas_base_attach(ioc))) {
@@ -12351,7 +12352,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	shost->nr_hw_queues = 1;
 
-	if (shost->host_tagset) {
+	if (shost->hctx_share_tags) {
 		shost->nr_hw_queues =
 		    ioc->reply_queue_count - ioc->high_iops_queues;
 
