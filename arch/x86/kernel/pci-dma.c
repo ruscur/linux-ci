@@ -7,13 +7,16 @@
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
+#include <linux/amd-iommu.h>
 
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
-#include <asm/iommu_table.h>
+
+#include <xen/xen.h>
+#include <xen/swiotlb-xen.h>
 
 static bool disable_dac_quirk __read_mostly;
 
@@ -34,24 +37,61 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
-extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
+#ifdef CONFIG_SWIOTLB
+bool x86_swiotlb_enable;
+static unsigned int x86_swiotlb_flags;
+
+/*
+ * If 4GB or more detected (and iommu=off not set) or if SME is active
+ * then set swiotlb to 1 and return 1.
+ */
+static void __init pci_swiotlb_detect_4gb(void)
+{
+#ifdef CONFIG_SWIOTLB_XEN
+	if (xen_pv_domain()) {
+		if (xen_initial_domain())
+			x86_swiotlb_enable = true;
+
+		if (x86_swiotlb_enable) {
+			dma_ops = &xen_swiotlb_dma_ops;
+#ifdef CONFIG_PCI
+			/* Make sure ACS will be enabled */
+			pci_request_acs();
+#endif
+		}
+		return;
+	}
+#endif /* CONFIG_SWIOTLB_XEN */
+
+	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
+	if (!no_iommu && max_possible_pfn > MAX_DMA32_PFN)
+		x86_swiotlb_enable = true;
+
+	/*
+	 * Set swiotlb to 1 so that bounce buffers are allocated and used for
+	 * devices that can't support DMA to encrypted memory.
+	 */
+	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT)) {
+		x86_swiotlb_enable = true;
+		x86_swiotlb_flags |= SWIOTLB_FORCE;
+	}
+}
+#else
+static inline void __init pci_swiotlb_detect_4gb(void)
+{
+}
+#endif /* CONFIG_SWIOTLB */
 
 void __init pci_iommu_alloc(void)
 {
-	struct iommu_table_entry *p;
-
-	sort_iommu_table(__iommu_table, __iommu_table_end);
-	check_iommu_entries(__iommu_table, __iommu_table_end);
-
-	for (p = __iommu_table; p < __iommu_table_end; p++) {
-		if (p && p->detect && p->detect() > 0) {
-			p->flags |= IOMMU_DETECTED;
-			if (p->early_init)
-				p->early_init();
-			if (p->flags & IOMMU_FINISH_IF_DETECTED)
-				break;
-		}
-	}
+	pci_swiotlb_detect_4gb();
+	gart_iommu_hole_init();
+	amd_iommu_detect();
+	detect_intel_iommu();
+#ifdef CONFIG_SWIOTLB
+	swiotlb_init_remap(x86_swiotlb_enable, x86_swiotlb_flags,
+			   xen_pv_domain() ? xen_swiotlb_fixup : NULL);
+#endif
 }
 
 /*
@@ -102,7 +142,7 @@ static __init int iommu_setup(char *p)
 		}
 #ifdef CONFIG_SWIOTLB
 		if (!strncmp(p, "soft", 4))
-			swiotlb = 1;
+			x86_swiotlb_enable = 1;
 #endif
 		if (!strncmp(p, "pt", 2))
 			iommu_set_default_passthrough(true);
@@ -121,14 +161,18 @@ early_param("iommu", iommu_setup);
 
 static int __init pci_iommu_init(void)
 {
-	struct iommu_table_entry *p;
-
 	x86_init.iommu.iommu_init();
 
-	for (p = __iommu_table; p < __iommu_table_end; p++) {
-		if (p && (p->flags & IOMMU_DETECTED) && p->late_init)
-			p->late_init();
+#ifdef CONFIG_SWIOTLB
+	/* An IOMMU turned us off. */
+	if (x86_swiotlb_enable) {
+		printk(KERN_INFO "PCI-DMA: "
+		       "Using software bounce buffering for IO (SWIOTLB)\n");
+		swiotlb_print_info();
+	} else {
+		swiotlb_exit();
 	}
+#endif
 
 	return 0;
 }
@@ -154,3 +198,31 @@ static void via_no_dac(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID,
 				PCI_CLASS_BRIDGE_PCI, 8, via_no_dac);
 #endif
+
+#ifdef CONFIG_SWIOTLB_XEN
+int pci_xen_swiotlb_init_late(void)
+{
+	int rc;
+
+	if (dma_ops == &xen_swiotlb_dma_ops)
+		return 0;
+
+	/* we can work with the default swiotlb */
+	if (!io_tlb_default_mem.nslabs) {
+		rc = swiotlb_init_late(swiotlb_size_or_default(),
+				       GFP_KERNEL, xen_swiotlb_fixup);
+		if (rc < 0)
+			return rc;
+	}
+ 
+	/* XXX: this switches the dma ops under live devices! */
+	dma_ops = &xen_swiotlb_dma_ops;
+#ifdef CONFIG_PCI
+	/* Make sure ACS will be enabled */
+	pci_request_acs();
+#endif
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_xen_swiotlb_init_late);
+#endif /* CONFIG_SWIOTLB_XEN */
