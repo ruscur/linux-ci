@@ -23,13 +23,37 @@
 #include "slab.h"
 
 /*
+ * Only called if obj is within stack/stackend bounds. Determine if within
+ * current stack depth.
+ */
+static inline int check_stack_object_depth(const void *obj,
+					   unsigned long len)
+{
+#ifdef CONFIG_ARCH_HAS_CURRENT_STACK_POINTER
+#ifndef CONFIG_STACK_GROWSUP
+	const void * const high = stackend;
+	const void * const low = (void *)current_stack_pointer;
+#else
+	const void * const high = (void *)current_stack_pointer;
+	const void * const low = stack;
+#endif
+
+	/* Reject: object not within current stack depth. */
+	if (obj < low || high < obj + len)
+		return BAD_STACK;
+
+#endif
+	return GOOD_STACK;
+}
+
+/*
  * Checks if a given pointer and length is contained by the current
  * stack frame (if possible).
  *
  * Returns:
  *	NOT_STACK: not at all on the stack
  *	GOOD_FRAME: fully within a valid stack frame
- *	GOOD_STACK: fully on the stack (when can't do frame-checking)
+ *	GOOD_STACK: within the current stack (when can't frame-check exactly)
  *	BAD_STACK: error condition (invalid stack position or bad stack frame)
  */
 static noinline int check_stack_object(const void *obj, unsigned long len)
@@ -55,7 +79,8 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 	if (ret)
 		return ret;
 
-	return GOOD_STACK;
+	/* Finally, check stack depth if possible. */
+	return check_stack_object_depth(obj, len);
 }
 
 /*
@@ -280,7 +305,17 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 		 */
 		return;
 	default:
-		usercopy_abort("process stack", NULL, to_user, 0, n);
+		usercopy_abort("process stack", NULL, to_user,
+#ifdef CONFIG_ARCH_HAS_CURRENT_STACK_POINTER
+# ifndef CONFIG_STACK_GROWSUP
+				(void *)current_stack_pointer - ptr,
+# else
+				ptr - (void *)current_stack_pointer,
+# endif
+#else
+				0,
+#endif
+				n);
 	}
 
 	/* Check for bad heap object. */
