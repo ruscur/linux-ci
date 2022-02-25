@@ -328,6 +328,16 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 #endif
 
 	/*
+	 * Do not use nmi_enter() in real mode if percpu first chunk is
+	 * not embedded. With CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK enabled
+	 * there are chances where percpu allocation can come from vmalloc
+	 * area.
+	 */
+	if (IS_ENABLED(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK) &&
+	    !(mfmsr() & MSR_DR) && !__percpu_embed_first_chunk)
+		return;
+
+	/*
 	 * Do not use nmi_enter() for pseries hash guest taking a real-mode
 	 * NMI because not everything it touches is within the RMA limit.
 	 */
@@ -339,6 +349,10 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 
 static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct interrupt_nmi_state *state)
 {
+	if (IS_ENABLED(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK) &&
+	    !(mfmsr() & MSR_DR) && !__percpu_embed_first_chunk)
+		goto skip_nmi_exit;
+
 	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64) ||
 			!firmware_has_feature(FW_FEATURE_LPAR) ||
 			radix_enabled() || (mfmsr() & MSR_DR))
@@ -349,6 +363,7 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 	 * new work to do (must use irq_work for that).
 	 */
 
+skip_nmi_exit:
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PPC_BOOK3S
 	if (arch_irq_disabled_regs(regs)) {

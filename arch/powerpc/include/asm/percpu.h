@@ -12,6 +12,8 @@
 
 #define __my_cpu_offset local_paca->data_offset
 
+extern bool __percpu_embed_first_chunk;
+
 #endif /* CONFIG_SMP */
 #endif /* __powerpc64__ */
 
