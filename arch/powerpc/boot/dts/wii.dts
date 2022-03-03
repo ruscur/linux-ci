@@ -192,31 +192,6 @@
 			#interrupt-cells = <2>;
 			interrupts = <10>;
 			interrupt-parent = <&PIC1>;
-
-			/*
-			 * This is commented out while a standard binding
-			 * for i2c over gpio is defined.
-			 */
-			/*
-			i2c-video {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			        compatible = "i2c-gpio";
-
-			        gpios = <&GPIO 15 0
-			                 &GPIO 14 0>;
-			        clock-frequency = <250000>;
-				no-clock-stretching;
-			        scl-is-open-drain;
-			        sda-is-open-drain;
-			        sda-enforce-dir;
-
-			        AVE: audio-video-encoder@70 {
-			                compatible = "nintendo,wii-audio-video-encoder";
-			                reg = <0x70>;
-			        };
-			};
-			*/
 		};
 
 		control@d800100 {
@@ -268,5 +243,21 @@
 			linux,code = <KEY_EJECTCD>;
 		};
 	};
-};
 
+	i2c-video {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "i2c-gpio";
+
+		sda-gpios = <&GPIO 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&GPIO 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		clock-frequency = <250000>;
+		no-clock-stretching;
+		sda-enforce-dir;
+
+		AVE: audio-video-encoder@70 {
+			compatible = "nintendo,wii-audio-video-encoder";
+			reg = <0x70>;
+		};
+	};
+};
