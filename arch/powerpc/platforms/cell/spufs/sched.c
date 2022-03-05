@@ -1052,7 +1052,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 	}
 }
 
-static int show_spu_loadavg(struct seq_file *s, void *private)
+static int __maybe_unused show_spu_loadavg(struct seq_file *s, void *private)
 {
 	int a, b, c;
 
