@@ -23,6 +23,7 @@
 #include "imx-audmux.h"
 
 #include "../codecs/sgtl5000.h"
+#include "../codecs/wm8904.h"
 #include "../codecs/wm8962.h"
 #include "../codecs/wm8960.h"
 #include "../codecs/wm8994.h"
@@ -253,6 +254,38 @@ static int fsl_asoc_card_hw_free(struct snd_pcm_substream *substream)
 					  codec_priv->pll_id, 0, 0, 0);
 		if (ret && ret != -ENOTSUPP) {
 			dev_err(dev, "failed to stop FLL: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (of_device_is_compatible(dev->of_node, "fsl,imx-audio-wm8904")) {
+		struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+		unsigned int pll_out;
+
+		ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0, 0, 2,
+					       params_physical_width(params));
+		if (ret) {
+			dev_err(dev, "failed to set TDM slot for cpu dai\n");
+			return ret;
+		}
+
+		if (priv->sample_format == SNDRV_PCM_FORMAT_S24_LE)
+			pll_out = priv->sample_rate * 384;
+		else
+			pll_out = priv->sample_rate * 256;
+
+		ret = snd_soc_dai_set_pll(codec_dai, codec_priv->pll_id,
+					  codec_priv->pll_id,
+					  codec_priv->mclk_freq, pll_out);
+		if (ret) {
+			dev_err(dev, "failed to start FLL: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, codec_priv->fll_id,
+					     pll_out, SND_SOC_CLOCK_IN);
+		if (ret) {
+			dev_err(dev, "failed to set SYSCLK: %d\n", ret);
 			return ret;
 		}
 	}
@@ -651,6 +684,19 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv.fll_id = WM8960_SYSCLK_AUTO;
 		priv->codec_priv.pll_id = WM8960_SYSCLK_AUTO;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8904")) {
+		codec_dai_name = "wm8904-hifi";
+		priv->card.set_bias_level = NULL;
+		priv->codec_priv.mclk_id = WM8904_CLK_FLL;
+		priv->codec_priv.fll_id = WM8904_CLK_FLL;
+		priv->codec_priv.pll_id = WM8904_FLL_MCLK;
+		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+		if (strstr(cpu_np->name, "esai")) {
+			priv->cpu_priv.sysclk_freq[TX] = priv->codec_priv.mclk_freq;
+			priv->cpu_priv.sysclk_freq[RX] = priv->codec_priv.mclk_freq;
+			priv->cpu_priv.sysclk_dir[TX] = SND_SOC_CLOCK_OUT;
+			priv->cpu_priv.sysclk_dir[RX] = SND_SOC_CLOCK_OUT;
+		}
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-ac97")) {
 		codec_dai_name = "ac97-hifi";
 		priv->dai_fmt = SND_SOC_DAIFMT_AC97;
@@ -900,6 +946,7 @@ static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-tlv320aic32x4", },
 	{ .compatible = "fsl,imx-audio-tlv320aic31xx", },
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
+	{ .compatible = "fsl,imx-audio-wm8904", },
 	{ .compatible = "fsl,imx-audio-wm8962", },
 	{ .compatible = "fsl,imx-audio-wm8960", },
 	{ .compatible = "fsl,imx-audio-mqs", },
