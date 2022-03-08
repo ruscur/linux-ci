@@ -410,7 +410,7 @@ static inline void disable_surveillance(void)
 	if (set_indicator_token == RTAS_UNKNOWN_SERVICE)
 		return;
 
-	rtas_call_unlocked(&args, set_indicator_token, 3, 1, NULL,
+	raw_rtas_call(&args, set_indicator_token, 3, 1, NULL,
 			   SURVEILLANCE_TOKEN, 0, 0);
 
 #endif /* CONFIG_PPC_PSERIES */

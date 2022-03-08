@@ -53,7 +53,7 @@ static void rtas_stop_self(void)
 
 	BUG_ON(rtas_stop_self_token == RTAS_UNKNOWN_SERVICE);
 
-	rtas_call_unlocked(&args, rtas_stop_self_token, 0, 1, NULL);
+	raw_rtas_call(&args, rtas_stop_self_token, 0, 1, NULL);
 
 	panic("Alas, I survived.\n");
 }

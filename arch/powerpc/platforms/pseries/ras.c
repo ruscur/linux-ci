@@ -465,12 +465,7 @@ static void fwnmi_release_errinfo(void)
 	struct rtas_args rtas_args;
 	int ret;
 
-	/*
-	 * On pseries, the machine check stack is limited to under 4GB, so
-	 * args can be on-stack.
-	 */
-	rtas_call_unlocked(&rtas_args, ibm_nmi_interlock_token, 0, 1, NULL);
-	ret = be32_to_cpu(rtas_args.rets[0]);
+	ret = raw_rtas_call(&rtas_args, ibm_nmi_interlock_token, 0, 1, NULL);
 	if (ret != 0)
 		printk(KERN_ERR "FWNMI: nmi-interlock failed: %d\n", ret);
 }

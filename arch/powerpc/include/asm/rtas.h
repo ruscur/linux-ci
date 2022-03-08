@@ -241,8 +241,8 @@ extern int rtas_token(const char *service);
 extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
 int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...);
-void rtas_call_unlocked(struct rtas_args *args, int token, int nargs,
-			int nret, ...);
+int raw_rtas_call(struct rtas_args *args, int token,
+			int nargs, int nret, int *outputs, ...);
 extern void __noreturn rtas_restart(char *cmd);
 extern void rtas_power_off(void);
 extern void __noreturn rtas_halt(void);
