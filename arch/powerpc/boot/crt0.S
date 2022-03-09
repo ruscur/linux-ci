@@ -8,7 +8,7 @@
 #include "ppc_asm.h"
 
 RELA = 7
-RELACOUNT = 0x6ffffff9
+RELASZ = 8
 
 	.data
 	/* A procedure descriptor used when booting this as a COFF file.
@@ -65,7 +65,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	subf	r11,r11,r12	/* runtime - linktime offset */
 
 	/* The dynamic section contains a series of tagged entries.
-	 * We need the RELA and RELACOUNT entries. */
+	 * We need the RELA and RELASZ entries. */
 	li	r9,0
 	li	r0,0
 9:	lwz	r8,0(r12)	/* get tag */
@@ -75,18 +75,21 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bne	11f
 	lwz	r9,4(r12)	/* get RELA pointer in r9 */
 	b	12f
-11:	addis	r8,r8,(-RELACOUNT)@ha
-	cmpwi	r8,RELACOUNT@l
+11:	cmpwi	r8,RELASZ
 	bne	12f
-	lwz	r0,4(r12)	/* get RELACOUNT value in r0 */
+	lwz	r0,4(r12)	/* get RELASZ / 24 in r0 */
+	lis     r8,0xaaaa
+	ori     r8,r8,0xaaab
+	mulhwu  r0,r0,r8
+	srwi    r0,r0,4
 12:	addi	r12,r12,8
 	b	9b
 
 	/* The relocation section contains a list of relocations.
 	 * We now do the R_PPC_RELATIVE ones, which point to words
 	 * which need to be initialized with addend + offset.
-	 * The R_PPC_RELATIVE ones come first and there are RELACOUNT
-	 * of them. */
+	 * The R_PPC_RELATIVE ones come first and there are at most
+         * RELASZ/24 of them. */
 10:	/* skip relocation if we don't have both */
 	cmpwi	r0,0
 	beq	3f
@@ -160,14 +163,17 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bne	10f
 	ld	r13,8(r11)       /* get RELA pointer in r13 */
 	b	11f
-10:	addis	r12,r12,(-RELACOUNT)@ha
-	cmpdi	r12,RELACOUNT@l
+10:	cmpdi	r12,RELASZ
 	bne	11f
-	ld	r8,8(r11)       /* get RELACOUNT value in r8 */
+	ld	r8,8(r11)       /* get RELASZ / 24 in r8 */
+	lis     r0,0xaaaa
+	ori     r0,r0,0xaaab
+	mulhwu  r8,r8,r0
+	srwi    r8,r8,4
 11:	addi	r11,r11,16
 	b	9b
 12:
-	cmpdi	r13,0            /* check we have both RELA and RELACOUNT */
+	cmpdi	r13,0            /* check we have both RELA and RELASZ */
 	cmpdi	cr1,r8,0
 	beq	3f
 	beq	cr1,3f

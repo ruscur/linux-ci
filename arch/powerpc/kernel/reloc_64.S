@@ -8,7 +8,7 @@
 #include <asm/ppc_asm.h>
 
 RELA = 7
-RELACOUNT = 0x6ffffff9
+RELASZ = 8
 R_PPC64_RELATIVE = 22
 
 /*
@@ -27,7 +27,7 @@ _GLOBAL(relocate)
 	add	r10,r10,r12	/* r10 has runtime addr of _stext */
 
 	/*
-	 * Scan the dynamic section for the RELA and RELACOUNT entries.
+	 * Scan the dynamic section for the RELA and RELASZ entries.
 	 */
 	li	r7,0
 	li	r8,0
@@ -38,13 +38,16 @@ _GLOBAL(relocate)
 	bne	2f
 	ld	r7,8(r11)	/* get RELA pointer in r7 */
 	b	3f
-2:	addis	r6,r6,(-RELACOUNT)@ha
-	cmpdi	r6,RELACOUNT@l
+2:	cmpdi	r6,RELASZ
 	bne	3f
-	ld	r8,8(r11)	/* get RELACOUNT value in r8 */
+	ld	r8,8(r11)	/* get RELA / 24 in r8 */
+	lis     r0,0xaaaa
+	ori     r0,r0,0xaaab
+	mulhwu  r8,r8,r0
+	srwi    r8,r8,4
 3:	addi	r11,r11,16
 	b	1b
-4:	cmpdi	r7,0		/* check we have both RELA and RELACOUNT */
+4:	cmpdi	r7,0		/* check we have both RELA and RELASZ */
 	cmpdi	cr1,r8,0
 	beq	6f
 	beq	cr1,6f
