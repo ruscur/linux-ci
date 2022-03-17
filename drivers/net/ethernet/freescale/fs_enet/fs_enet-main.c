@@ -94,14 +94,22 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 	int curidx;
 	int dirtyidx, do_wake, do_restart;
 	int tx_left = TX_RING_SIZE;
+	u32 int_events;
 
 	spin_lock(&fep->tx_lock);
 	bdp = fep->dirty_tx;
+	do_wake = do_restart = 0;
+
+	int_events = (*fep->ops->get_int_events)(dev);
+
+	if (int_events & fep->ev_err) {
+		(*fep->ops->ev_error)(dev, int_events);
+		do_restart = 1;
+	}
 
 	/* clear status bits for napi*/
 	(*fep->ops->napi_clear_event)(dev);
 
-	do_wake = do_restart = 0;
 	while (((sc = CBDR_SC(bdp)) & BD_ENET_TX_READY) == 0 && tx_left) {
 		dirtyidx = bdp - fep->tx_bd_base;
 
@@ -318,43 +326,24 @@ fs_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct fs_enet_private *fep;
-	const struct fs_platform_info *fpi;
 	u32 int_events;
-	u32 int_clr_events;
-	int nr, napi_ok;
-	int handled;
 
 	fep = netdev_priv(dev);
-	fpi = fep->fpi;
 
-	nr = 0;
-	while ((int_events = (*fep->ops->get_int_events)(dev)) != 0) {
-		nr++;
+	int_events = (*fep->ops->get_int_events)(dev);
+	if (!int_events)
+		return IRQ_NONE;
 
-		int_clr_events = int_events;
-		int_clr_events &= ~fep->ev_napi;
+	int_events &= ~fep->ev_napi;
 
-		(*fep->ops->clear_int_events)(dev, int_clr_events);
+	(*fep->ops->clear_int_events)(dev, int_events);
 
-		if (int_events & fep->ev_err)
-			(*fep->ops->ev_error)(dev, int_events);
-
-		if (int_events & fep->ev) {
-			napi_ok = napi_schedule_prep(&fep->napi);
-
-			(*fep->ops->napi_disable)(dev);
-			(*fep->ops->clear_int_events)(dev, fep->ev_napi);
-
-			/* NOTE: it is possible for FCCs in NAPI mode    */
-			/* to submit a spurious interrupt while in poll  */
-			if (napi_ok)
-				__napi_schedule(&fep->napi);
-		}
-
+	if (napi_schedule_prep(&fep->napi)) {
+		(*fep->ops->napi_disable)(dev);
+		__napi_schedule(&fep->napi);
 	}
 
-	handled = nr > 0;
-	return IRQ_RETVAL(handled);
+	return IRQ_HANDLED;
 }
 
 void fs_init_bds(struct net_device *dev)
