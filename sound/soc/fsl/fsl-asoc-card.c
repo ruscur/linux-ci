@@ -457,16 +457,18 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 static int hp_jack_event(struct notifier_block *nb, unsigned long event,
 			 void *data)
 {
+	int ret;
+
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
 	struct snd_soc_dapm_context *dapm = &jack->card->dapm;
 
 	if (event & SND_JACK_HEADPHONE)
 		/* Disable speaker if headphone is plugged in */
-		snd_soc_dapm_disable_pin(dapm, "Ext Spk");
+		ret = snd_soc_dapm_disable_pin(dapm, "Ext Spk");
 	else
-		snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+		ret = snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 
-	return 0;
+	return ret;
 }
 
 static struct notifier_block hp_jack_nb = {
@@ -476,16 +478,18 @@ static struct notifier_block hp_jack_nb = {
 static int mic_jack_event(struct notifier_block *nb, unsigned long event,
 			  void *data)
 {
+	int ret;
+
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
 	struct snd_soc_dapm_context *dapm = &jack->card->dapm;
 
 	if (event & SND_JACK_MICROPHONE)
 		/* Disable dmic if microphone is plugged in */
-		snd_soc_dapm_disable_pin(dapm, "DMIC");
+		ret = snd_soc_dapm_disable_pin(dapm, "DMIC");
 	else
-		snd_soc_dapm_enable_pin(dapm, "DMIC");
+		ret = snd_soc_dapm_enable_pin(dapm, "DMIC");
 
-	return 0;
+	return ret;
 }
 
 static struct notifier_block mic_jack_nb = {
