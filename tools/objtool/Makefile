@@ -41,13 +41,19 @@ AWK = awk
 
 SUBCMD_CHECK := n
 SUBCMD_ORC := n
+SUBCMD_MCOUNT := n
 
 ifeq ($(SRCARCH),x86)
 	SUBCMD_CHECK := y
 	SUBCMD_ORC := y
+	SUBCMD_MCOUNT := y
 endif
 
-export SUBCMD_CHECK SUBCMD_ORC
+ifeq ($(SRCARCH),powerpc)
+        SUBCMD_MCOUNT := y
+endif
+
+export SUBCMD_CHECK SUBCMD_ORC SUBCMD_MCOUNT
 export srctree OUTPUT CFLAGS SRCARCH AWK
 include $(srctree)/tools/build/Makefile.include
 

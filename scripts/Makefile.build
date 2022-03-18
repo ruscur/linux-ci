@@ -242,6 +242,18 @@ cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$@: $$(wildcard $(o
 
 endif # CONFIG_STACK_VALIDATION
 
+ifdef CONFIG_FTRACE_MCOUNT_USE_OBJTOOL
+
+objtool := $(objtree)/tools/objtool/objtool
+
+objtool_args := mcount
+objtool_args += $(if $(CONFIG_HAVE_NOP_MCOUNT), --mnop)
+
+cmd_objtool = $(if $(objtool-enabled), ; $(objtool) $(objtool_args) $@)
+cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$@: $$(wildcard $(objtool))' ; } >> $(dot-target).cmd)
+
+endif # CONFIG_FTRACE_MCOUNT_USE_OBJTOOL
+
 ifdef CONFIG_LTO_CLANG
 
 # Skip objtool for LLVM bitcode
