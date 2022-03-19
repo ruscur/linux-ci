@@ -173,10 +173,15 @@ static unsigned long async_req_locks;
 #define NUM_IRQ_STATS 13
 static unsigned int pmu_irq_stats[NUM_IRQ_STATS];
 
+#ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_pmu_root;
 static struct proc_dir_entry *proc_pmu_info;
 static struct proc_dir_entry *proc_pmu_irqstats;
 static struct proc_dir_entry *proc_pmu_options;
+static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
+static void pmu_proc_setup(void);
+#endif
+
 static int option_server_mode;
 
 int pmu_battery_count;
@@ -185,7 +190,6 @@ unsigned int pmu_power_flags = PMU_PWR_AC_PRESENT;
 struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
-static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
 
 int asleep;
 
@@ -204,11 +208,7 @@ static int init_pmu(void);
 static void pmu_start(void);
 static irqreturn_t via_pmu_interrupt(int irq, void *arg);
 static irqreturn_t gpio1_interrupt(int irq, void *arg);
-static int pmu_info_proc_show(struct seq_file *m, void *v);
-static int pmu_irqstats_proc_show(struct seq_file *m, void *v);
-static int pmu_battery_proc_show(struct seq_file *m, void *v);
 static void pmu_pass_intr(unsigned char *data, int len);
-static const struct proc_ops pmu_options_proc_ops;
 
 #ifdef CONFIG_ADB
 const struct adb_driver via_pmu_driver = {
@@ -551,26 +551,9 @@ static int __init via_pmu_dev_init(void)
 	}
 #endif /* CONFIG_PPC32 */
 
-	/* Create /proc/pmu */
-	proc_pmu_root = proc_mkdir("pmu", NULL);
-	if (proc_pmu_root) {
-		long i;
-
-		for (i=0; i<pmu_battery_count; i++) {
-			char title[16];
-			sprintf(title, "battery_%ld", i);
-			proc_pmu_batt[i] = proc_create_single_data(title, 0,
-					proc_pmu_root, pmu_battery_proc_show,
-					(void *)i);
-		}
-
-		proc_pmu_info = proc_create_single("info", 0, proc_pmu_root,
-				pmu_info_proc_show);
-		proc_pmu_irqstats = proc_create_single("interrupts", 0,
-				proc_pmu_root, pmu_irqstats_proc_show);
-		proc_pmu_options = proc_create("options", 0600, proc_pmu_root,
-						&pmu_options_proc_ops);
-	}
+#ifdef CONFIG_PROC_FS
+	pmu_proc_setup();
+#endif
 	return 0;
 }
 
@@ -857,6 +840,7 @@ query_battery_state(void)
 			2, PMU_SMART_BATTERY_STATE, pmu_cur_battery+1);
 }
 
+#ifdef CONFIG_PROC_FS
 static int pmu_info_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "PMU driver version     : %d\n", PMU_DRIVER_VERSION);
@@ -977,6 +961,33 @@ static const struct proc_ops pmu_options_proc_ops = {
 	.proc_release	= single_release,
 	.proc_write	= pmu_options_proc_write,
 };
+
+static void pmu_proc_setup(void)
+{
+	long i;
+
+	/* Create /proc/pmu */
+	proc_pmu_root = proc_mkdir("pmu", NULL);
+	if (!proc_pmu_root)
+		return;
+
+	for (i = 0; i < pmu_battery_count; i++) {
+		char title[16];
+
+		sprintf(title, "battery_%ld", i);
+		proc_pmu_batt[i] =
+			proc_create_single_data(title, 0, proc_pmu_root,
+						pmu_battery_proc_show, (void *)i);
+	}
+
+	proc_pmu_info = proc_create_single("info", 0, proc_pmu_root,
+					   pmu_info_proc_show);
+	proc_pmu_irqstats = proc_create_single("interrupts", 0, proc_pmu_root,
+					       pmu_irqstats_proc_show);
+	proc_pmu_options = proc_create("options", 0600, proc_pmu_root,
+				       &pmu_options_proc_ops);
+}
+#endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_ADB
 /* Send an ADB command */
