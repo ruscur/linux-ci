@@ -31,6 +31,61 @@ typedef u32 ppc_opcode_t;
 #define MSR_SINGLESTEP	(MSR_SE)
 #endif
 
+static inline bool can_single_step(u32 inst)
+{
+	switch (inst >> 26) {
+	case 2:		/* tdi */
+		return false;
+	case 3:		/* twi */
+		return false;
+	case 17:	/* sc and scv */
+		return false;
+	case 19:
+		switch ((inst >> 1) & 0x3ff) {
+		case 18:	/* rfid */
+			return false;
+		case 38:	/* rfmci */
+			return false;
+		case 39:	/* rfdi */
+			return false;
+		case 50:	/* rfi */
+			return false;
+		case 51:	/* rfci */
+			return false;
+		case 82:	/* rfscv */
+			return false;
+		case 274:	/* hrfid */
+			return false;
+		case 306:	/* urfid */
+			return false;
+		case 370:	/* stop */
+			return false;
+		case 402:	/* doze */
+			return false;
+		case 434:	/* nap */
+			return false;
+		case 466:	/* sleep */
+			return false;
+		case 498:	/* rvwinkle */
+			return false;
+		}
+		break;
+	case 31:
+		switch ((inst >> 1) & 0x3ff) {
+		case 4:		/* tw */
+			return false;
+		case 68:	/* td */
+			return false;
+		case 146:	/* mtmsr */
+			return false;
+		case 178:	/* mtmsrd */
+			return false;
+		}
+		break;
+	}
+	return true;
+}
+
 /* Enable single stepping for the current task */
 static inline void enable_single_step(struct pt_regs *regs)
 {
