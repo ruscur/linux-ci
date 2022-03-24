@@ -34,7 +34,7 @@ init_spu_disassemble (void)
       int o = spu_opcodes[i].opcode;
       if (o >= SPU_DISASM_TBL_SIZE)
 	continue; /* abort (); */
-      if (spu_disassemble_table[o] == 0)
+      if (!spu_disassemble_table[o])
 	spu_disassemble_table[o] = &spu_opcodes[i];
     }
 }
@@ -48,30 +48,30 @@ get_index_for_opcode (unsigned int insn)
 
   /* Init the table.  This assumes that element 0/opcode 0 (currently
    * NOP) is always used */
-  if (spu_disassemble_table[0] == 0)
+  if (!spu_disassemble_table[0])
     init_spu_disassemble ();
 
-  if ((index = spu_disassemble_table[opcode & 0x780]) != 0
+  if ((index = spu_disassemble_table[opcode & 0x780]) != NULL
       && index->insn_type == RRR)
     return index;
 
-  if ((index = spu_disassemble_table[opcode & 0x7f0]) != 0
+  if ((index = spu_disassemble_table[opcode & 0x7f0]) != NULL
       && (index->insn_type == RI18 || index->insn_type == LBT))
     return index;
 
-  if ((index = spu_disassemble_table[opcode & 0x7f8]) != 0
+  if ((index = spu_disassemble_table[opcode & 0x7f8]) != NULL
       && index->insn_type == RI10)
     return index;
 
-  if ((index = spu_disassemble_table[opcode & 0x7fc]) != 0
+  if ((index = spu_disassemble_table[opcode & 0x7fc]) != NULL
       && (index->insn_type == RI16))
     return index;
 
-  if ((index = spu_disassemble_table[opcode & 0x7fe]) != 0
+  if ((index = spu_disassemble_table[opcode & 0x7fe]) != NULL
       && (index->insn_type == RI8))
     return index;
 
-  if ((index = spu_disassemble_table[opcode & 0x7ff]) != 0)
+  if ((index = spu_disassemble_table[opcode & 0x7ff]) != NULL)
     return index;
 
   return NULL;
@@ -89,7 +89,7 @@ print_insn_spu (unsigned long insn, unsigned long memaddr)
 
   index = get_index_for_opcode (insn);
 
-  if (index == 0)
+  if (!index)
     {
       printf(".long 0x%lx", insn);
     }
