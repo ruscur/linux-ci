@@ -18,13 +18,13 @@
 
 static const char *const mtrr_strings[MTRR_NUM_TYPES] =
 {
-	"uncachable",		/* 0 */
-	"write-combining",	/* 1 */
-	"?",			/* 2 */
-	"?",			/* 3 */
-	"write-through",	/* 4 */
-	"write-protect",	/* 5 */
-	"write-back",		/* 6 */
+	[0] = "uncachable",
+	[1] = "write-combining",
+	[2] = "?",
+	[3] = "?",
+	[4] = "write-through",
+	[5] = "write-protect",
+	[6] = "write-back",
 };
 
 const char *mtrr_attrib_to_str(int x)

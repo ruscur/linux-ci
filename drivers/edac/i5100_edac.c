@@ -379,28 +379,28 @@ static int i5100_rank_to_slot(const struct mem_ctl_info *mci,
 static const char *i5100_err_msg(unsigned err)
 {
 	static const char *merrs[] = {
-		"unknown", /* 0 */
-		"uncorrectable data ECC on replay", /* 1 */
-		"unknown", /* 2 */
-		"unknown", /* 3 */
-		"aliased uncorrectable demand data ECC", /* 4 */
-		"aliased uncorrectable spare-copy data ECC", /* 5 */
-		"aliased uncorrectable patrol data ECC", /* 6 */
-		"unknown", /* 7 */
-		"unknown", /* 8 */
-		"unknown", /* 9 */
-		"non-aliased uncorrectable demand data ECC", /* 10 */
-		"non-aliased uncorrectable spare-copy data ECC", /* 11 */
-		"non-aliased uncorrectable patrol data ECC", /* 12 */
-		"unknown", /* 13 */
-		"correctable demand data ECC", /* 14 */
-		"correctable spare-copy data ECC", /* 15 */
-		"correctable patrol data ECC", /* 16 */
-		"unknown", /* 17 */
-		"SPD protocol error", /* 18 */
-		"unknown", /* 19 */
-		"spare copy initiated", /* 20 */
-		"spare copy completed", /* 21 */
+		[0]  = "unknown",
+		[1]  = "uncorrectable data ECC on replay",
+		[2]  = "unknown",
+		[3]  = "unknown",
+		[4]  = "aliased uncorrectable demand data ECC",
+		[5]  = "aliased uncorrectable spare-copy data ECC",
+		[6]  = "aliased uncorrectable patrol data ECC",
+		[7]  = "unknown",
+		[8]  = "unknown",
+		[9]  = "unknown",
+		[10] = "non-aliased uncorrectable demand data ECC",
+		[11] = "non-aliased uncorrectable spare-copy data ECC",
+		[12] = "non-aliased uncorrectable patrol data ECC",
+		[13] = "unknown",
+		[14] = "correctable demand data ECC",
+		[15] = "correctable spare-copy data ECC",
+		[16] = "correctable patrol data ECC",
+		[17] = "unknown",
+		[18] = "SPD protocol error",
+		[19] = "unknown",
+		[20] = "spare copy initiated",
+		[21] = "spare copy completed",
 	};
 	unsigned i;
 

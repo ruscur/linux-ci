@@ -97,26 +97,26 @@ static const struct rtw89_btc_fbtc_slot s_def[] = {
 };
 
 static const u32 cxtbl[] = {
-	0xffffffff, /* 0 */
-	0xaaaaaaaa, /* 1 */
-	0x55555555, /* 2 */
-	0x66555555, /* 3 */
-	0x66556655, /* 4 */
-	0x5a5a5a5a, /* 5 */
-	0x5a5a5aaa, /* 6 */
-	0xaa5a5a5a, /* 7 */
-	0x6a5a5a5a, /* 8 */
-	0x6a5a5aaa, /* 9 */
-	0x6a5a6a5a, /* 10 */
-	0x6a5a6aaa, /* 11 */
-	0x6afa5afa, /* 12 */
-	0xaaaa5aaa, /* 13 */
-	0xaaffffaa, /* 14 */
-	0xaa5555aa, /* 15 */
-	0xfafafafa, /* 16 */
-	0xffffddff, /* 17 */
-	0xdaffdaff, /* 18 */
-	0xfafadafa  /* 19 */
+	[0]  = 0xffffffff,
+	[1]  = 0xaaaaaaaa,
+	[2]  = 0x55555555,
+	[3]  = 0x66555555,
+	[4]  = 0x66556655,
+	[5]  = 0x5a5a5a5a,
+	[6]  = 0x5a5a5aaa,
+	[7]  = 0xaa5a5a5a,
+	[8]  = 0x6a5a5a5a,
+	[9]  = 0x6a5a5aaa,
+	[10] = 0x6a5a6a5a,
+	[11] = 0x6a5a6aaa,
+	[12] = 0x6afa5afa,
+	[13] = 0xaaaa5aaa,
+	[14] = 0xaaffffaa,
+	[15] = 0xaa5555aa,
+	[16] = 0xfafafafa,
+	[17] = 0xffffddff,
+	[18] = 0xdaffdaff,
+	[19] = 0xfafadafa
 };
 
 struct rtw89_btc_btf_tlv {

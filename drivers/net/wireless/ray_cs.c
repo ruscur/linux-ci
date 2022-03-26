@@ -2523,20 +2523,23 @@ static void clear_interrupt(ray_dev_t *local)
 #define MAXDATA (PAGE_SIZE - 80)
 
 static const char *card_status[] = {
-	"Card inserted - uninitialized",	/* 0 */
-	"Card not downloaded",			/* 1 */
-	"Waiting for download parameters",	/* 2 */
-	"Card doing acquisition",		/* 3 */
-	"Acquisition complete",			/* 4 */
-	"Authentication complete",		/* 5 */
-	"Association complete",			/* 6 */
-	"???", "???", "???", "???",		/* 7 8 9 10 undefined */
-	"Card init error",			/* 11 */
-	"Download parameters error",		/* 12 */
-	"???",					/* 13 */
-	"Acquisition failed",			/* 14 */
-	"Authentication refused",		/* 15 */
-	"Association failed"			/* 16 */
+	[0]  = "Card inserted - uninitialized",
+	[1]  = "Card not downloaded",
+	[2]  = "Waiting for download parameters",
+	[3]  = "Card doing acquisition",
+	[4]  = "Acquisition complete",
+	[5]  = "Authentication complete",
+	[6]  = "Association complete",
+	[7]  = "???",
+	[8]  = "???",
+	[9]  = "???",
+	[10] = "???",
+	[11] = "Card init error",
+	[12] = "Download parameters error",
+	[13] = "???",
+	[14] = "Acquisition failed",
+	[15] = "Authentication refused",
+	[16] = "Association failed"
 };
 
 static const char *nettype[] = { "Adhoc", "Infra " };

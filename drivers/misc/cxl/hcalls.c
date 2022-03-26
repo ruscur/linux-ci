@@ -86,32 +86,32 @@
 
 
 static char *afu_op_names[] = {
-	"UNKNOWN_OP",		/* 0 undefined */
-	"RESET",		/* 1 */
-	"SUSPEND_PROCESS",	/* 2 */
-	"RESUME_PROCESS",	/* 3 */
-	"READ_ERR_STATE",	/* 4 */
-	"GET_AFU_ERR",		/* 5 */
-	"GET_CONFIG",		/* 6 */
-	"GET_DOWNLOAD_STATE",	/* 7 */
-	"TERMINATE_PROCESS",	/* 8 */
-	"COLLECT_VPD",		/* 9 */
-	"UNKNOWN_OP",		/* 10 undefined */
-	"GET_FUNCTION_ERR_INT",	/* 11 */
-	"ACK_FUNCTION_ERR_INT",	/* 12 */
-	"GET_ERROR_LOG",	/* 13 */
+	[0]  = "UNKNOWN_OP",		         /* undefined */
+	[1]  = "RESET",
+	[2]  = "SUSPEND_PROCESS",
+	[3]  = "RESUME_PROCESS",
+	[4]  = "READ_ERR_STATE",
+	[5]  = "GET_AFU_ERR",
+	[6]  = "GET_CONFIG",
+	[7]  = "GET_DOWNLOAD_STATE",
+	[8]  = "TERMINATE_PROCESS",
+	[9]  = "COLLECT_VPD",
+	[10] = "UNKNOWN_OP",		         /*  undefined */
+	[11] = "GET_FUNCTION_ERR_INT",
+	[12] = "ACK_FUNCTION_ERR_INT",
+	[13] = "GET_ERROR_LOG",
 };
 
 static char *control_adapter_op_names[] = {
-	"UNKNOWN_OP",		/* 0 undefined */
-	"RESET",		/* 1 */
-	"COLLECT_VPD",		/* 2 */
+	[0] = "UNKNOWN_OP",		         /* undefined */
+	[1] = "RESET",
+	[2] = "COLLECT_VPD",
 };
 
 static char *download_op_names[] = {
-	"UNKNOWN_OP",		/* 0 undefined */
-	"DOWNLOAD",		/* 1 */
-	"VALIDATE",		/* 2 */
+	[0] = "UNKNOWN_OP",		         /* undefined */
+	[1] = "DOWNLOAD",
+	[2] = "VALIDATE",
 };
 
 static char *op_str(unsigned int op, char *name_array[], int array_len)

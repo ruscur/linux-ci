@@ -38,102 +38,54 @@ typedef struct {
 
 static _cdef cdef[] =
 {
-	/*00 */
-	{_CEND},
-	/*01 */
-	{_CEND},
-	/*02 */
-	{_CEND},
-	/*03 */
-	{_CDWORD, offsetof(_cmsg, adr.adrController)},
-	/*04 */
-	{_CMSTRUCT, offsetof(_cmsg, AdditionalInfo)},
-	/*05 */
-	{_CSTRUCT, offsetof(_cmsg, B1configuration)},
-	/*06 */
-	{_CWORD, offsetof(_cmsg, B1protocol)},
-	/*07 */
-	{_CSTRUCT, offsetof(_cmsg, B2configuration)},
-	/*08 */
-	{_CWORD, offsetof(_cmsg, B2protocol)},
-	/*09 */
-	{_CSTRUCT, offsetof(_cmsg, B3configuration)},
-	/*0a */
-	{_CWORD, offsetof(_cmsg, B3protocol)},
-	/*0b */
-	{_CSTRUCT, offsetof(_cmsg, BC)},
-	/*0c */
-	{_CSTRUCT, offsetof(_cmsg, BChannelinformation)},
-	/*0d */
-	{_CMSTRUCT, offsetof(_cmsg, BProtocol)},
-	/*0e */
-	{_CSTRUCT, offsetof(_cmsg, CalledPartyNumber)},
-	/*0f */
-	{_CSTRUCT, offsetof(_cmsg, CalledPartySubaddress)},
-	/*10 */
-	{_CSTRUCT, offsetof(_cmsg, CallingPartyNumber)},
-	/*11 */
-	{_CSTRUCT, offsetof(_cmsg, CallingPartySubaddress)},
-	/*12 */
-	{_CDWORD, offsetof(_cmsg, CIPmask)},
-	/*13 */
-	{_CDWORD, offsetof(_cmsg, CIPmask2)},
-	/*14 */
-	{_CWORD, offsetof(_cmsg, CIPValue)},
-	/*15 */
-	{_CDWORD, offsetof(_cmsg, Class)},
-	/*16 */
-	{_CSTRUCT, offsetof(_cmsg, ConnectedNumber)},
-	/*17 */
-	{_CSTRUCT, offsetof(_cmsg, ConnectedSubaddress)},
-	/*18 */
-	{_CDWORD, offsetof(_cmsg, Data)},
-	/*19 */
-	{_CWORD, offsetof(_cmsg, DataHandle)},
-	/*1a */
-	{_CWORD, offsetof(_cmsg, DataLength)},
-	/*1b */
-	{_CSTRUCT, offsetof(_cmsg, FacilityConfirmationParameter)},
-	/*1c */
-	{_CSTRUCT, offsetof(_cmsg, Facilitydataarray)},
-	/*1d */
-	{_CSTRUCT, offsetof(_cmsg, FacilityIndicationParameter)},
-	/*1e */
-	{_CSTRUCT, offsetof(_cmsg, FacilityRequestParameter)},
-	/*1f */
-	{_CWORD, offsetof(_cmsg, FacilitySelector)},
-	/*20 */
-	{_CWORD, offsetof(_cmsg, Flags)},
-	/*21 */
-	{_CDWORD, offsetof(_cmsg, Function)},
-	/*22 */
-	{_CSTRUCT, offsetof(_cmsg, HLC)},
-	/*23 */
-	{_CWORD, offsetof(_cmsg, Info)},
-	/*24 */
-	{_CSTRUCT, offsetof(_cmsg, InfoElement)},
-	/*25 */
-	{_CDWORD, offsetof(_cmsg, InfoMask)},
-	/*26 */
-	{_CWORD, offsetof(_cmsg, InfoNumber)},
-	/*27 */
-	{_CSTRUCT, offsetof(_cmsg, Keypadfacility)},
-	/*28 */
-	{_CSTRUCT, offsetof(_cmsg, LLC)},
-	/*29 */
-	{_CSTRUCT, offsetof(_cmsg, ManuData)},
-	/*2a */
-	{_CDWORD, offsetof(_cmsg, ManuID)},
-	/*2b */
-	{_CSTRUCT, offsetof(_cmsg, NCPI)},
-	/*2c */
-	{_CWORD, offsetof(_cmsg, Reason)},
-	/*2d */
-	{_CWORD, offsetof(_cmsg, Reason_B3)},
-	/*2e */
-	{_CWORD, offsetof(_cmsg, Reject)},
-	/*2f */
-	{_CSTRUCT, offsetof(_cmsg, Useruserdata)}
+	[0x00] = {_CEND},
+	[0x01] = {_CEND},
+	[0x02] = {_CEND},
+	[0x03] = {_CDWORD, offsetof(_cmsg, adr.adrController)},
+	[0x04] = {_CMSTRUCT, offsetof(_cmsg, AdditionalInfo)},
+	[0x05] = {_CSTRUCT, offsetof(_cmsg, B1configuration)},
+	[0x06] = {_CWORD, offsetof(_cmsg, B1protocol)},
+	[0x07] = {_CSTRUCT, offsetof(_cmsg, B2configuration)},
+	[0x08] = {_CWORD, offsetof(_cmsg, B2protocol)},
+	[0x09] = {_CSTRUCT, offsetof(_cmsg, B3configuration)},
+	[0x0a] = {_CWORD, offsetof(_cmsg, B3protocol)},
+	[0x0b] = {_CSTRUCT, offsetof(_cmsg, BC)},
+	[0x0c] = {_CSTRUCT, offsetof(_cmsg, BChannelinformation)},
+	[0x0d] = {_CMSTRUCT, offsetof(_cmsg, BProtocol)},
+	[0x0e] = {_CSTRUCT, offsetof(_cmsg, CalledPartyNumber)},
+	[0x0f] = {_CSTRUCT, offsetof(_cmsg, CalledPartySubaddress)},
+	[0x10] = {_CSTRUCT, offsetof(_cmsg, CallingPartyNumber)},
+	[0x11] = {_CSTRUCT, offsetof(_cmsg, CallingPartySubaddress)},
+	[0x12] = {_CDWORD, offsetof(_cmsg, CIPmask)},
+	[0x13] = {_CDWORD, offsetof(_cmsg, CIPmask2)},
+	[0x14] = {_CWORD, offsetof(_cmsg, CIPValue)},
+	[0x15] = {_CDWORD, offsetof(_cmsg, Class)},
+	[0x16] = {_CSTRUCT, offsetof(_cmsg, ConnectedNumber)},
+	[0x17] = {_CSTRUCT, offsetof(_cmsg, ConnectedSubaddress)},
+	[0x18] = {_CDWORD, offsetof(_cmsg, Data)},
+	[0x19] = {_CWORD, offsetof(_cmsg, DataHandle)},
+	[0x1a] = {_CWORD, offsetof(_cmsg, DataLength)},
+	[0x1b] = {_CSTRUCT, offsetof(_cmsg, FacilityConfirmationParameter)},
+	[0x1c] = {_CSTRUCT, offsetof(_cmsg, Facilitydataarray)},
+	[0x1d] = {_CSTRUCT, offsetof(_cmsg, FacilityIndicationParameter)},
+	[0x1e] = {_CSTRUCT, offsetof(_cmsg, FacilityRequestParameter)},
+	[0x1f] = {_CWORD, offsetof(_cmsg, FacilitySelector)},
+	[0x20] = {_CWORD, offsetof(_cmsg, Flags)},
+	[0x21] = {_CDWORD, offsetof(_cmsg, Function)},
+	[0x22] = {_CSTRUCT, offsetof(_cmsg, HLC)},
+	[0x23] = {_CWORD, offsetof(_cmsg, Info)},
+	[0x24] = {_CSTRUCT, offsetof(_cmsg, InfoElement)},
+	[0x25] = {_CDWORD, offsetof(_cmsg, InfoMask)},
+	[0x26] = {_CWORD, offsetof(_cmsg, InfoNumber)},
+	[0x27] = {_CSTRUCT, offsetof(_cmsg, Keypadfacility)},
+	[0x28] = {_CSTRUCT, offsetof(_cmsg, LLC)},
+	[0x29] = {_CSTRUCT, offsetof(_cmsg, ManuData)},
+	[0x2a] = {_CDWORD, offsetof(_cmsg, ManuID)},
+	[0x2b] = {_CSTRUCT, offsetof(_cmsg, NCPI)},
+	[0x2c] = {_CWORD, offsetof(_cmsg, Reason)},
+	[0x2d] = {_CWORD, offsetof(_cmsg, Reason_B3)},
+	[0x2e] = {_CWORD, offsetof(_cmsg, Reject)},
+	[0x2f] = {_CSTRUCT, offsetof(_cmsg, Useruserdata)}
 };
 
 static unsigned char *cpars[] =
@@ -329,54 +281,54 @@ char *capi_cmd2str(u8 cmd, u8 subcmd)
 
 static char *pnames[] =
 {
-	/*00 */ NULL,
-	/*01 */ NULL,
-	/*02 */ NULL,
-	/*03 */ "Controller/PLCI/NCCI",
-	/*04 */ "AdditionalInfo",
-	/*05 */ "B1configuration",
-	/*06 */ "B1protocol",
-	/*07 */ "B2configuration",
-	/*08 */ "B2protocol",
-	/*09 */ "B3configuration",
-	/*0a */ "B3protocol",
-	/*0b */ "BC",
-	/*0c */ "BChannelinformation",
-	/*0d */ "BProtocol",
-	/*0e */ "CalledPartyNumber",
-	/*0f */ "CalledPartySubaddress",
-	/*10 */ "CallingPartyNumber",
-	/*11 */ "CallingPartySubaddress",
-	/*12 */ "CIPmask",
-	/*13 */ "CIPmask2",
-	/*14 */ "CIPValue",
-	/*15 */ "Class",
-	/*16 */ "ConnectedNumber",
-	/*17 */ "ConnectedSubaddress",
-	/*18 */ "Data32",
-	/*19 */ "DataHandle",
-	/*1a */ "DataLength",
-	/*1b */ "FacilityConfirmationParameter",
-	/*1c */ "Facilitydataarray",
-	/*1d */ "FacilityIndicationParameter",
-	/*1e */ "FacilityRequestParameter",
-	/*1f */ "FacilitySelector",
-	/*20 */ "Flags",
-	/*21 */ "Function",
-	/*22 */ "HLC",
-	/*23 */ "Info",
-	/*24 */ "InfoElement",
-	/*25 */ "InfoMask",
-	/*26 */ "InfoNumber",
-	/*27 */ "Keypadfacility",
-	/*28 */ "LLC",
-	/*29 */ "ManuData",
-	/*2a */ "ManuID",
-	/*2b */ "NCPI",
-	/*2c */ "Reason",
-	/*2d */ "Reason_B3",
-	/*2e */ "Reject",
-	/*2f */ "Useruserdata"
+	[0x00] = NULL,
+	[0x01] = NULL,
+	[0x02] = NULL,
+	[0x03] = "Controller/PLCI/NCCI",
+	[0x04] = "AdditionalInfo",
+	[0x05] = "B1configuration",
+	[0x06] = "B1protocol",
+	[0x07] = "B2configuration",
+	[0x08] = "B2protocol",
+	[0x09] = "B3configuration",
+	[0x0a] = "B3protocol",
+	[0x0b] = "BC",
+	[0x0c] = "BChannelinformation",
+	[0x0d] = "BProtocol",
+	[0x0e] = "CalledPartyNumber",
+	[0x0f] = "CalledPartySubaddress",
+	[0x10] = "CallingPartyNumber",
+	[0x11] = "CallingPartySubaddress",
+	[0x12] = "CIPmask",
+	[0x13] = "CIPmask2",
+	[0x14] = "CIPValue",
+	[0x15] = "Class",
+	[0x16] = "ConnectedNumber",
+	[0x17] = "ConnectedSubaddress",
+	[0x18] = "Data32",
+	[0x19] = "DataHandle",
+	[0x1a] = "DataLength",
+	[0x1b] = "FacilityConfirmationParameter",
+	[0x1c] = "Facilitydataarray",
+	[0x1d] = "FacilityIndicationParameter",
+	[0x1e] = "FacilityRequestParameter",
+	[0x1f] = "FacilitySelector",
+	[0x20] = "Flags",
+	[0x21] = "Function",
+	[0x22] = "HLC",
+	[0x23] = "Info",
+	[0x24] = "InfoElement",
+	[0x25] = "InfoMask",
+	[0x26] = "InfoNumber",
+	[0x27] = "Keypadfacility",
+	[0x28] = "LLC",
+	[0x29] = "ManuData",
+	[0x2a] = "ManuID",
+	[0x2b] = "NCPI",
+	[0x2c] = "Reason",
+	[0x2d] = "Reason_B3",
+	[0x2e] = "Reject",
+	[0x2f] = "Useruserdata"
 };
 
 #include <linux/stdarg.h>

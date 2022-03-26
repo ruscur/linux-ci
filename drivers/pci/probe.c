@@ -653,42 +653,42 @@ EXPORT_SYMBOL(pci_free_host_bridge);
 
 /* Indexed by PCI_X_SSTATUS_FREQ (secondary bus mode and frequency) */
 static const unsigned char pcix_bus_speed[] = {
-	PCI_SPEED_UNKNOWN,		/* 0 */
-	PCI_SPEED_66MHz_PCIX,		/* 1 */
-	PCI_SPEED_100MHz_PCIX,		/* 2 */
-	PCI_SPEED_133MHz_PCIX,		/* 3 */
-	PCI_SPEED_UNKNOWN,		/* 4 */
-	PCI_SPEED_66MHz_PCIX_ECC,	/* 5 */
-	PCI_SPEED_100MHz_PCIX_ECC,	/* 6 */
-	PCI_SPEED_133MHz_PCIX_ECC,	/* 7 */
-	PCI_SPEED_UNKNOWN,		/* 8 */
-	PCI_SPEED_66MHz_PCIX_266,	/* 9 */
-	PCI_SPEED_100MHz_PCIX_266,	/* A */
-	PCI_SPEED_133MHz_PCIX_266,	/* B */
-	PCI_SPEED_UNKNOWN,		/* C */
-	PCI_SPEED_66MHz_PCIX_533,	/* D */
-	PCI_SPEED_100MHz_PCIX_533,	/* E */
-	PCI_SPEED_133MHz_PCIX_533	/* F */
+	[0x0] = PCI_SPEED_UNKNOWN,
+	[0x1] = PCI_SPEED_66MHz_PCIX,
+	[0x2] = PCI_SPEED_100MHz_PCIX,
+	[0x3] = PCI_SPEED_133MHz_PCIX,
+	[0x4] = PCI_SPEED_UNKNOWN,
+	[0x5] = PCI_SPEED_66MHz_PCIX_ECC,
+	[0x6] = PCI_SPEED_100MHz_PCIX_ECC,
+	[0x7] = PCI_SPEED_133MHz_PCIX_ECC,
+	[0x8] = PCI_SPEED_UNKNOWN,
+	[0x9] = PCI_SPEED_66MHz_PCIX_266,
+	[0xA] = PCI_SPEED_100MHz_PCIX_266,
+	[0xB] = PCI_SPEED_133MHz_PCIX_266,
+	[0xC] = PCI_SPEED_UNKNOWN,
+	[0xD] = PCI_SPEED_66MHz_PCIX_533,
+	[0xE] = PCI_SPEED_100MHz_PCIX_533,
+	[0xF] = PCI_SPEED_133MHz_PCIX_533
 };
 
 /* Indexed by PCI_EXP_LNKCAP_SLS, PCI_EXP_LNKSTA_CLS */
 const unsigned char pcie_link_speed[] = {
-	PCI_SPEED_UNKNOWN,		/* 0 */
-	PCIE_SPEED_2_5GT,		/* 1 */
-	PCIE_SPEED_5_0GT,		/* 2 */
-	PCIE_SPEED_8_0GT,		/* 3 */
-	PCIE_SPEED_16_0GT,		/* 4 */
-	PCIE_SPEED_32_0GT,		/* 5 */
-	PCIE_SPEED_64_0GT,		/* 6 */
-	PCI_SPEED_UNKNOWN,		/* 7 */
-	PCI_SPEED_UNKNOWN,		/* 8 */
-	PCI_SPEED_UNKNOWN,		/* 9 */
-	PCI_SPEED_UNKNOWN,		/* A */
-	PCI_SPEED_UNKNOWN,		/* B */
-	PCI_SPEED_UNKNOWN,		/* C */
-	PCI_SPEED_UNKNOWN,		/* D */
-	PCI_SPEED_UNKNOWN,		/* E */
-	PCI_SPEED_UNKNOWN		/* F */
+	[0x0] = PCI_SPEED_UNKNOWN,
+	[0x1] = PCIE_SPEED_2_5GT,
+	[0x2] = PCIE_SPEED_5_0GT,
+	[0x3] = PCIE_SPEED_8_0GT,
+	[0x4] = PCIE_SPEED_16_0GT,
+	[0x5] = PCIE_SPEED_32_0GT,
+	[0x6] = PCIE_SPEED_64_0GT,
+	[0x7] = PCI_SPEED_UNKNOWN,
+	[0x8] = PCI_SPEED_UNKNOWN,
+	[0x9] = PCI_SPEED_UNKNOWN,
+	[0xA] = PCI_SPEED_UNKNOWN,
+	[0xB] = PCI_SPEED_UNKNOWN,
+	[0xC] = PCI_SPEED_UNKNOWN,
+	[0xD] = PCI_SPEED_UNKNOWN,
+	[0xE] = PCI_SPEED_UNKNOWN,
+	[0xF] = PCI_SPEED_UNKNOWN
 };
 EXPORT_SYMBOL_GPL(pcie_link_speed);
 
@@ -696,32 +696,32 @@ const char *pci_speed_string(enum pci_bus_speed speed)
 {
 	/* Indexed by the pci_bus_speed enum */
 	static const char *speed_strings[] = {
-	    "33 MHz PCI",		/* 0x00 */
-	    "66 MHz PCI",		/* 0x01 */
-	    "66 MHz PCI-X",		/* 0x02 */
-	    "100 MHz PCI-X",		/* 0x03 */
-	    "133 MHz PCI-X",		/* 0x04 */
-	    NULL,			/* 0x05 */
-	    NULL,			/* 0x06 */
-	    NULL,			/* 0x07 */
-	    NULL,			/* 0x08 */
-	    "66 MHz PCI-X 266",		/* 0x09 */
-	    "100 MHz PCI-X 266",	/* 0x0a */
-	    "133 MHz PCI-X 266",	/* 0x0b */
-	    "Unknown AGP",		/* 0x0c */
-	    "1x AGP",			/* 0x0d */
-	    "2x AGP",			/* 0x0e */
-	    "4x AGP",			/* 0x0f */
-	    "8x AGP",			/* 0x10 */
-	    "66 MHz PCI-X 533",		/* 0x11 */
-	    "100 MHz PCI-X 533",	/* 0x12 */
-	    "133 MHz PCI-X 533",	/* 0x13 */
-	    "2.5 GT/s PCIe",		/* 0x14 */
-	    "5.0 GT/s PCIe",		/* 0x15 */
-	    "8.0 GT/s PCIe",		/* 0x16 */
-	    "16.0 GT/s PCIe",		/* 0x17 */
-	    "32.0 GT/s PCIe",		/* 0x18 */
-	    "64.0 GT/s PCIe",		/* 0x19 */
+		[0x00] = "33 MHz PCI",
+		[0x01] = "66 MHz PCI",
+		[0x02] = "66 MHz PCI-X",
+		[0x03] = "100 MHz PCI-X",
+		[0x04] = "133 MHz PCI-X",
+		[0x05] = NULL,
+		[0x06] = NULL,
+		[0x07] = NULL,
+		[0x08] = NULL,
+		[0x09] = "66 MHz PCI-X 266",
+		[0x0a] = "100 MHz PCI-X 266",
+		[0x0b] = "133 MHz PCI-X 266",
+		[0x0c] = "Unknown AGP",
+		[0x0d] = "1x AGP",
+		[0x0e] = "2x AGP",
+		[0x0f] = "4x AGP",
+		[0x10] = "8x AGP",
+		[0x11] = "66 MHz PCI-X 533",
+		[0x12] = "100 MHz PCI-X 533",
+		[0x13] = "133 MHz PCI-X 533",
+		[0x14] = "2.5 GT/s PCIe",
+		[0x15] = "5.0 GT/s PCIe",
+		[0x16] = "8.0 GT/s PCIe",
+		[0x17] = "16.0 GT/s PCIe",
+		[0x18] = "32.0 GT/s PCIe",
+		[0x19] = "64.0 GT/s PCIe",
 	};
 
 	if (speed < ARRAY_SIZE(speed_strings))

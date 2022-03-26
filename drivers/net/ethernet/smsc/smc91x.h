@@ -731,16 +731,14 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #define CHIP_91111FD	9
 
 static const char * chip_ids[ 16 ] =  {
-	NULL, NULL, NULL,
-	/* 3 */ "SMC91C90/91C92",
-	/* 4 */ "SMC91C94",
-	/* 5 */ "SMC91C95",
-	/* 6 */ "SMC91C96",
-	/* 7 */ "SMC91C100",
-	/* 8 */ "SMC91C100FD",
-	/* 9 */ "SMC91C11xFD",
-	NULL, NULL, NULL,
-	NULL, NULL, NULL};
+	[3] = "SMC91C90/91C92",
+	[4] = "SMC91C94",
+	[5] = "SMC91C95",
+	[6] = "SMC91C96",
+	[7] = "SMC91C100",
+	[8] = "SMC91C100FD",
+	[9] = "SMC91C11xFD",
+};
 
 
 /*

@@ -33,60 +33,60 @@
 #define ALPS_REG_BASE_PINNACLE	0x0000
 
 static const struct alps_nibble_commands alps_v3_nibble_commands[] = {
-	{ PSMOUSE_CMD_SETPOLL,		0x00 }, /* 0 */
-	{ PSMOUSE_CMD_RESET_DIS,	0x00 }, /* 1 */
-	{ PSMOUSE_CMD_SETSCALE21,	0x00 }, /* 2 */
-	{ PSMOUSE_CMD_SETRATE,		0x0a }, /* 3 */
-	{ PSMOUSE_CMD_SETRATE,		0x14 }, /* 4 */
-	{ PSMOUSE_CMD_SETRATE,		0x28 }, /* 5 */
-	{ PSMOUSE_CMD_SETRATE,		0x3c }, /* 6 */
-	{ PSMOUSE_CMD_SETRATE,		0x50 }, /* 7 */
-	{ PSMOUSE_CMD_SETRATE,		0x64 }, /* 8 */
-	{ PSMOUSE_CMD_SETRATE,		0xc8 }, /* 9 */
-	{ ALPS_CMD_NIBBLE_10,		0x00 }, /* a */
-	{ PSMOUSE_CMD_SETRES,		0x00 }, /* b */
-	{ PSMOUSE_CMD_SETRES,		0x01 }, /* c */
-	{ PSMOUSE_CMD_SETRES,		0x02 }, /* d */
-	{ PSMOUSE_CMD_SETRES,		0x03 }, /* e */
-	{ PSMOUSE_CMD_SETSCALE11,	0x00 }, /* f */
+	[0x0] = { PSMOUSE_CMD_SETPOLL,		0x00 },
+	[0x1] = { PSMOUSE_CMD_RESET_DIS,	   0x00 },
+	[0x2] = { PSMOUSE_CMD_SETSCALE21,	0x00 },
+	[0x3] = { PSMOUSE_CMD_SETRATE,		0x0a },
+	[0x4] = { PSMOUSE_CMD_SETRATE,		0x14 },
+	[0x5] = { PSMOUSE_CMD_SETRATE,		0x28 },
+	[0x6] = { PSMOUSE_CMD_SETRATE,		0x3c },
+	[0x7] = { PSMOUSE_CMD_SETRATE,		0x50 },
+	[0x8] = { PSMOUSE_CMD_SETRATE,		0x64 },
+	[0x9] = { PSMOUSE_CMD_SETRATE,		0xc8 },
+	[0xa] = { ALPS_CMD_NIBBLE_10,		   0x00 },
+	[0xb] = { PSMOUSE_CMD_SETRES,		   0x00 },
+	[0xc] = { PSMOUSE_CMD_SETRES,		   0x01 },
+	[0xd] = { PSMOUSE_CMD_SETRES,		   0x02 },
+	[0xe] = { PSMOUSE_CMD_SETRES,		   0x03 },
+	[0xf] = { PSMOUSE_CMD_SETSCALE11,	0x00 },
 };
 
 static const struct alps_nibble_commands alps_v4_nibble_commands[] = {
-	{ PSMOUSE_CMD_ENABLE,		0x00 }, /* 0 */
-	{ PSMOUSE_CMD_RESET_DIS,	0x00 }, /* 1 */
-	{ PSMOUSE_CMD_SETSCALE21,	0x00 }, /* 2 */
-	{ PSMOUSE_CMD_SETRATE,		0x0a }, /* 3 */
-	{ PSMOUSE_CMD_SETRATE,		0x14 }, /* 4 */
-	{ PSMOUSE_CMD_SETRATE,		0x28 }, /* 5 */
-	{ PSMOUSE_CMD_SETRATE,		0x3c }, /* 6 */
-	{ PSMOUSE_CMD_SETRATE,		0x50 }, /* 7 */
-	{ PSMOUSE_CMD_SETRATE,		0x64 }, /* 8 */
-	{ PSMOUSE_CMD_SETRATE,		0xc8 }, /* 9 */
-	{ ALPS_CMD_NIBBLE_10,		0x00 }, /* a */
-	{ PSMOUSE_CMD_SETRES,		0x00 }, /* b */
-	{ PSMOUSE_CMD_SETRES,		0x01 }, /* c */
-	{ PSMOUSE_CMD_SETRES,		0x02 }, /* d */
-	{ PSMOUSE_CMD_SETRES,		0x03 }, /* e */
-	{ PSMOUSE_CMD_SETSCALE11,	0x00 }, /* f */
+	[0x0] = { PSMOUSE_CMD_ENABLE,		   0x00 },
+	[0x1] = { PSMOUSE_CMD_RESET_DIS,	   0x00 },
+	[0x2] = { PSMOUSE_CMD_SETSCALE21,	0x00 },
+	[0x3] = { PSMOUSE_CMD_SETRATE,		0x0a },
+	[0x4] = { PSMOUSE_CMD_SETRATE,		0x14 },
+	[0x5] = { PSMOUSE_CMD_SETRATE,		0x28 },
+	[0x6] = { PSMOUSE_CMD_SETRATE,		0x3c },
+	[0x7] = { PSMOUSE_CMD_SETRATE,		0x50 },
+	[0x8] = { PSMOUSE_CMD_SETRATE,		0x64 },
+	[0x9] = { PSMOUSE_CMD_SETRATE,		0xc8 },
+	[0xa] = { ALPS_CMD_NIBBLE_10,		   0x00 },
+	[0xb] = { PSMOUSE_CMD_SETRES,		   0x00 },
+	[0xc] = { PSMOUSE_CMD_SETRES,		   0x01 },
+	[0xd] = { PSMOUSE_CMD_SETRES,		   0x02 },
+	[0xe] = { PSMOUSE_CMD_SETRES,		   0x03 },
+	[0xf] = { PSMOUSE_CMD_SETSCALE11,	0x00 },
 };
 
 static const struct alps_nibble_commands alps_v6_nibble_commands[] = {
-	{ PSMOUSE_CMD_ENABLE,		0x00 }, /* 0 */
-	{ PSMOUSE_CMD_SETRATE,		0x0a }, /* 1 */
-	{ PSMOUSE_CMD_SETRATE,		0x14 }, /* 2 */
-	{ PSMOUSE_CMD_SETRATE,		0x28 }, /* 3 */
-	{ PSMOUSE_CMD_SETRATE,		0x3c }, /* 4 */
-	{ PSMOUSE_CMD_SETRATE,		0x50 }, /* 5 */
-	{ PSMOUSE_CMD_SETRATE,		0x64 }, /* 6 */
-	{ PSMOUSE_CMD_SETRATE,		0xc8 }, /* 7 */
-	{ PSMOUSE_CMD_GETID,		0x00 }, /* 8 */
-	{ PSMOUSE_CMD_GETINFO,		0x00 }, /* 9 */
-	{ PSMOUSE_CMD_SETRES,		0x00 }, /* a */
-	{ PSMOUSE_CMD_SETRES,		0x01 }, /* b */
-	{ PSMOUSE_CMD_SETRES,		0x02 }, /* c */
-	{ PSMOUSE_CMD_SETRES,		0x03 }, /* d */
-	{ PSMOUSE_CMD_SETSCALE21,	0x00 }, /* e */
-	{ PSMOUSE_CMD_SETSCALE11,	0x00 }, /* f */
+	[0x0] = { PSMOUSE_CMD_ENABLE,		   0x00 },
+	[0x1] = { PSMOUSE_CMD_SETRATE,		0x0a },
+	[0x2] = { PSMOUSE_CMD_SETRATE,		0x14 },
+	[0x3] = { PSMOUSE_CMD_SETRATE,		0x28 },
+	[0x4] = { PSMOUSE_CMD_SETRATE,		0x3c },
+	[0x5] = { PSMOUSE_CMD_SETRATE,		0x50 },
+	[0x6] = { PSMOUSE_CMD_SETRATE,		0x64 },
+	[0x7] = { PSMOUSE_CMD_SETRATE,		0xc8 },
+	[0x8] = { PSMOUSE_CMD_GETID,		   0x00 },
+	[0x9] = { PSMOUSE_CMD_GETINFO,		0x00 },
+	[0xa] = { PSMOUSE_CMD_SETRES,		   0x00 },
+	[0xb] = { PSMOUSE_CMD_SETRES,		   0x01 },
+	[0xc] = { PSMOUSE_CMD_SETRES,		   0x02 },
+	[0xd] = { PSMOUSE_CMD_SETRES,		   0x03 },
+	[0xe] = { PSMOUSE_CMD_SETSCALE21,	0x00 },
+	[0xf] = { PSMOUSE_CMD_SETSCALE11,	0x00 },
 };
 
 

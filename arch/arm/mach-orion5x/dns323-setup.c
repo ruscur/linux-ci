@@ -61,9 +61,9 @@
 
 /* Exposed to userspace, do not change */
 enum {
-	DNS323_REV_A1,	/* 0 */
-	DNS323_REV_B1,	/* 1 */
-	DNS323_REV_C1,	/* 2 */
+	DNS323_REV_A1 = 0,
+	DNS323_REV_B1 = 1,
+	DNS323_REV_C1 = 2,
 };
 
 

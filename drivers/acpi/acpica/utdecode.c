@@ -156,37 +156,37 @@ static const char acpi_gbl_bad_type[] = "UNDEFINED";
 /* Printable names of the ACPI object types */
 
 static const char *acpi_gbl_ns_type_names[] = {
-	/* 00 */ "Untyped",
-	/* 01 */ "Integer",
-	/* 02 */ "String",
-	/* 03 */ "Buffer",
-	/* 04 */ "Package",
-	/* 05 */ "FieldUnit",
-	/* 06 */ "Device",
-	/* 07 */ "Event",
-	/* 08 */ "Method",
-	/* 09 */ "Mutex",
-	/* 10 */ "Region",
-	/* 11 */ "Power",
-	/* 12 */ "Processor",
-	/* 13 */ "Thermal",
-	/* 14 */ "BufferField",
-	/* 15 */ "DdbHandle",
-	/* 16 */ "DebugObject",
-	/* 17 */ "RegionField",
-	/* 18 */ "BankField",
-	/* 19 */ "IndexField",
-	/* 20 */ "Reference",
-	/* 21 */ "Alias",
-	/* 22 */ "MethodAlias",
-	/* 23 */ "Notify",
-	/* 24 */ "AddrHandler",
-	/* 25 */ "ResourceDesc",
-	/* 26 */ "ResourceFld",
-	/* 27 */ "Scope",
-	/* 28 */ "Extra",
-	/* 29 */ "Data",
-	/* 30 */ "Invalid"
+	[0]  = "Untyped",
+	[1]  = "Integer",
+	[2]  = "String",
+	[3]  = "Buffer",
+	[4]  = "Package",
+	[5]  = "FieldUnit",
+	[6]  = "Device",
+	[7]  = "Event",
+	[8]  = "Method",
+	[9]  = "Mutex",
+	[10] = "Region",
+	[11] = "Power",
+	[12] = "Processor",
+	[13] = "Thermal",
+	[14] = "BufferField",
+	[15] = "DdbHandle",
+	[16] = "DebugObject",
+	[17] = "RegionField",
+	[18] = "BankField",
+	[19] = "IndexField",
+	[20] = "Reference",
+	[21] = "Alias",
+	[22] = "MethodAlias",
+	[23] = "Notify",
+	[24] = "AddrHandler",
+	[25] = "ResourceDesc",
+	[26] = "ResourceFld",
+	[27] = "Scope",
+	[28] = "Extra",
+	[29] = "Data",
+	[30] = "Invalid"
 };
 
 const char *acpi_ut_get_type_name(acpi_object_type type)
@@ -284,22 +284,22 @@ const char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
-	/* 00 */ "Not a Descriptor",
-	/* 01 */ "Cached Object",
-	/* 02 */ "State-Generic",
-	/* 03 */ "State-Update",
-	/* 04 */ "State-Package",
-	/* 05 */ "State-Control",
-	/* 06 */ "State-RootParseScope",
-	/* 07 */ "State-ParseScope",
-	/* 08 */ "State-WalkScope",
-	/* 09 */ "State-Result",
-	/* 10 */ "State-Notify",
-	/* 11 */ "State-Thread",
-	/* 12 */ "Tree Walk State",
-	/* 13 */ "Parse Tree Op",
-	/* 14 */ "Operand Object",
-	/* 15 */ "Namespace Node"
+	[0]  = "Not a Descriptor",
+	[1]  = "Cached Object",
+	[2]  = "State-Generic",
+	[3]  = "State-Update",
+	[4]  = "State-Package",
+	[5]  = "State-Control",
+	[6]  = "State-RootParseScope",
+	[7]  = "State-ParseScope",
+	[8]  = "State-WalkScope",
+	[9]  = "State-Result",
+	[10] = "State-Notify",
+	[11] = "State-Thread",
+	[12] = "Tree Walk State",
+	[13] = "Parse Tree Op",
+	[14] = "Operand Object",
+	[15] = "Namespace Node"
 };
 
 const char *acpi_ut_get_descriptor_name(void *object)
@@ -331,13 +331,13 @@ const char *acpi_ut_get_descriptor_name(void *object)
 /* Printable names of reference object sub-types */
 
 static const char *acpi_gbl_ref_class_names[] = {
-	/* 00 */ "Local",
-	/* 01 */ "Argument",
-	/* 02 */ "RefOf",
-	/* 03 */ "Index",
-	/* 04 */ "DdbHandle",
-	/* 05 */ "Named Object",
-	/* 06 */ "Debug"
+	[0] = "Local",
+	[1] = "Argument",
+	[2] = "RefOf",
+	[3] = "Index",
+	[4] = "DdbHandle",
+	[5] = "Named Object",
+	[6] = "Debug"
 };
 
 const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
@@ -416,25 +416,22 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
 /* Names for Notify() values, used for debug output */
 
 static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
-	/* 00 */ "Bus Check",
-	/* 01 */ "Device Check",
-	/* 02 */ "Device Wake",
-	/* 03 */ "Eject Request",
-	/* 04 */ "Device Check Light",
-	/* 05 */ "Frequency Mismatch",
-	/* 06 */ "Bus Mode Mismatch",
-	/* 07 */ "Power Fault",
-	/* 08 */ "Capabilities Check",
-	/* 09 */ "Device PLD Check",
-	/* 0A */ "Reserved",
-	/* 0B */ "System Locality Update",
-								/* 0C */ "Reserved (was previously Shutdown Request)",
-								/* Reserved in ACPI 6.0 */
-	/* 0D */ "System Resource Affinity Update",
-								/* 0E */ "Heterogeneous Memory Attributes Update",
-								/* ACPI 6.2 */
-						/* 0F */ "Error Disconnect Recover"
-						/* ACPI 6.3 */
+	[0]  = "Bus Check",
+	[1]  = "Device Check",
+	[2]  = "Device Wake",
+	[3]  = "Eject Request",
+	[4]  = "Device Check Light",
+	[5]  = "Frequency Mismatch",
+	[6]  = "Bus Mode Mismatch",
+	[7]  = "Power Fault",
+	[8]  = "Capabilities Check",
+	[9]  = "Device PLD Check",
+	[10] = "Reserved",
+	[11] = "System Locality Update",
+	[12] = "Reserved (was previously Shutdown Request)",  /* Reserved in ACPI 6.0 */
+	[13] = "System Resource Affinity Update",
+	[14] = "Heterogeneous Memory Attributes Update",      /* ACPI 6.2 */
+	[15] = "Error Disconnect Recover"                     /* ACPI 6.3 */
 };
 
 static const char *acpi_gbl_device_notify[5] = {
@@ -521,26 +518,26 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
  ******************************************************************************/
 
 static const char *acpi_gbl_argument_type[20] = {
-	/* 00 */ "Unknown ARGP",
-	/* 01 */ "ByteData",
-	/* 02 */ "ByteList",
-	/* 03 */ "CharList",
-	/* 04 */ "DataObject",
-	/* 05 */ "DataObjectList",
-	/* 06 */ "DWordData",
-	/* 07 */ "FieldList",
-	/* 08 */ "Name",
-	/* 09 */ "NameString",
-	/* 0A */ "ObjectList",
-	/* 0B */ "PackageLength",
-	/* 0C */ "SuperName",
-	/* 0D */ "Target",
-	/* 0E */ "TermArg",
-	/* 0F */ "TermList",
-	/* 10 */ "WordData",
-	/* 11 */ "QWordData",
-	/* 12 */ "SimpleName",
-	/* 13 */ "NameOrRef"
+	[0x00] = "Unknown ARGP",
+	[0x01] = "ByteData",
+	[0x02] = "ByteList",
+	[0x03] = "CharList",
+	[0x04] = "DataObject",
+	[0x05] = "DataObjectList",
+	[0x06] = "DWordData",
+	[0x07] = "FieldList",
+	[0x08] = "Name",
+	[0x09] = "NameString",
+	[0x0A] = "ObjectList",
+	[0x0B] = "PackageLength",
+	[0x0C] = "SuperName",
+	[0x0D] = "Target",
+	[0x0E] = "TermArg",
+	[0x0F] = "TermList",
+	[0x10] = "WordData",
+	[0x11] = "QWordData",
+	[0x12] = "SimpleName",
+	[0x13] = "NameOrRef"
 };
 
 const char *acpi_ut_get_argument_type_name(u32 arg_type)

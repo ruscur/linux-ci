@@ -249,7 +249,7 @@ struct winbond_gpio_info {
 };
 
 static const struct winbond_gpio_info winbond_gpio_infos[6] = {
-	{ /* 0 */
+	[0] = {
 		.dev = WB_SIO_DEV_GPIO12,
 		.enablereg = WB_SIO_GPIO12_REG_ENABLE,
 		.enablebit = WB_SIO_GPIO12_ENABLE_1,
@@ -266,7 +266,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.warnonly = true
 		}
 	},
-	{ /* 1 */
+	[1] = {
 		.dev = WB_SIO_DEV_GPIO12,
 		.enablereg = WB_SIO_GPIO12_REG_ENABLE,
 		.enablebit = WB_SIO_GPIO12_ENABLE_2,
@@ -277,7 +277,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 		.datareg = WB_SIO_GPIO12_REG_DATA2
 		/* special conflict handling so doesn't use conflict data */
 	},
-	{ /* 2 */
+	[2] = {
 		.dev = WB_SIO_DEV_GPIO34,
 		.enablereg = WB_SIO_GPIO34_REG_ENABLE,
 		.enablebit = WB_SIO_GPIO34_ENABLE_3,
@@ -294,7 +294,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.warnonly = true
 		}
 	},
-	{ /* 3 */
+	[3] = {
 		.dev = WB_SIO_DEV_GPIO34,
 		.enablereg = WB_SIO_GPIO34_REG_ENABLE,
 		.enablebit = WB_SIO_GPIO34_ENABLE_4,
@@ -311,7 +311,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.warnonly = true
 		}
 	},
-	{ /* 4 */
+	[4] = {
 		.dev = WB_SIO_DEV_WDGPIO56,
 		.enablereg = WB_SIO_WDGPIO56_REG_ENABLE,
 		.enablebit = WB_SIO_WDGPIO56_ENABLE_5,
@@ -328,7 +328,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.warnonly = true
 		}
 	},
-	{ /* 5 */
+	[5] = {
 		.dev = WB_SIO_DEV_WDGPIO56,
 		.enablereg = WB_SIO_WDGPIO56_REG_ENABLE,
 		.enablebit = WB_SIO_WDGPIO56_ENABLE_6,
