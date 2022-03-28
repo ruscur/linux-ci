@@ -36,28 +36,28 @@ extern const struct sd_flag_debug sd_flag_debug[];
 #endif
 
 #ifdef CONFIG_SCHED_SMT
-static inline int cpu_smt_flags(void)
+static inline int cpu_smt_flags(const struct cpumask *cpu_map)
 {
 	return SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
 }
 #endif
 
 #ifdef CONFIG_SCHED_CLUSTER
-static inline int cpu_cluster_flags(void)
+static inline int cpu_cluster_flags(const struct cpumask *cpu_map)
 {
 	return SD_SHARE_PKG_RESOURCES;
 }
 #endif
 
 #ifdef CONFIG_SCHED_MC
-static inline int cpu_core_flags(void)
+static inline int cpu_core_flags(const struct cpumask *cpu_map)
 {
 	return SD_SHARE_PKG_RESOURCES;
 }
 #endif
 
 #ifdef CONFIG_NUMA
-static inline int cpu_numa_flags(void)
+static inline int cpu_numa_flags(const struct cpumask *cpu_map)
 {
 	return SD_NUMA;
 }
@@ -179,7 +179,7 @@ void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms);
 bool cpus_share_cache(int this_cpu, int that_cpu);
 
 typedef const struct cpumask *(*sched_domain_mask_f)(int cpu);
-typedef int (*sched_domain_flags_f)(void);
+typedef int (*sched_domain_flags_f)(const struct cpumask *cpu_map);
 
 #define SDTL_OVERLAP	0x01
 

@@ -1001,7 +1001,7 @@ static bool shared_caches;
 
 #ifdef CONFIG_SCHED_SMT
 /* cpumask of CPUs with asymmetric SMT dependency */
-static int powerpc_smt_flags(void)
+static int powerpc_smt_flags(const struct cpumask *cpu_map)
 {
 	int flags = SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
 
@@ -1019,7 +1019,7 @@ static int powerpc_smt_flags(void)
  * since the migrated task remains cache hot. We want to take advantage of this
  * at the scheduler level so an extra topology level is required.
  */
-static int powerpc_shared_cache_flags(void)
+static int powerpc_shared_cache_flags(const struct cpumask *cpu_map)
 {
 	return SD_SHARE_PKG_RESOURCES;
 }

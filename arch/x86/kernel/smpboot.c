@@ -541,25 +541,25 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 
 #if defined(CONFIG_SCHED_SMT) || defined(CONFIG_SCHED_CLUSTER) || defined(CONFIG_SCHED_MC)
-static inline int x86_sched_itmt_flags(void)
+static inline int x86_sched_itmt_flags(const struct cpumask *cpu_map)
 {
 	return sysctl_sched_itmt_enabled ? SD_ASYM_PACKING : 0;
 }
 
 #ifdef CONFIG_SCHED_MC
-static int x86_core_flags(void)
+static int x86_core_flags(const struct cpumask *cpu_map)
 {
 	return cpu_core_flags() | x86_sched_itmt_flags();
 }
 #endif
 #ifdef CONFIG_SCHED_SMT
-static int x86_smt_flags(void)
+static int x86_smt_flags(const struct cpumask *cpu_map)
 {
 	return cpu_smt_flags() | x86_sched_itmt_flags();
 }
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
-static int x86_cluster_flags(void)
+static int x86_cluster_flags(const struct cpumask *cpu_map)
 {
 	return cpu_cluster_flags() | x86_sched_itmt_flags();
 }
