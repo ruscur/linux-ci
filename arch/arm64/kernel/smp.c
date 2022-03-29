@@ -715,6 +715,60 @@ void __init smp_init_cpus(void)
 	}
 }
 
+#ifdef CONFIG_SCHED_CLUSTER
+static int arm64_cluster_flags(const struct cpumask *cpu_map)
+{
+	int flag = cpu_cluster_flags();
+	int ret = cpu_share_private_cache(cpu_map);
+	if (ret == 1)
+		flag |= SD_SHARE_PKG_RESOURCES;
+	else if (ret == 0)
+		flag &= ~SD_SHARE_PKG_RESOURCES;
+
+	return flag;
+}
+#endif
+
+#ifdef CONFIG_SCHED_MC
+static int arm64_core_flags(const struct cpumask *cpu_map)
+{
+	int flag = cpu_core_flags();
+	int ret = cpu_share_private_cache(cpu_map);
+	if (ret == 1)
+		flag |= SD_SHARE_PKG_RESOURCES;
+	else if (ret == 0)
+		flag &= ~SD_SHARE_PKG_RESOURCES;
+
+	return flag;
+}
+#endif
+
+static int arm64_die_flags(const struct cpumask *cpu_map)
+{
+	int flag = 0;
+	int ret = cpu_share_private_cache(cpu_map);
+	if (ret == 1)
+		flag |= SD_SHARE_PKG_RESOURCES;
+	else if (ret == 0)
+		flag &= ~SD_SHARE_PKG_RESOURCES;
+
+	return flag;
+}
+
+static struct sched_domain_topology_level arm64_topology[] = {
+#ifdef CONFIG_SCHED_SMT
+	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+#endif
+#ifdef CONFIG_SCHED_CLUSTER
+	{ cpu_clustergroup_mask, arm64_cluster_flags, SD_INIT_NAME(CLS) },
+#endif
+#ifdef CONFIG_SCHED_MC
+	{ cpu_coregroup_mask, arm64_core_flags, SD_INIT_NAME(MC) },
+#endif
+	{ cpu_cpu_mask, arm64_die_flags, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
+
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	const struct cpu_operations *ops;
@@ -723,6 +777,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned int this_cpu;
 
 	init_cpu_topology();
+	init_cpu_cache_topology();
+	set_sched_topology(arm64_topology);
 
 	this_cpu = smp_processor_id();
 	store_cpu_topology(this_cpu);

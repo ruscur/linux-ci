@@ -608,6 +608,92 @@ out:
 }
 #endif
 
+
+/*
+ * cpu cache topology table
+ */
+#define MAX_CACHE_LEVEL 7
+struct device_node *cache_topology[NR_CPUS][MAX_CACHE_LEVEL];
+
+void init_cpu_cache_topology(void)
+{
+	struct device_node *node_cpu, *node_cache;
+	int cpu;
+	int level = 0;
+
+	for_each_possible_cpu(cpu) {
+		node_cpu = of_get_cpu_node(cpu, NULL);
+		if (!node_cpu)
+			continue;
+
+		level = 0;
+		node_cache = node_cpu;
+		while (level < MAX_CACHE_LEVEL) {
+			node_cache = of_parse_phandle(node_cache, "next-level-cache", 0);
+			if (!node_cache)
+				break;
+
+			cache_topology[cpu][level++] = node_cache;
+		}
+		of_node_put(node_cpu);
+	}
+}
+
+/*
+ * private means only shared within cpu_mask
+ * Returns -1 if not described int DT.
+ */
+int cpu_share_private_cache(const struct cpumask *cpu_mask)
+{
+	int cache_level, cpu_id;
+	struct cpumask cache_mask;
+	int cpu = cpumask_first(cpu_mask);
+
+	for (cache_level = 0; cache_level < MAX_CACHE_LEVEL; cache_level++) {
+		if (!cache_topology[cpu][cache_level])
+			return -1;
+
+		cpumask_clear(&cache_mask);
+		for (cpu_id = 0; cpu_id < NR_CPUS; cpu_id++) {
+			if (cache_topology[cpu][cache_level] == cache_topology[cpu_id][cache_level])
+				cpumask_set_cpu(cpu_id, &cache_mask);
+		}
+
+		if (cpumask_equal(cpu_mask, &cache_mask))
+			return 1;
+	}
+
+	return 0;
+}
+
+bool cpu_share_llc(int cpu1, int cpu2)
+{
+	int cache_level;
+
+	for (cache_level = MAX_CACHE_LEVEL - 1; cache_level > 0; cache_level--) {
+		if (!cache_topology[cpu1][cache_level])
+			continue;
+
+		if (cache_topology[cpu1][cache_level] == cache_topology[cpu2][cache_level])
+			return true;
+
+		return false;
+	}
+
+	return false;
+}
+
+bool cpu_share_l2c(int cpu1, int cpu2)
+{
+	if (!cache_topology[cpu1][0])
+		return false;
+
+	if (cache_topology[cpu1][0] == cache_topology[cpu2][0])
+		return true;
+
+	return false;
+}
+
 /*
  * cpu topology table
  */
@@ -645,7 +731,8 @@ void update_siblings_masks(unsigned int cpuid)
 	for_each_online_cpu(cpu) {
 		cpu_topo = &cpu_topology[cpu];
 
-		if (cpuid_topo->llc_id == cpu_topo->llc_id) {
+		if ((cpuid_topo->llc_id != -1 && cpuid_topo->llc_id == cpu_topo->llc_id)
+			|| (cpuid_topo->llc_id == -1 && cpu_share_llc(cpu, cpuid))) {
 			cpumask_set_cpu(cpu, &cpuid_topo->llc_sibling);
 			cpumask_set_cpu(cpuid, &cpu_topo->llc_sibling);
 		}

@@ -1538,7 +1538,7 @@ sd_init(struct sched_domain_topology_level *tl,
 	sd_weight = cpumask_weight(tl->mask(cpu));
 
 	if (tl->sd_flags)
-		sd_flags = (*tl->sd_flags)();
+		sd_flags = (*tl->sd_flags)(tl->mask(cpu));
 	if (WARN_ONCE(sd_flags & ~TOPOLOGY_SD_FLAGS,
 			"wrong sd_flags in topology description\n"))
 		sd_flags &= TOPOLOGY_SD_FLAGS;
