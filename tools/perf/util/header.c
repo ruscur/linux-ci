@@ -983,6 +983,49 @@ static int write_dir_format(struct feat_fd *ff,
 	return do_write(ff, &data->dir.version, sizeof(data->dir.version));
 }
 
+#define SYSFS "/sys/devices/system/cpu/"
+
+/*
+ * Check whether a CPU is online
+ *
+ * Returns:
+ *     1 -> if CPU is online
+ *     0 -> if CPU is offline
+ *    -1 -> error case
+ */
+int is_cpu_online(unsigned int cpu)
+{
+	char sysfs_cpu[255];
+	char buf[255];
+	struct stat statbuf;
+	size_t len;
+	int fd;
+
+	snprintf(sysfs_cpu, sizeof(sysfs_cpu), SYSFS "cpu%u", cpu);
+
+	if (stat(sysfs_cpu, &statbuf) != 0)
+		return 0;
+
+	/*
+	 * Check if /sys/devices/system/cpu/cpux/online file
+	 * exists. In kernels without CONFIG_HOTPLUG_CPU, this
+	 * file won't exist.
+	 */
+	snprintf(sysfs_cpu, sizeof(sysfs_cpu), SYSFS "cpu%u/online", cpu);
+	if (stat(sysfs_cpu, &statbuf) != 0)
+		return 1;
+
+	fd = open(sysfs_cpu, O_RDONLY);
+	if (fd == -1)
+		return -1;
+
+	len = read(fd, buf, sizeof(buf) - 1);
+	buf[len] = '\0';
+	close(fd);
+
+	return strtoul(buf, NULL, 16);
+}
+
 #ifdef HAVE_LIBBPF_SUPPORT
 static int write_bpf_prog_info(struct feat_fd *ff,
 			       struct evlist *evlist __maybe_unused)
