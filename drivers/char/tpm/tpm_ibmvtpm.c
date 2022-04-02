@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
-#include <asm/prom.h>
 
 #include "tpm.h"
 #include "tpm_ibmvtpm.h"
