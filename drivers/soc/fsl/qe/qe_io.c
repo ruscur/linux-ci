@@ -159,12 +159,12 @@ int par_io_of_config(struct device_node *np)
 	pio_map = of_get_property(pio, "pio-map", &pio_map_len);
 	if (pio_map == NULL) {
 		printk(KERN_ERR "pio-map is not set!\n");
-		return -1;
+		goto err_node_put;
 	}
 	pio_map_len /= sizeof(unsigned int);
 	if ((pio_map_len % 6) != 0) {
 		printk(KERN_ERR "pio-map format wrong!\n");
-		return -1;
+		goto err_node_put;
 	}
 
 	while (pio_map_len > 0) {
@@ -182,5 +182,9 @@ int par_io_of_config(struct device_node *np)
 	}
 	of_node_put(pio);
 	return 0;
+
+err_node_put:
+	of_node_put(pio);
+	return -1;
 }
 EXPORT_SYMBOL(par_io_of_config);
