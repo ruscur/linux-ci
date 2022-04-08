@@ -1239,28 +1239,27 @@ static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
 /* Mask of the local ports allowed to receive frames from a given fabric port */
 static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 {
+	struct dsa_port *dp = NULL, *iter, *other_dp;
 	struct dsa_switch *ds = chip->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	struct dsa_port *dp, *other_dp;
-	bool found = false;
 	u16 pvlan;
 
 	/* dev is a physical switch */
 	if (dev <= dst->last_switch) {
-		list_for_each_entry(dp, &dst->ports, list) {
-			if (dp->ds->index == dev && dp->index == port) {
-				/* dp might be a DSA link or a user port, so it
+		list_for_each_entry(iter, &dst->ports, list) {
+			if (iter->ds->index == dev && iter->index == port) {
+				/* iter might be a DSA link or a user port, so it
 				 * might or might not have a bridge.
-				 * Use the "found" variable for both cases.
+				 * Set the "dp" variable for both cases.
 				 */
-				found = true;
+				dp = iter;
 				break;
 			}
 		}
 	/* dev is a virtual bridge */
 	} else {
-		list_for_each_entry(dp, &dst->ports, list) {
-			unsigned int bridge_num = dsa_port_bridge_num_get(dp);
+		list_for_each_entry(iter, &dst->ports, list) {
+			unsigned int bridge_num = dsa_port_bridge_num_get(iter);
 
 			if (!bridge_num)
 				continue;
@@ -1268,13 +1267,13 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 			if (bridge_num + dst->last_switch != dev)
 				continue;
 
-			found = true;
+			dp = iter;
 			break;
 		}
 	}
 
 	/* Prevent frames from unknown switch or virtual bridge */
-	if (!found)
+	if (!dp)
 		return 0;
 
 	/* Frames from DSA links and CPU ports can egress any local port */
