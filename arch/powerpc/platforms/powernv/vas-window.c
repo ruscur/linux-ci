@@ -404,7 +404,13 @@ static void init_winctx_regs(struct pnv_vas_window *window,
 	 *
 	 * See also: Design note in function header.
 	 */
-	val = __pa(winctx->rx_fifo);
+
+	// Some callers pass virtual addresses, others pass real
+	if (virt_addr_valid(winctx->rx_fifo))
+		val = virt_to_phys(winctx->rx_fifo);
+	else
+		val = (u64)winctx->rx_fifo;
+
 	val = SET_FIELD(VAS_PAGE_MIGRATION_SELECT, val, 0);
 	write_hvwc_reg(window, VREG(LFIFO_BAR), val);
 

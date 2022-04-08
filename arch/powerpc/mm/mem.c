@@ -255,7 +255,7 @@ void __init mem_init(void)
 #endif
 
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-	set_max_mapnr(max_low_pfn);
+	set_max_mapnr(max_pfn);
 
 	kasan_late_init();
 
@@ -305,6 +305,13 @@ void __init mem_init(void)
 		MODULES_VADDR, MODULES_END);
 #endif
 #endif /* CONFIG_PPC32 */
+
+	// Check virt_addr_valid() works as expected
+	WARN_ON(!virt_addr_valid(PAGE_OFFSET));
+	WARN_ON(virt_addr_valid(PAGE_OFFSET - 1));
+	WARN_ON(virt_addr_valid(high_memory));
+	WARN_ON(virt_addr_valid(VMALLOC_START));
+	WARN_ON(virt_addr_valid(VMALLOC_END - 1));
 }
 
 void free_initmem(void)
