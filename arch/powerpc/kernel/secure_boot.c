@@ -41,7 +41,7 @@ out:
 	return enabled;
 }
 
-bool is_ppc_trustedboot_enabled(void)
+bool __init is_ppc_trustedboot_enabled(void)
 {
 	struct device_node *node;
 	bool enabled = false;

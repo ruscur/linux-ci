@@ -60,7 +60,7 @@ static const char *const secure_and_trusted_rules[] = {
  * Returns the relevant IMA arch-specific policies based on the system secure
  * boot state.
  */
-const char *const *arch_get_ima_policy(void)
+const char *const * __init arch_get_ima_policy(void)
 {
 	if (is_ppc_secureboot_enabled()) {
 		if (IS_ENABLED(CONFIG_MODULE_SIG))
