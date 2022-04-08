@@ -180,6 +180,9 @@ void shutdown(int exit_val, char *err_cause, int line_no)
 	if (in_shutdown++)
 		return;
 
+	/* Free the cpu_set allocated using CPU_ALLOC in main function */
+	CPU_FREE(cpu_set);
+
 	for (i = 0; i < num_cpus_to_pin; i++)
 		if (cpu_threads[i]) {
 			pthread_kill(cpu_threads[i], SIGUSR1);
@@ -589,6 +592,7 @@ int main(int argc, char *argv[])
 						cpu_set)) {
 					fprintf(stderr, "Any given CPU may "
 						"only be given once.\n");
+					CPU_FREE(cpu_set);
 					exit(1);
 				} else
 					CPU_SET_S(cpus_to_pin[cpu],
@@ -607,6 +611,7 @@ int main(int argc, char *argv[])
 				queue_path = malloc(strlen(option) + 2);
 				if (!queue_path) {
 					perror("malloc()");
+					CPU_FREE(cpu_set);
 					exit(1);
 				}
 				queue_path[0] = '/';
@@ -619,6 +624,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (continuous_mode && num_cpus_to_pin == 0) {
+		CPU_FREE(cpu_set);
 		fprintf(stderr, "Must pass at least one CPU to continuous "
 			"mode.\n");
 		poptPrintUsage(popt_context, stderr, 0);
@@ -628,10 +634,12 @@ int main(int argc, char *argv[])
 		cpus_to_pin[0] = cpus_online - 1;
 	}
 
-	if (getuid() != 0)
+	if (getuid() != 0) {
+		CPU_FREE(cpu_set);
 		ksft_exit_skip("Not running as root, but almost all tests "
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
+	}
 
 	max_msgs = fopen(MAX_MSGS, "r+");
 	max_msgsize = fopen(MAX_MSGSIZE, "r+");
