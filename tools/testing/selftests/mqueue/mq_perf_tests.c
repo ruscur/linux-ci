@@ -732,6 +732,7 @@ int main(int argc, char *argv[])
 		pthread_attr_destroy(&thread_attr);
 	}
 
+	CPU_FREE(cpu_set);
 	if (!continuous_mode) {
 		pthread_join(cpu_threads[0], &retval);
 		shutdown((long)retval, "perf_test_thread()", __LINE__);
