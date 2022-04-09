@@ -1755,7 +1755,10 @@ int pmu_set_rtc_time(struct rtc_time *tm)
 	u32 now;
 	struct adb_request req;
 
-	now = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
+	now = lower_32_bits(mktime64(((unsigned int)tm->tm_year + 1900),
+			    tm->tm_mon + 1, tm->tm_mday, tm->tm_hour,
+			    tm->tm_min, tm->tm_sec)
+			    + RTC_OFFSET);
 	if (pmu_request(&req, NULL, 5, PMU_SET_RTC,
 	                now >> 24, now >> 16, now >> 8, now) < 0)
 		return -ENXIO;
