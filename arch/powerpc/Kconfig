@@ -628,6 +628,17 @@ config FA_DUMP
 	  If unsure, say "y". Only special kernels like petitboot may
 	  need to say "N" here.
 
+config CRASH_HOTPLUG
+	bool "kernel updates of crash kexec segments"
+	depends on CRASH_DUMP && (HOTPLUG_CPU) && KEXEC_FILE
+	help
+	  An efficient way to keep the capture kernel up-to-date with CPU
+	  hotplug events. On CPU hotplug event the kexec segments of capture
+	  kernel becomes stale and need to be updated with latest CPU data.
+	  In this method the kernel performs minimal update to only relevant
+	  kexec segments on CPU hotplug event, instead of triggering full
+	  capture kernel reload from userspace using udev rule.
+
 config PRESERVE_FA_DUMP
 	bool "Preserve Firmware-assisted dump"
 	depends on PPC64 && PPC_POWERNV && !FA_DUMP

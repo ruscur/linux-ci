@@ -24,6 +24,67 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
+#include <asm/kvm_book3s.h>
+#include <asm/kvm_ppc.h>
+
+#ifdef CONFIG_CRASH_HOTPLUG
+
+/**
+ * get_cpu_node_sz() - Calculate the space needed to store a CPU device type node
+ *                     in FDT. The calculation is done based on the existing CPU
+ *                     node in unflatten device tree. Loop through all the
+ *                     properties of the very first CPU type device node found in
+ *                     unflatten device tree and returns the sum of the property
+ *                     length and property string size of all properties of a CPU
+ *                     node.
+ */
+static int get_cpu_node_sz(void) {
+	struct device_node *dn = NULL;
+	struct property *pp;
+	int cpu_node_size = 0;
+
+	dn = of_find_node_by_type(NULL, "cpu");
+
+	if (!dn) {
+		pr_warn("Unable to locate cpu device_type node.\n");
+		goto out;
+	}
+
+	/* Every node in FDT starts with FDT_BEGIN_NODE and ends with
+	 * FDT_END_NODE that takes one byte each.
+	 */
+	cpu_node_size = 2;
+
+	for_each_property_of_node(dn, pp) {
+		/* For each property add two bytes extra. One for string null
+		 * character for property name and other for FDT property start
+		 * tag FDT_PROP.
+		 */
+		cpu_node_size = cpu_node_size + pp->length + strlen(pp->name) + 2;
+	}
+
+out:
+	return cpu_node_size;
+}
+
+/**
+ * get_crash_fdt_mem_sz() - calcuate mem size for crash kernel FDT
+ * @fdt: pointer to crash kernel FDT
+ *
+ * Calculate the buffer space needed to add more CPU nodes in crash FDT
+ * post capture kenrel load due to CPU hotplug events.
+ */
+static unsigned int get_crash_fdt_mem_sz(void *fdt)
+{
+	int fdt_cpu_nodes_sz, offline_cpu_cnt;
+
+	offline_cpu_cnt = (num_possible_cpus() - num_present_cpus()) / MAX_SMT_THREADS;
+	fdt_cpu_nodes_sz = get_cpu_node_sz() * offline_cpu_cnt;
+
+	return fdt_totalsize(fdt) + fdt_cpu_nodes_sz;
+}
+#endif
+
 static void *elf64_load(struct kimage *image, char *kernel_buf,
 			unsigned long kernel_len, char *initrd,
 			unsigned long initrd_len, char *cmdline,
@@ -123,6 +184,19 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	kbuf.buf_align = PAGE_SIZE;
 	kbuf.top_down = true;
 	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+
+#ifdef CONFIG_CRASH_HOTPLUG
+	if (image->type == KEXEC_TYPE_CRASH) {
+		kbuf.memsz = get_crash_fdt_mem_sz(fdt);
+		fdt_set_totalsize(fdt, kbuf.memsz);
+		image->arch.fdt_index = image->nr_segments;
+		image->arch.fdt_index_valid = true;
+	} else
+#endif
+	{
+		kbuf.memsz = fdt_totalsize(fdt);
+	}
+
 	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_fdt;
