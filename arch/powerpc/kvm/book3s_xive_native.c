@@ -93,7 +93,7 @@ void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
 		/* Free the escalation irq */
 		if (xc->esc_virq[i]) {
 			if (kvmppc_xive_has_single_escalation(xc->xive))
-				xive_cleanup_single_escalation(vcpu, xc,
+				xive_cleanup_single_escalation(vcpu,
 							xc->esc_virq[i]);
 			free_irq(xc->esc_virq[i], vcpu);
 			irq_dispose_mapping(xc->esc_virq[i]);
