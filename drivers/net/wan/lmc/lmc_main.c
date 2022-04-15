@@ -1668,21 +1668,17 @@ unsigned lmc_mii_readreg (lmc_softc_t * const sc, unsigned devaddr, unsigned reg
 
         LMC_CSR_WRITE (sc, csr_9, dataval);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         LMC_CSR_WRITE (sc, csr_9, dataval | 0x10000);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
     }
 
     for (i = 19; i > 0; i--)
     {
         LMC_CSR_WRITE (sc, csr_9, 0x40000);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         retval = (retval << 1) | ((LMC_CSR_READ (sc, csr_9) & 0x80000) ? 1 : 0);
         LMC_CSR_WRITE (sc, csr_9, 0x40000 | 0x10000);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
     }
 
     return (retval >> 1) & 0xffff;
@@ -1707,10 +1703,8 @@ void lmc_mii_writereg (lmc_softc_t * const sc, unsigned devaddr, unsigned regno,
 
         LMC_CSR_WRITE (sc, csr_9, datav);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         LMC_CSR_WRITE (sc, csr_9, (datav | 0x10000));
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         i--;
     }
 
@@ -1719,10 +1713,8 @@ void lmc_mii_writereg (lmc_softc_t * const sc, unsigned devaddr, unsigned regno,
     {
         LMC_CSR_WRITE (sc, csr_9, 0x40000);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         LMC_CSR_WRITE (sc, csr_9, 0x50000);
         lmc_delay ();
-        /* __SLOW_DOWN_IO; */
         i--;
     }
 }
