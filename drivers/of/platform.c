@@ -447,6 +447,60 @@ int of_platform_bus_probe(struct device_node *root,
 }
 EXPORT_SYMBOL(of_platform_bus_probe);
 
+static int __init of_platform_populate_framebuffers(void)
+{
+	struct device_node *boot_display = NULL;
+	struct device_node *node;
+	struct platform_device *dev;
+	int ret;
+
+	node = of_get_compatible_child(of_chosen, "simple-framebuffer");
+	of_platform_device_create(node, NULL, NULL);
+	of_node_put(node);
+
+	/* Check if we have a MacOS display without a node spec */
+	if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL)) {
+		/*
+		 * The old code tried to work out which node was the MacOS
+		 * display based on the address. I'm dropping that since the
+		 * lack of a node spec only happens with old BootX versions
+		 * (users can update) and with this code, they'll still get
+		 * a display (just not the palette hacks).
+		 */
+		dev = platform_device_alloc("bootx-noscreen", 0);
+		if (WARN_ON(!dev))
+			return -ENOMEM;
+		ret = platform_device_add(dev);
+		if (WARN_ON(ret)) {
+			platform_device_put(dev);
+			return ret;
+		}
+	}
+
+	/*
+	 * For OF framebuffers, first create the device for the boot display,
+	 * then for the other framebuffers. Only fail for the boot display;
+	 * ignore errors for the rest.
+	 */
+	for_each_node_by_type(node, "display") {
+		if (!of_get_property(node, "linux,opened", NULL) ||
+		    !of_get_property(node, "linux,boot-display", NULL))
+			continue;
+		dev = of_platform_device_create(node, "of-display", NULL);
+		if (WARN_ON(!dev))
+			return -ENOMEM;
+		boot_display = node;
+		break;
+	}
+	for_each_node_by_type(node, "display") {
+		if (!of_get_property(node, "linux,opened", NULL) || node == boot_display)
+			continue;
+		of_platform_device_create(node, "of-display", NULL);
+	}
+
+	return 0;
+}
+
 /**
  * of_platform_populate() - Populate platform_devices from device tree data
  * @root: parent of the first level to probe or NULL for the root of the tree
@@ -541,9 +595,7 @@ static int __init of_platform_default_populate_init(void)
 		of_node_put(node);
 	}
 
-	node = of_get_compatible_child(of_chosen, "simple-framebuffer");
-	of_platform_device_create(node, NULL, NULL);
-	of_node_put(node);
+	of_platform_populate_framebuffers();
 
 	/* Populate everything else. */
 	of_platform_default_populate(NULL, NULL, NULL);
@@ -551,6 +603,20 @@ static int __init of_platform_default_populate_init(void)
 	return 0;
 }
 arch_initcall_sync(of_platform_default_populate_init);
+#else
+static int __init of_platform_default_populate_init(void)
+{
+	device_links_supplier_sync_state_pause();
+
+	if (!of_have_populated_dt())
+		return -ENODEV;
+
+	of_platform_populate_framebuffers();
+
+	return 0;
+}
+arch_initcall_sync(of_platform_default_populate_init);
+#endif
 
 static int __init of_platform_sync_state_init(void)
 {
@@ -558,7 +624,6 @@ static int __init of_platform_sync_state_init(void)
 	return 0;
 }
 late_initcall_sync(of_platform_sync_state_init);
-#endif
 
 int of_platform_device_destroy(struct device *dev, void *data)
 {
