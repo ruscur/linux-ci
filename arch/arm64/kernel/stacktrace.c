@@ -145,12 +145,17 @@ NOKPROBE_SYMBOL(unwind_frame);
 
 static void notrace walk_stackframe(struct task_struct *tsk,
 				    struct stackframe *frame,
-				    bool (*fn)(void *, unsigned long), void *data)
+				    stack_trace_consume_fn fn, void *data)
 {
+	struct frame_info fi;
+
 	while (1) {
 		int ret;
 
-		if (!fn(data, frame->pc))
+		fi.pc = frame->pc;
+		fi.fp = frame->fp;
+		fi.prev_fp = frame->prev_fp;
+		if (!fn(data, &fi))
 			break;
 		ret = unwind_frame(tsk, frame);
 		if (ret < 0)
@@ -159,10 +164,10 @@ static void notrace walk_stackframe(struct task_struct *tsk,
 }
 NOKPROBE_SYMBOL(walk_stackframe);
 
-static bool dump_backtrace_entry(void *arg, unsigned long where)
+static bool dump_backtrace_entry(void *arg, struct frame_info *fi)
 {
 	char *loglvl = arg;
-	printk("%s %pSb\n", loglvl, (void *)where);
+	printk("%s %pSb\n", loglvl, (void *)fi->pc);
 	return true;
 }
 
@@ -209,4 +214,67 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 				thread_saved_pc(task));
 
 	walk_stackframe(task, &frame, consume_entry, cookie);
+}
+
+struct arch_stack_object {
+	unsigned long start;
+	unsigned long len;
+	int flag;
+};
+
+static bool arch_stack_object_check(void *data, struct frame_info *fi)
+{
+	struct arch_stack_object *obj = (struct arch_stack_object *)data;
+
+	/* Skip the frame of arch_within_stack_frames itself */
+	if (fi->prev_fp == 0)
+		return true;
+
+	/*
+	 * low ----------------------------------------------> high
+	 * [saved bp][saved ip][args][local vars][saved bp][saved ip]
+	 *                     ^----------------^
+	 *               allow copies only within here
+	 */
+	if (obj->start + obj->len <= fi->fp) {
+		obj->flag = obj->start >=
+			fi->prev_fp + 2 * sizeof(void *) ?
+			GOOD_FRAME : BAD_STACK;
+		return false;
+	} else
+		return true;
+}
+
+/*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *	GOOD_FRAME	if within a frame
+ *	BAD_STACK	if placed across a frame boundary (or outside stack)
+ *	NOT_STACK	unable to determine (no frame pointers, etc)
+ */
+int arch_within_stack_frames(const void * const stack,
+		const void * const stackend,
+		const void *obj, unsigned long len)
+{
+#if defined(CONFIG_FRAME_POINTER)
+	struct arch_stack_object object;
+	struct pt_regs regs;
+
+	if (__builtin_frame_address(1) == 0)
+		return NOT_STACK;
+
+	object.start = (unsigned long)obj;
+	object.len = len;
+	object.flag = NOT_STACK;
+
+	regs.regs[29] = (u64)__builtin_frame_address(1);
+
+	arch_stack_walk(arch_stack_object_check, (void *)&object, NULL, &regs);
+
+	return object.flag;
+#else
+	return NOT_STACK;
+#endif
 }

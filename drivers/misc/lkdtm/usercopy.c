@@ -24,28 +24,6 @@ static struct kmem_cache *whitelist_cache;
 
 static const unsigned char test_text[] = "This is a test.\n";
 
-/*
- * Instead of adding -Wno-return-local-addr, just pass the stack address
- * through a function to obfuscate it from the compiler.
- */
-static noinline unsigned char *trick_compiler(unsigned char *stack)
-{
-	return stack + 0;
-}
-
-static noinline unsigned char *do_usercopy_stack_callee(int value)
-{
-	unsigned char buf[32];
-	int i;
-
-	/* Exercise stack to avoid everything living in registers. */
-	for (i = 0; i < sizeof(buf); i++) {
-		buf[i] = value & 0xff;
-	}
-
-	return trick_compiler(buf);
-}
-
 static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 {
 	unsigned long user_addr;
@@ -59,7 +37,7 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 
 	/* This is a pointer to outside our current stack frame. */
 	if (bad_frame) {
-		bad_stack = do_usercopy_stack_callee((uintptr_t)&bad_stack);
+		bad_stack = __builtin_frame_address(0);
 	} else {
 		/* Put start address just inside stack. */
 		bad_stack = task_stack_page(current) + THREAD_SIZE;

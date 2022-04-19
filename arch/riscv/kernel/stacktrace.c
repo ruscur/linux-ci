@@ -17,10 +17,11 @@
 #ifdef CONFIG_FRAME_POINTER
 
 void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
-			     bool (*fn)(void *, unsigned long), void *arg)
+			     stack_trace_consume_fn fn, void *arg)
 {
 	unsigned long fp, sp, pc;
 	int level = 0;
+	struct frame_info fi;
 
 	if (regs) {
 		fp = frame_pointer(regs);
@@ -41,7 +42,8 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 		unsigned long low, high;
 		struct stackframe *frame;
 
-		if (unlikely(!__kernel_text_address(pc) || (level++ >= 1 && !fn(arg, pc))))
+		fi.pc = pc;
+		if (unlikely(!__kernel_text_address(pc) || (level++ >= 1 && !fn(arg, &fi))))
 			break;
 
 		/* Validate frame pointer */
@@ -67,10 +69,11 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 #else /* !CONFIG_FRAME_POINTER */
 
 void notrace walk_stackframe(struct task_struct *task,
-	struct pt_regs *regs, bool (*fn)(void *, unsigned long), void *arg)
+	struct pt_regs *regs, stack_trace_consume_fn fn, void *arg)
 {
 	unsigned long sp, pc;
 	unsigned long *ksp;
+	struct frame_info fi;
 
 	if (regs) {
 		sp = user_stack_pointer(regs);
@@ -89,7 +92,8 @@ void notrace walk_stackframe(struct task_struct *task,
 
 	ksp = (unsigned long *)sp;
 	while (!kstack_end(ksp)) {
-		if (__kernel_text_address(pc) && unlikely(!fn(arg, pc)))
+		fi.pc = pc;
+		if (__kernel_text_address(pc) && unlikely(!fn(arg, &fi)))
 			break;
 		pc = (*ksp++) - 0x4;
 	}
@@ -97,11 +101,11 @@ void notrace walk_stackframe(struct task_struct *task,
 
 #endif /* CONFIG_FRAME_POINTER */
 
-static bool print_trace_address(void *arg, unsigned long pc)
+static bool print_trace_address(void *arg, struct frame_info *fi)
 {
 	const char *loglvl = arg;
 
-	print_ip_sym(loglvl, pc);
+	print_ip_sym(loglvl, fi->pc);
 	return true;
 }
 
@@ -117,11 +121,11 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 	dump_backtrace(NULL, task, loglvl);
 }
 
-static bool save_wchan(void *arg, unsigned long pc)
+static bool save_wchan(void *arg, struct frame_info *fi)
 {
-	if (!in_sched_functions(pc)) {
+	if (!in_sched_functions(fi->pc)) {
 		unsigned long *p = arg;
-		*p = pc;
+		*p = fi->pc;
 		return false;
 	}
 	return true;

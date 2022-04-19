@@ -132,10 +132,10 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	}
 }
 
-static bool callchain_trace(void *data, unsigned long pc)
+static bool callchain_trace(void *data, struct frame_info *fi)
 {
 	struct perf_callchain_entry_ctx *entry = data;
-	return perf_callchain_store(entry, pc) == 0;
+	return perf_callchain_store(entry, fi->pc) == 0;
 }
 
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,

@@ -10,15 +10,22 @@ struct pt_regs;
 
 #ifdef CONFIG_ARCH_STACKWALK
 
+struct frame_info {
+	unsigned long pc;
+	unsigned long fp;
+	unsigned long prev_fp;
+};
+
 /**
  * stack_trace_consume_fn - Callback for arch_stack_walk()
  * @cookie:	Caller supplied pointer handed back by arch_stack_walk()
  * @addr:	The stack entry address to consume
+ * @fi:	The frame information to consume
  *
  * Return:	True, if the entry was consumed or skipped
  *		False, if there is no space left to store
  */
-typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr);
+typedef bool (*stack_trace_consume_fn)(void *cookie, struct frame_info *fi);
 /**
  * arch_stack_walk - Architecture specific function to walk the stack
  * @consume_entry:	Callback which is invoked by the architecture code for

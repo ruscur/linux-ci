@@ -66,9 +66,9 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		fp = user_backtrace(entry, fp, 0);
 }
 
-static bool fill_callchain(void *entry, unsigned long pc)
+static bool fill_callchain(void *entry, struct frame_info *fi)
 {
-	return perf_callchain_store(entry, pc) == 0;
+	return perf_callchain_store(entry, fi->pc) == 0;
 }
 
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,

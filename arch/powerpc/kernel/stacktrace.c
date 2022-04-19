@@ -28,9 +28,13 @@ void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry,
 					   struct task_struct *task, struct pt_regs *regs)
 {
 	unsigned long sp;
+	struct frame_info fi;
 
-	if (regs && !consume_entry(cookie, regs->nip))
-		return;
+	if (regs) {
+		fi.pc = regs->nip;
+		if (!consume_entry(cookie, &fi))
+			return;
+	}
 
 	if (regs)
 		sp = regs->gpr[1];
@@ -41,15 +45,15 @@ void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry,
 
 	for (;;) {
 		unsigned long *stack = (unsigned long *) sp;
-		unsigned long newsp, ip;
+		unsigned long newsp;
 
 		if (!validate_sp(sp, task, STACK_FRAME_OVERHEAD))
 			return;
 
 		newsp = stack[0];
-		ip = stack[STACK_FRAME_LR_SAVE];
+		fi.pc = stack[STACK_FRAME_LR_SAVE];
 
-		if (!consume_entry(cookie, ip))
+		if (!consume_entry(cookie, &fi))
 			return;
 
 		sp = newsp;
@@ -71,6 +75,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 	unsigned long stack_end;
 	int graph_idx = 0;
 	bool firstframe;
+	struct frame_info fi;
 
 	stack_end = stack_page + THREAD_SIZE;
 	if (!is_idle_task(task)) {
@@ -159,7 +164,8 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 			return -EINVAL;
 #endif
 
-		if (!consume_entry(cookie, ip))
+		fi.pc = ip;
+		if (!consume_entry(cookie, &fi))
 			return -EINVAL;
 	}
 	return 0;

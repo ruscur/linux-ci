@@ -16,15 +16,18 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		     struct task_struct *task, struct pt_regs *regs)
 {
 	struct unwind_state state;
-	unsigned long addr;
+	struct frame_info fi;
 
-	if (regs && !consume_entry(cookie, regs->ip))
-		return;
+	if (regs) {
+		fi.pc = regs->ip;
+		if (!consume_entry(cookie, &fi))
+			return;
+	}
 
 	for (unwind_start(&state, task, regs, NULL); !unwind_done(&state);
 	     unwind_next_frame(&state)) {
-		addr = unwind_get_return_address(&state);
-		if (!addr || !consume_entry(cookie, addr))
+		fi.pc = unwind_get_return_address(&state);
+		if (!fi.pc || !consume_entry(cookie, &fi))
 			break;
 	}
 }
@@ -34,7 +37,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 {
 	struct unwind_state state;
 	struct pt_regs *regs;
-	unsigned long addr;
+	struct frame_info fi;
 
 	for (unwind_start(&state, task, NULL, NULL);
 	     !unwind_done(&state) && !unwind_error(&state);
@@ -56,17 +59,17 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 				return -EINVAL;
 		}
 
-		addr = unwind_get_return_address(&state);
+		fi.pc = unwind_get_return_address(&state);
 
 		/*
 		 * A NULL or invalid return address probably means there's some
 		 * generated code which __kernel_text_address() doesn't know
 		 * about.
 		 */
-		if (!addr)
+		if (!fi.pc)
 			return -EINVAL;
 
-		if (!consume_entry(cookie, addr))
+		if (!consume_entry(cookie, &fi))
 			return -EINVAL;
 	}
 
@@ -107,8 +110,10 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 			  const struct pt_regs *regs)
 {
 	const void __user *fp = (const void __user *)regs->bp;
+	struct frame_info fi;
 
-	if (!consume_entry(cookie, regs->ip))
+	fi.pc = regs->ip;
+	if (!consume_entry(cookie, &fi))
 		return;
 
 	while (1) {
@@ -122,7 +127,8 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 			break;
 		if (!frame.ret_addr)
 			break;
-		if (!consume_entry(cookie, frame.ret_addr))
+		fi.pc = frame.ret_addr;
+		if (!consume_entry(cookie, &fi))
 			break;
 		fp = frame.next_fp;
 	}

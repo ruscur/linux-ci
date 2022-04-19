@@ -14,11 +14,11 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		     struct task_struct *task, struct pt_regs *regs)
 {
 	struct unwind_state state;
-	unsigned long addr;
+	struct frame_info fi;
 
 	unwind_for_each_frame(&state, task, regs, 0) {
-		addr = unwind_get_return_address(&state);
-		if (!addr || !consume_entry(cookie, addr))
+		fi.pc = unwind_get_return_address(&state);
+		if (!fi.pc || !consume_entry(cookie, &fi))
 			break;
 	}
 }
@@ -27,7 +27,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 			     void *cookie, struct task_struct *task)
 {
 	struct unwind_state state;
-	unsigned long addr;
+	struct frame_info fi;
 
 	unwind_for_each_frame(&state, task, NULL, 0) {
 		if (state.stack_info.type != STACK_TYPE_TASK)
@@ -36,8 +36,8 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 		if (state.regs)
 			return -EINVAL;
 
-		addr = unwind_get_return_address(&state);
-		if (!addr)
+		fi.pc = unwind_get_return_address(&state);
+		if (!fi.pc)
 			return -EINVAL;
 
 #ifdef CONFIG_KPROBES
@@ -49,7 +49,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 			return -EINVAL;
 #endif
 
-		if (!consume_entry(cookie, addr))
+		if (!consume_entry(cookie, &fi))
 			return -EINVAL;
 	}
 

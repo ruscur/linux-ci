@@ -527,12 +527,12 @@ struct wchan_info {
 	int		count;
 };
 
-static bool get_wchan_cb(void *arg, unsigned long pc)
+static bool get_wchan_cb(void *arg, struct frame_info *fi)
 {
 	struct wchan_info *wchan_info = arg;
 
-	if (!in_sched_functions(pc)) {
-		wchan_info->pc = pc;
+	if (!in_sched_functions(fi->pc)) {
+		wchan_info->pc = fi->pc;
 		return false;
 	}
 	return wchan_info->count++ < 16;

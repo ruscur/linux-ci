@@ -18,12 +18,12 @@ struct return_address_data {
 	void *addr;
 };
 
-static bool save_return_addr(void *d, unsigned long pc)
+static bool save_return_addr(void *d, struct frame_info *fi)
 {
 	struct return_address_data *data = d;
 
 	if (!data->level) {
-		data->addr = (void *)pc;
+		data->addr = (void *)fi->pc;
 		return false;
 	} else {
 		--data->level;

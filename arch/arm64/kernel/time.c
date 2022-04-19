@@ -32,13 +32,13 @@
 #include <asm/thread_info.h>
 #include <asm/paravirt.h>
 
-static bool profile_pc_cb(void *arg, unsigned long pc)
+static bool profile_pc_cb(void *arg, struct frame_info *fi)
 {
 	unsigned long *prof_pc = arg;
 
-	if (in_lock_functions(pc))
+	if (in_lock_functions(fi->pc))
 		return true;
-	*prof_pc = pc;
+	*prof_pc = fi->pc;
 	return false;
 }
 
