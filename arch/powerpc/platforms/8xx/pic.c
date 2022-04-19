@@ -14,8 +14,6 @@
 
 #define PIC_VEC_SPURRIOUS      15
 
-extern int cpm_get_irq(struct pt_regs *regs);
-
 static struct irq_domain *mpc8xx_pic_host;
 static unsigned long mpc8xx_cached_irq_mask;
 static sysconf8xx_t __iomem *siu_reg;
@@ -125,7 +123,7 @@ static const struct irq_domain_ops mpc8xx_pic_host_ops = {
 	.xlate = mpc8xx_pic_host_xlate,
 };
 
-int __init mpc8xx_pic_init(void)
+void __init mpc8xx_pic_init(void)
 {
 	struct resource res;
 	struct device_node *np;
@@ -136,7 +134,7 @@ int __init mpc8xx_pic_init(void)
 		np = of_find_node_by_type(NULL, "mpc8xx-pic");
 	if (np == NULL) {
 		printk(KERN_ERR "Could not find fsl,pq1-pic node\n");
-		return -ENOMEM;
+		return;
 	}
 
 	ret = of_address_to_resource(np, 0, &res);
@@ -144,20 +142,13 @@ int __init mpc8xx_pic_init(void)
 		goto out;
 
 	siu_reg = ioremap(res.start, resource_size(&res));
-	if (siu_reg == NULL) {
-		ret = -EINVAL;
+	if (!siu_reg)
 		goto out;
-	}
 
 	mpc8xx_pic_host = irq_domain_add_linear(np, 64, &mpc8xx_pic_host_ops, NULL);
-	if (mpc8xx_pic_host == NULL) {
+	if (!mpc8xx_pic_host)
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
-		ret = -ENOMEM;
-		goto out;
-	}
 
-	ret = 0;
 out:
 	of_node_put(np);
-	return ret;
 }
