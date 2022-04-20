@@ -20,7 +20,7 @@
  *	x0 - bytes not copied
  */
 	.macro ldrb1 reg, ptr, val
-	ldrb  \reg, [\ptr], \val
+	USER_MC(9998f, ldrb  \reg, [\ptr], \val)
 	.endm
 
 	.macro strb1 reg, ptr, val
@@ -28,7 +28,7 @@
 	.endm
 
 	.macro ldrh1 reg, ptr, val
-	ldrh  \reg, [\ptr], \val
+	USER_MC(9998f, ldrh  \reg, [\ptr], \val)
 	.endm
 
 	.macro strh1 reg, ptr, val
@@ -36,7 +36,7 @@
 	.endm
 
 	.macro ldr1 reg, ptr, val
-	ldr \reg, [\ptr], \val
+	USER_MC(9998f, ldr \reg, [\ptr], \val)
 	.endm
 
 	.macro str1 reg, ptr, val
@@ -44,15 +44,16 @@
 	.endm
 
 	.macro ldp1 reg1, reg2, ptr, val
-	ldp \reg1, \reg2, [\ptr], \val
+	USER_MC(9998f, ldp \reg1, \reg2, [\ptr], \val)
 	.endm
 
 	.macro stp1 reg1, reg2, ptr, val
 	user_stp 9997f, \reg1, \reg2, \ptr, \val
 	.endm
 
-end	.req	x5
-srcin	.req	x15
+end		.req	x5
+srcin		.req	x15
+fixup_type	.req	x16
 SYM_FUNC_START(__arch_copy_to_user)
 	add	end, x0, x2
 	mov	srcin, x1
@@ -61,7 +62,10 @@ SYM_FUNC_START(__arch_copy_to_user)
 	ret
 
 	// Exception fixups
-9997:	cmp	dst, dstin
+	// x16: fixup type written by ex_handler_uaccess_mc
+9997:	cmp 	fixup_type, #FIXUP_TYPE_MC
+	b.eq	9998f
+	cmp	dst, dstin
 	b.ne	9998f
 	// Before being absolutely sure we couldn't copy anything, try harder
 	ldrb	tmp1w, [srcin]

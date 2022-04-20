@@ -14,13 +14,8 @@
 #include <asm/cpufeature.h>
 #include <asm/mte.h>
 
-void copy_highpage(struct page *to, struct page *from)
+static void do_mte(struct page *to, struct page *from, void *kto, void *kfrom)
 {
-	struct page *kto = page_address(to);
-	struct page *kfrom = page_address(from);
-
-	copy_page(kto, kfrom);
-
 	if (system_supports_mte() && test_bit(PG_mte_tagged, &from->flags)) {
 		set_bit(PG_mte_tagged, &to->flags);
 		page_kasan_tag_reset(to);
@@ -35,6 +30,15 @@ void copy_highpage(struct page *to, struct page *from)
 		mte_copy_page_tags(kto, kfrom);
 	}
 }
+
+void copy_highpage(struct page *to, struct page *from)
+{
+	void *kto = page_address(to);
+	void *kfrom = page_address(from);
+
+	copy_page(kto, kfrom);
+	do_mte(to, from, kto, kfrom);
+}
 EXPORT_SYMBOL(copy_highpage);
 
 void copy_user_highpage(struct page *to, struct page *from,
@@ -44,3 +48,23 @@ void copy_user_highpage(struct page *to, struct page *from,
 	flush_dcache_page(to);
 }
 EXPORT_SYMBOL_GPL(copy_user_highpage);
+
+#ifdef CONFIG_ARCH_HAS_COPY_MC
+void copy_highpage_mc(struct page *to, struct page *from)
+{
+	void *kto = page_address(to);
+	void *kfrom = page_address(from);
+
+	copy_page_mc(kto, kfrom);
+	do_mte(to, from, kto, kfrom);
+}
+EXPORT_SYMBOL(copy_highpage_mc);
+
+void copy_user_highpage_mc(struct page *to, struct page *from,
+			unsigned long vaddr, struct vm_area_struct *vma)
+{
+	copy_highpage_mc(to, from);
+	flush_dcache_page(to);
+}
+EXPORT_SYMBOL_GPL(copy_user_highpage_mc);
+#endif

@@ -9,6 +9,7 @@
 
 #include <asm/asm-extable.h>
 #include <asm/ptrace.h>
+#include <asm/esr.h>
 
 static inline unsigned long
 get_ex_fixup(const struct exception_table_entry *ex)
@@ -21,6 +22,14 @@ static bool ex_handler_fixup(const struct exception_table_entry *ex,
 {
 	regs->pc = get_ex_fixup(ex);
 	return true;
+}
+
+static bool ex_handler_uaccess_type(const struct exception_table_entry *ex,
+			     struct pt_regs *regs,
+			     unsigned long fixup_type)
+{
+	regs->regs[16] = fixup_type;
+	return ex_handler_fixup(ex, regs);
 }
 
 static bool ex_handler_uaccess_err_zero(const struct exception_table_entry *ex,
@@ -74,13 +83,37 @@ bool fixup_exception(struct pt_regs *regs)
 	switch (ex->type) {
 	case EX_TYPE_FIXUP:
 		return ex_handler_fixup(ex, regs);
+	case EX_TYPE_UACCESS_MC:
+		return ex_handler_uaccess_type(ex, regs, FIXUP_TYPE_NORMAL);
 	case EX_TYPE_BPF:
 		return ex_handler_bpf(ex, regs);
 	case EX_TYPE_UACCESS_ERR_ZERO:
+	case EX_TYPE_UACCESS_MC_ERR_ZERO:
 		return ex_handler_uaccess_err_zero(ex, regs);
 	case EX_TYPE_LOAD_UNALIGNED_ZEROPAD:
 		return ex_handler_load_unaligned_zeropad(ex, regs);
 	}
 
 	BUG();
+}
+
+bool fixup_exception_mc(struct pt_regs *regs)
+{
+	const struct exception_table_entry *ex;
+
+	ex = search_exception_tables(instruction_pointer(regs));
+	if (!ex)
+		return false;
+
+	switch (ex->type) {
+	case EX_TYPE_UACCESS_MC:
+		return ex_handler_uaccess_type(ex, regs, FIXUP_TYPE_MC);
+	case EX_TYPE_UACCESS_MC_ERR_ZERO:
+		return ex_handler_uaccess_err_zero(ex, regs);
+	case EX_TYPE_COPY_PAGE_MC:
+		return ex_handler_fixup(ex, regs);
+
+	}
+
+	return false;
 }
