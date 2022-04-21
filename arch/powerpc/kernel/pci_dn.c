@@ -357,8 +357,8 @@ void pci_remove_device_node_info(struct device_node *dn)
 
 	/* Drop the parent pci_dn's ref to our backing dt node */
 	parent = of_get_parent(dn);
-	if (parent)
-		of_node_put(parent);
+
+	of_node_put(parent);
 
 	/*
 	 * At this point we *might* still have a pci_dev that was
