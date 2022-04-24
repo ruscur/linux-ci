@@ -344,14 +344,15 @@ void __init hvc_opal_init_early(void)
 		opal = of_find_node_by_path("/ibm,opal/consoles");
 		if (opal)
 			pr_devel("hvc_opal: Found consoles in new location\n");
-		if (!opal) {
+		else {
 			opal = of_find_node_by_path("/ibm,opal");
 			if (opal)
 				pr_devel("hvc_opal: "
 					 "Found consoles in old location\n");
+			else
+				return;
 		}
-		if (!opal)
-			return;
+
 		for_each_child_of_node(opal, np) {
 			if (of_node_name_eq(np, "serial")) {
 				stdout_node = np;
