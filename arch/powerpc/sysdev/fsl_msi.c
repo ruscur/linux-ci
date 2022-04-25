@@ -353,7 +353,7 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 	if (!virt_msir) {
 		dev_err(&dev->dev, "%s: Cannot translate IRQ index %d\n",
 			__func__, irq_index);
-		return 0;
+		return -EINVAL;
 	}
 
 	cascade_data = kzalloc(sizeof(struct fsl_msi_cascade_data), GFP_KERNEL);
