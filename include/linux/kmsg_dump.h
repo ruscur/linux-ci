@@ -65,6 +65,8 @@ bool kmsg_dump_get_buffer(struct kmsg_dump_iter *iter, bool syslog,
 
 void kmsg_dump_rewind(struct kmsg_dump_iter *iter);
 
+bool kmsg_has_dumpers(void);
+
 int kmsg_dump_register(struct kmsg_dumper *dumper);
 
 int kmsg_dump_unregister(struct kmsg_dumper *dumper);
@@ -89,6 +91,11 @@ static inline bool kmsg_dump_get_buffer(struct kmsg_dump_iter *iter, bool syslog
 
 static inline void kmsg_dump_rewind(struct kmsg_dump_iter *iter)
 {
+}
+
+static inline bool kmsg_has_dumpers(void)
+{
+	return false;
 }
 
 static inline int kmsg_dump_register(struct kmsg_dumper *dumper)

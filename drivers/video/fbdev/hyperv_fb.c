@@ -1244,8 +1244,16 @@ static int hvfb_probe(struct hv_device *hdev,
 	par->fb_ready = true;
 
 	par->synchronous_fb = false;
+
+	/*
+	 * We need to be sure this panic notifier runs _before_ the
+	 * vmbus disconnect, so order it by priority. It must execute
+	 * before the function hv_panic_vmbus_unload() [drivers/hv/vmbus_drv.c],
+	 * which is almost at the end of list, with priority = INT_MIN + 1.
+	 */
 	par->hvfb_panic_nb.notifier_call = hvfb_on_panic;
-	atomic_notifier_chain_register(&panic_notifier_list,
+	par->hvfb_panic_nb.priority = INT_MIN + 10,
+	atomic_notifier_chain_register(&panic_pre_reboot_list,
 				       &par->hvfb_panic_nb);
 
 	return 0;
@@ -1268,7 +1276,7 @@ static int hvfb_remove(struct hv_device *hdev)
 	struct fb_info *info = hv_get_drvdata(hdev);
 	struct hvfb_par *par = info->par;
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
 					 &par->hvfb_panic_nb);
 
 	par->update = false;

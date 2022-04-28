@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/panic_notifier.h>
 #include <linux/reboot.h>
-#include <linux/notifier.h>
 #include <linux/cache.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -135,7 +134,7 @@ void __init parisc_pdc_chassis_init(void)
 				PDC_CHASSIS_VER);
 
 		/* initialize panic notifier chain */
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_notifier_chain_register(&panic_pre_reboot_list,
 				&pdc_chassis_panic_block);
 
 		/* initialize reboot notifier chain */

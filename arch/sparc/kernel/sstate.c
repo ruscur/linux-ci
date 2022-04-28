@@ -5,7 +5,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -106,7 +105,7 @@ static int __init sstate_init(void)
 
 	do_set_sstate(HV_SOFT_STATE_TRANSITION, booting_msg);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_notifier_chain_register(&panic_hypervisor_list,
 				       &sstate_panic_block);
 	register_reboot_notifier(&sstate_reboot_notifier);
 

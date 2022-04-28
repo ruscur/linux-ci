@@ -829,6 +829,13 @@
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 
+	crash_kexec_post_notifiers
+			This was DEPRECATED - users should always prefer the
+			parameter "panic_notifiers_level" - check its entry
+			in this documentation for details on how it works.
+			Setting this parameter is exactly the same as setting
+			"panic_notifiers_level=4".
+
 	cryptomgr.notests
 			[KNL] Disable crypto self-tests
 
@@ -3784,6 +3791,41 @@
 			timeout < 0: reboot immediately
 			Format: <timeout>
 
+	panic_console_replay
+			[KNL] Force a kernel log replay in the console on
+			panic event. Notice that there is already a flush
+			mechanism for pending messages; this option is meant
+			for users that wish to replay the *full* buffer.
+			It deprecates the bit 5 setting on "panic_print",
+			both having the same functionality.
+
+	panic_notifiers_level=
+			[KNL] Set the panic notifiers execution order.
+			Format: <unsigned int>
+			We currently have 4 lists of panic notifiers; based
+			on the functionality and risk (for panic success) the
+			callbacks are added in a given list. The lists are:
+			- hypervisor/FW notification list (low risk);
+			- informational list (low/medium risk);
+			- pre_reboot list (higher risk);
+			- post_reboot list (only run late in panic and after
+			kdump, not configurable for now).
+			This parameter defines the ordering of the first 3
+			lists with regards to kdump; the levels determine
+			which set of notifiers execute before kdump. The
+			accepted levels are:
+			0: kdump is the first thing to run, NO list is
+			executed before kdump.
+			1: only the hypervisor list is executed before kdump.
+			2 (default level): the hypervisor list and (*if*
+			there's any kmsg_dumper defined) the informational
+			list are executed before kdump.
+			3: both the hypervisor and the informational lists
+			(always) execute before kdump.
+			4: the 3 lists (hypervisor, info and pre_reboot)
+			execute before kdump - this behavior is analog to the
+			deprecated parameter "crash_kexec_post_notifiers".
+
 	panic_print=	Bitmask for printing system info when panic happens.
 			User can chose combination of the following bits:
 			bit 0: print all tasks info
@@ -3791,12 +3833,14 @@
 			bit 2: print timer info
 			bit 3: print locks info if CONFIG_LOCKDEP is on
 			bit 4: print ftrace buffer
-			bit 5: print all printk messages in buffer
+			bit 5: print all printk messages in buffer (DEPRECATED)
 			bit 6: print all CPUs backtrace (if available in the arch)
 			*Be aware* that this option may print a _lot_ of lines,
 			so there are risks of losing older messages in the log.
 			Use this option carefully, maybe worth to setup a
 			bigger log buffer with "log_buf_len" along with this.
+			Also, notice that bit 5 was deprecated in favor of the
+			parameter "panic_console_replay".
 
 	panic_on_taint=	Bitmask for conditionally calling panic() in add_taint()
 			Format: <hex>[,nousertaint]
@@ -3813,14 +3857,6 @@
 
 	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
-
-	crash_kexec_post_notifiers
-			Run kdump after running panic-notifiers and dumping
-			kmsg. This only for the users who doubt kdump always
-			succeeds in any situation.
-			Note that this also increases risks of kdump failure,
-			because some panic notifiers can make the crashed
-			kernel more unstable.
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.

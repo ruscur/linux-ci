@@ -444,7 +444,7 @@ static struct notifier_block arm64_panic_block = {
 
 static int __init register_arm64_panic_block(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_notifier_chain_register(&panic_info_list,
 				       &arm64_panic_block);
 	return 0;
 }

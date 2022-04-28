@@ -24,11 +24,11 @@
 #include <linux/sched/task_stack.h>
 
 #include <linux/delay.h>
-#include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
+#include <linux/kexec.h>
 #include <linux/efi.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
@@ -68,51 +68,75 @@ static int hyperv_report_reg(void)
 	return !sysctl_record_panic_msg || !hv_panic_page;
 }
 
-static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
+/*
+ * The panic notifier below is responsible solely for unloading the
+ * vmbus connection, which is necessary in a panic event. But notice
+ * that this same unloading procedure is executed in the Hyper-V
+ * crash_shutdown() handler [see hv_crash_handler()], which basically
+ * means that we can postpone its execution if we have kdump set,
+ * since it will run the crash_shutdown() handler anyway. Even more
+ * intrincated is the relation of this notifier with Hyper-V framebuffer
+ * panic notifier - we need vmbus connection alive there in order to
+ * succeed, so we need to order both with each other [for reference see
+ * hvfb_on_panic()] - this is done using notifiers' priorities.
+ */
+static int hv_panic_vmbus_unload(struct notifier_block *nb, unsigned long val,
 			      void *args)
 {
-	struct pt_regs *regs;
+	if (!kexec_crash_loaded())
+		vmbus_initiate_unload(true);
 
-	vmbus_initiate_unload(true);
-
-	/*
-	 * Hyper-V should be notified only once about a panic.  If we will be
-	 * doing hv_kmsg_dump() with kmsg data later, don't do the notification
-	 * here.
-	 */
-	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE
-	    && hyperv_report_reg()) {
-		regs = current_pt_regs();
-		hyperv_report_panic(regs, val, false);
-	}
 	return NOTIFY_DONE;
 }
+static struct notifier_block hyperv_panic_vmbus_unload_block = {
+	.notifier_call	= hv_panic_vmbus_unload,
+	.priority	= INT_MIN + 1, /* almost the latest one to execute */
+};
 
-static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
-			    void *args)
+/*
+ * The following callback works both as die and panic notifier; its
+ * goal is to provide panic information to the hypervisor unless the
+ * kmsg dumper is gonna be used [see hv_kmsg_dump()], which provides
+ * more information but is not always available.
+ *
+ * Notice that both the panic/die report notifiers are registered only
+ * if we have the capability HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE set.
+ */
+static int hv_die_panic_notify_crash(struct notifier_block *nb,
+				     unsigned long val, void *args)
 {
-	struct die_args *die = args;
-	struct pt_regs *regs = die->regs;
+	struct pt_regs *regs;
+	bool is_die;
 
-	/* Don't notify Hyper-V if the die event is other than oops */
-	if (val != DIE_OOPS)
+	/* Don't notify Hyper-V unless we have a die oops event or panic. */
+	switch (val) {
+	case DIE_OOPS:
+		is_die = true;
+		regs = ((struct die_args *)args)->regs;
+		break;
+	case PANIC_NOTIFIER:
+		is_die = false;
+		regs = current_pt_regs();
+		break;
+	default:
 		return NOTIFY_DONE;
+	}
 
 	/*
-	 * Hyper-V should be notified only once about a panic.  If we will be
-	 * doing hv_kmsg_dump() with kmsg data later, don't do the notification
-	 * here.
+	 * Hyper-V should be notified only once about a panic/die. If we will
+	 * be calling hv_kmsg_dump() later with kmsg data, don't do the
+	 * notification here.
 	 */
 	if (hyperv_report_reg())
-		hyperv_report_panic(regs, val, true);
+		hyperv_report_panic(regs, val, is_die);
+
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block hyperv_die_block = {
-	.notifier_call = hyperv_die_event,
+static struct notifier_block hyperv_die_report_block = {
+	.notifier_call = hv_die_panic_notify_crash,
 };
-static struct notifier_block hyperv_panic_block = {
-	.notifier_call = hyperv_panic_event,
+static struct notifier_block hyperv_panic_report_block = {
+	.notifier_call = hv_die_panic_notify_crash,
 };
 
 static const char *fb_mmio_name = "fb_range";
@@ -1589,16 +1613,17 @@ static int vmbus_bus_init(void)
 		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
 			hv_kmsg_dump_register();
 
-		register_die_notifier(&hyperv_die_block);
+		register_die_notifier(&hyperv_die_report_block);
+		atomic_notifier_chain_register(&panic_hypervisor_list,
+						&hyperv_panic_report_block);
 	}
 
 	/*
-	 * Always register the panic notifier because we need to unload
-	 * the VMbus channel connection to prevent any VMbus
-	 * activity after the VM panics.
+	 * Always register the vmbus unload panic notifier because we
+	 * need to shut the VMbus channel connection on panic.
 	 */
-	atomic_notifier_chain_register(&panic_notifier_list,
-			       &hyperv_panic_block);
+	atomic_notifier_chain_register(&panic_pre_reboot_list,
+			       &hyperv_panic_vmbus_unload_block);
 
 	vmbus_request_offers();
 
@@ -2817,15 +2842,17 @@ static void __exit vmbus_exit(void)
 
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		kmsg_dump_unregister(&hv_kmsg_dumper);
-		unregister_die_notifier(&hyperv_die_block);
+		unregister_die_notifier(&hyperv_die_report_block);
+		atomic_notifier_chain_unregister(&panic_hypervisor_list,
+						&hyperv_panic_report_block);
 	}
 
 	/*
-	 * The panic notifier is always registered, hence we should
+	 * The vmbus panic notifier is always registered, hence we should
 	 * also unconditionally unregister it here as well.
 	 */
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &hyperv_panic_block);
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
+					&hyperv_panic_vmbus_unload_block);
 
 	free_page((unsigned long)hv_panic_page);
 	unregister_sysctl_table(hv_ctl_table_hdr);

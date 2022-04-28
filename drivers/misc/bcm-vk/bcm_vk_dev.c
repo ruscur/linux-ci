@@ -1446,7 +1446,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* register for panic notifier */
 	vk->panic_nb.notifier_call = bcm_vk_on_panic;
-	err = atomic_notifier_chain_register(&panic_notifier_list,
+	err = atomic_notifier_chain_register(&panic_hypervisor_list,
 					     &vk->panic_nb);
 	if (err) {
 		dev_err(dev, "Fail to register panic notifier\n");
@@ -1486,7 +1486,7 @@ err_bcm_vk_tty_exit:
 	bcm_vk_tty_exit(vk);
 
 err_unregister_panic_notifier:
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_hypervisor_list,
 					 &vk->panic_nb);
 
 err_destroy_workqueue:
@@ -1559,7 +1559,7 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 	usleep_range(BCM_VK_UCODE_BOOT_US, BCM_VK_UCODE_BOOT_MAX_US);
 
 	/* unregister panic notifier */
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_hypervisor_list,
 					 &vk->panic_nb);
 
 	bcm_vk_msg_remove(vk);

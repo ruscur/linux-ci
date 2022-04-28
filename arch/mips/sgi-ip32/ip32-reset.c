@@ -15,7 +15,6 @@
 #include <linux/panic_notifier.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
-#include <linux/notifier.h>
 #include <linux/delay.h>
 #include <linux/rtc/ds1685.h>
 #include <linux/interrupt.h>
@@ -145,7 +144,7 @@ static __init int ip32_reboot_setup(void)
 	pm_power_off = ip32_machine_halt;
 
 	timer_setup(&blink_timer, blink_timeout, 0);
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_hypervisor_list, &panic_block);
 
 	return 0;
 }

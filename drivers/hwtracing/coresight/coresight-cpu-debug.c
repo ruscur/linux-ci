@@ -380,9 +380,10 @@ static int debug_notifier_call(struct notifier_block *self,
 	int cpu;
 	struct debug_drvdata *drvdata;
 
-	mutex_lock(&debug_lock);
+	/* Bail out if we can't acquire the mutex or the functionality is off */
+	if (!mutex_trylock(&debug_lock))
+		return NOTIFY_DONE;
 
-	/* Bail out if the functionality is disabled */
 	if (!debug_enable)
 		goto skip_dump;
 
@@ -401,7 +402,7 @@ static int debug_notifier_call(struct notifier_block *self,
 
 skip_dump:
 	mutex_unlock(&debug_lock);
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block debug_notifier = {
@@ -534,7 +535,7 @@ static int debug_func_init(void)
 			    &debug_func_knob_fops);
 
 	/* Register function to be called for panic */
-	ret = atomic_notifier_chain_register(&panic_notifier_list,
+	ret = atomic_notifier_chain_register(&panic_info_list,
 					     &debug_notifier);
 	if (ret) {
 		pr_err("%s: unable to register notifier: %d\n",
@@ -551,7 +552,7 @@ err:
 
 static void debug_func_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_info_list,
 					 &debug_notifier);
 	debugfs_remove_recursive(debug_debugfs_dir);
 }

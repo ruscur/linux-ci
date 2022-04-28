@@ -15,7 +15,6 @@
 #include <linux/kgdb.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
-#include <linux/notifier.h>
 #include <linux/vt_kern.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -52,26 +51,34 @@ static unsigned long tainted_mask =
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
-bool crash_kexec_post_notifiers;
+
 int panic_on_warn __read_mostly;
+bool panic_on_taint_nousertaint;
 unsigned long panic_on_taint;
-bool panic_on_taint_nousertaint = false;
 
 int panic_timeout = CONFIG_PANIC_TIMEOUT;
 EXPORT_SYMBOL_GPL(panic_timeout);
 
-#define PANIC_PRINT_TASK_INFO		0x00000001
-#define PANIC_PRINT_MEM_INFO		0x00000002
-#define PANIC_PRINT_TIMER_INFO		0x00000004
-#define PANIC_PRINT_LOCK_INFO		0x00000008
-#define PANIC_PRINT_FTRACE_INFO		0x00000010
-#define PANIC_PRINT_ALL_PRINTK_MSG	0x00000020
-#define PANIC_PRINT_ALL_CPU_BT		0x00000040
-unsigned long panic_print;
+/* Initialized with all notifiers set to run before kdump */
+static unsigned long panic_notifiers_bits = 15;
 
-ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
+/* Default level is 2, see kernel-parameters.txt */
+unsigned int panic_notifiers_level = 2;
 
-EXPORT_SYMBOL(panic_notifier_list);
+/* DEPRECATED in favor of panic_notifiers_level */
+bool crash_kexec_post_notifiers;
+
+ATOMIC_NOTIFIER_HEAD(panic_hypervisor_list);
+EXPORT_SYMBOL(panic_hypervisor_list);
+
+ATOMIC_NOTIFIER_HEAD(panic_info_list);
+EXPORT_SYMBOL(panic_info_list);
+
+ATOMIC_NOTIFIER_HEAD(panic_pre_reboot_list);
+EXPORT_SYMBOL(panic_pre_reboot_list);
+
+ATOMIC_NOTIFIER_HEAD(panic_post_reboot_list);
+EXPORT_SYMBOL(panic_post_reboot_list);
 
 static long no_blink(int state)
 {
@@ -101,10 +108,14 @@ void __weak nmi_panic_self_stop(struct pt_regs *regs)
 }
 
 /*
- * Stop other CPUs in panic.  Architecture dependent code may override this
- * with more suitable version.  For example, if the architecture supports
- * crash dump, it should save registers of each stopped CPU and disable
- * per-CPU features such as virtualization extensions.
+ * Stop other CPUs in panic context.
+ *
+ * Architecture dependent code may override this with more suitable version.
+ * For example, if the architecture supports crash dump, it should save the
+ * registers of each stopped CPU and disable per-CPU features such as
+ * virtualization extensions. When not overridden in arch code (and for
+ * x86/xen), this is exactly the same as execute smp_send_stop(), but
+ * guarded against duplicate execution.
  */
 void __weak crash_smp_send_stop(void)
 {
@@ -148,32 +159,115 @@ void nmi_panic(struct pt_regs *regs, const char *msg)
 }
 EXPORT_SYMBOL(nmi_panic);
 
-static void panic_print_sys_info(bool console_flush)
+/*
+ * Helper that accumulates all console flushing routines executed on panic.
+ */
+static void console_flushing(void)
 {
-	if (console_flush) {
-		if (panic_print & PANIC_PRINT_ALL_PRINTK_MSG)
-			console_flush_on_panic(CONSOLE_REPLAY_ALL);
-		return;
+#ifdef CONFIG_VT
+	unblank_screen();
+#endif
+	console_unblank();
+
+	/*
+	 * In this point, we may have disabled other CPUs, hence stopping the
+	 * CPU holding the lock while still having some valuable data in the
+	 * console buffer.
+	 *
+	 * Try to acquire the lock then release it regardless of the result.
+	 * The release will also print the buffers out. Locks debug should
+	 * be disabled to avoid reporting bad unlock balance when panic()
+	 * is not being called from OOPS.
+	 */
+	debug_locks_off();
+	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
+
+	/* In case users wish to replay the full log buffer... */
+	if (panic_console_replay) {
+		pr_warn("Replaying the log buffer from the beginning\n");
+		console_flush_on_panic(CONSOLE_REPLAY_ALL);
 	}
-
-	if (panic_print & PANIC_PRINT_ALL_CPU_BT)
-		trigger_all_cpu_backtrace();
-
-	if (panic_print & PANIC_PRINT_TASK_INFO)
-		show_state();
-
-	if (panic_print & PANIC_PRINT_MEM_INFO)
-		show_mem(0, NULL);
-
-	if (panic_print & PANIC_PRINT_TIMER_INFO)
-		sysrq_timer_list_show();
-
-	if (panic_print & PANIC_PRINT_LOCK_INFO)
-		debug_show_all_locks();
-
-	if (panic_print & PANIC_PRINT_FTRACE_INFO)
-		ftrace_dump(DUMP_ALL);
 }
+
+#define PN_HYPERVISOR_BIT	0
+#define PN_INFO_BIT		1
+#define PN_PRE_REBOOT_BIT	2
+#define PN_POST_REBOOT_BIT	3
+
+/*
+ * Determine the order of panic notifiers with regards to kdump.
+ *
+ * This function relies in the "panic_notifiers_level" kernel parameter
+ * to determine how to order the notifiers with regards to kdump. We
+ * have currently 5 levels. For details, please check the kernel docs for
+ * "panic_notifiers_level" at Documentation/admin-guide/kernel-parameters.txt.
+ *
+ * Default level is 2, which means the panic hypervisor and informational
+ * (unless we don't have any kmsg_dumper) lists will execute before kdump.
+ */
+static void order_panic_notifiers_and_kdump(void)
+{
+	/*
+	 * The parameter "crash_kexec_post_notifiers" is deprecated, but
+	 * valid. Users that set it want really all panic notifiers to
+	 * execute before kdump, so it's effectively the same as setting
+	 * the panic notifiers level to 4.
+	 */
+	if (panic_notifiers_level >= 4 || crash_kexec_post_notifiers)
+		return;
+
+	/*
+	 * Based on the level configured (smaller than 4), we clear the
+	 * proper bits in "panic_notifiers_bits". Notice that this bitfield
+	 * is initialized with all notifiers set.
+	 */
+	switch (panic_notifiers_level) {
+	case 3:
+		clear_bit(PN_PRE_REBOOT_BIT, &panic_notifiers_bits);
+		break;
+	case 2:
+		clear_bit(PN_PRE_REBOOT_BIT, &panic_notifiers_bits);
+
+		if (!kmsg_has_dumpers())
+			clear_bit(PN_INFO_BIT, &panic_notifiers_bits);
+		break;
+	case 1:
+		clear_bit(PN_PRE_REBOOT_BIT, &panic_notifiers_bits);
+		clear_bit(PN_INFO_BIT, &panic_notifiers_bits);
+		break;
+	case 0:
+		clear_bit(PN_PRE_REBOOT_BIT, &panic_notifiers_bits);
+		clear_bit(PN_INFO_BIT, &panic_notifiers_bits);
+		clear_bit(PN_HYPERVISOR_BIT, &panic_notifiers_bits);
+		break;
+	}
+}
+
+/*
+ * Set of helpers to execute the panic notifiers only once.
+ * Just the informational notifier cares about the return.
+ */
+static inline bool notifier_run_once(struct atomic_notifier_head head,
+				     char *buf, long bit)
+{
+	if (test_and_change_bit(bit, &panic_notifiers_bits)) {
+		atomic_notifier_call_chain(&head, PANIC_NOTIFIER, buf);
+		return true;
+	}
+	return false;
+}
+
+#define panic_notifier_hypervisor_once(buf)\
+	notifier_run_once(panic_hypervisor_list, buf, PN_HYPERVISOR_BIT)
+
+#define panic_notifier_info_once(buf)\
+	notifier_run_once(panic_info_list, buf, PN_INFO_BIT)
+
+#define panic_notifier_pre_reboot_once(buf)\
+	notifier_run_once(panic_pre_reboot_list, buf, PN_PRE_REBOOT_BIT)
+
+#define panic_notifier_post_reboot_once(buf)\
+	notifier_run_once(panic_post_reboot_list, buf, PN_POST_REBOOT_BIT)
 
 /**
  *	panic - halt the system
@@ -190,32 +284,29 @@ void panic(const char *fmt, ...)
 	long i, i_next = 0, len;
 	int state = 0;
 	int old_cpu, this_cpu;
-	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
 
-	if (panic_on_warn) {
-		/*
-		 * This thread may hit another WARN() in the panic path.
-		 * Resetting this prevents additional WARN() from panicking the
-		 * system on this thread.  Other threads are blocked by the
-		 * panic_mutex in panic().
-		 */
-		panic_on_warn = 0;
-	}
+	/*
+	 * This thread may hit another WARN() in the panic path, so
+	 * resetting this option prevents additional WARN() from
+	 * re-panicking the system here.
+	 */
+	panic_on_warn = 0;
 
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
-	 * from deadlocking the first cpu that invokes the panic, since
-	 * there is nothing to prevent an interrupt handler (that runs
-	 * after setting panic_cpu) from invoking panic() again.
+	 * from deadlocking the first cpu that invokes the panic, since there
+	 * is nothing to prevent an interrupt handler (that runs after setting
+	 * panic_cpu) from invoking panic() again. Also disables preemption
+	 * here - notice it's not safe to rely on interrupt disabling to avoid
+	 * preemption, since any cond_resched() or cond_resched_lock() might
+	 * trigger a reschedule if the preempt count is 0 (for reference, see
+	 * Documentation/locking/preempt-locking.rst). Some functions called
+	 * from here want preempt disabled, so no point enabling it later.
 	 */
 	local_irq_disable();
 	preempt_disable_notrace();
 
 	/*
-	 * It's possible to come here directly from a panic-assertion and
-	 * not have preempt disabled. Some functions called from here want
-	 * preempt to be disabled. No point enabling it later though...
-	 *
 	 * Only one CPU is allowed to execute the panic code from here. For
 	 * multiple parallel invocations of panic, all other CPUs either
 	 * stop themself or will wait until they are stopped by the 1st CPU
@@ -258,71 +349,71 @@ void panic(const char *fmt, ...)
 	kgdb_panic(buf);
 
 	/*
-	 * If we have crashed and we have a crash kernel loaded let it handle
-	 * everything else.
-	 * If we want to run this after calling panic_notifiers, pass
-	 * the "crash_kexec_post_notifiers" option to the kernel.
+	 * Here lies one of the most subtle parts of the panic path,
+	 * the panic notifiers and their order with regards to kdump.
+	 * We currently have 4 sets of notifiers:
 	 *
-	 * Bypass the panic_cpu check and call __crash_kexec directly.
+	 *  - the hypervisor list is composed by callbacks that are related
+	 *  to warn the FW / hypervisor about panic, or non-invasive LED
+	 *  controlling functions - (hopefully) low-risk for kdump, should
+	 *  run early if possible.
+	 *
+	 *  - the informational list is composed by functions dumping data
+	 *  like kernel offsets, device error registers or tracing buffer;
+	 *  also log flooding prevention callbacks fit in this list. It is
+	 *  relatively safe to run before kdump.
+	 *
+	 *  - the pre_reboot list basically is everything else, all the
+	 *  callbacks that don't fit in the 2 previous lists. It should
+	 *  run *after* kdump if possible, as it contains high-risk
+	 *  functions that may break kdump.
+	 *
+	 *  - we also have a 4th list of notifiers, the post_reboot
+	 *  callbacks. This is not strongly related to kdump since it's
+	 *  always executed late in the panic path, after the restart
+	 *  mechanism (if set); its goal is to provide a way for
+	 *  architecture code effectively power-off/disable the system.
+	 *
+	 *  The kernel provides the "panic_notifiers_level" parameter
+	 *  to adjust the ordering in which these notifiers should run
+	 *  with regards to kdump - the default level is 2, so both the
+	 *  hypervisor and informational notifiers should execute before
+	 *  the __crash_kexec(); the info notifier won't run by default
+	 *  unless there's some kmsg_dumper() registered. For details
+	 *  about it, check Documentation/admin-guide/kernel-parameters.txt.
+	 *
+	 *  Notice that the code relies in bits set/clear operations to
+	 *  determine the ordering, functions *_once() execute only one
+	 *  time, as their name implies. The goal is to prevent too much
+	 *  if conditionals and more confusion. Finally, regarding CPUs
+	 *  disabling: unless NO panic notifier executes before kdump,
+	 *  we always disable secondary CPUs before __crash_kexec() and
+	 *  the notifiers execute.
 	 */
-	if (!_crash_kexec_post_notifiers) {
+	order_panic_notifiers_and_kdump();
+
+	/* If no level, we should kdump ASAP. */
+	if (!panic_notifiers_level)
 		__crash_kexec(NULL);
 
-		/*
-		 * Note smp_send_stop is the usual smp shutdown function, which
-		 * unfortunately means it may not be hardened to work in a
-		 * panic situation.
-		 */
-		smp_send_stop();
-	} else {
-		/*
-		 * If we want to do crash dump after notifier calls and
-		 * kmsg_dump, we will need architecture dependent extra
-		 * works in addition to stopping other CPUs.
-		 */
-		crash_smp_send_stop();
-	}
+	crash_smp_send_stop();
+	panic_notifier_hypervisor_once(buf);
 
-	/*
-	 * Run any panic handlers, including those that might need to
-	 * add information to the kmsg dump output.
-	 */
-	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
+	if (panic_notifier_info_once(buf))
+		kmsg_dump(KMSG_DUMP_PANIC);
 
-	panic_print_sys_info(false);
+	panic_notifier_pre_reboot_once(buf);
 
-	kmsg_dump(KMSG_DUMP_PANIC);
+	__crash_kexec(NULL);
 
-	/*
-	 * If you doubt kdump always works fine in any situation,
-	 * "crash_kexec_post_notifiers" offers you a chance to run
-	 * panic_notifiers and dumping kmsg before kdump.
-	 * Note: since some panic_notifiers can make crashed kernel
-	 * more unstable, it can increase risks of the kdump failure too.
-	 *
-	 * Bypass the panic_cpu check and call __crash_kexec directly.
-	 */
-	if (_crash_kexec_post_notifiers)
-		__crash_kexec(NULL);
+	panic_notifier_hypervisor_once(buf);
 
-#ifdef CONFIG_VT
-	unblank_screen();
-#endif
-	console_unblank();
+	if (panic_notifier_info_once(buf))
+		kmsg_dump(KMSG_DUMP_PANIC);
 
-	/*
-	 * We may have ended up stopping the CPU holding the lock (in
-	 * smp_send_stop()) while still having some valuable data in the console
-	 * buffer.  Try to acquire the lock then release it regardless of the
-	 * result.  The release will also print the buffers out.  Locks debug
-	 * should be disabled to avoid reporting bad unlock balance when
-	 * panic() is not being callled from OOPS.
-	 */
-	debug_locks_off();
-	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
+	panic_notifier_pre_reboot_once(buf);
 
-	panic_print_sys_info(true);
-
+	console_flushing();
 	if (!panic_blink)
 		panic_blink = no_blink;
 
@@ -352,18 +443,9 @@ void panic(const char *fmt, ...)
 			reboot_mode = panic_reboot_mode;
 		emergency_restart();
 	}
-#ifdef __sparc__
-	{
-		extern int stop_a_enabled;
-		/* Make sure the user can actually press Stop-A (L1-A) */
-		stop_a_enabled = 1;
-		pr_emerg("Press Stop-A (L1-A) from sun keyboard or send break\n"
-			 "twice on console to return to the boot prom\n");
-	}
-#endif
-#if defined(CONFIG_S390)
-	disabled_wait();
-#endif
+
+	panic_notifier_post_reboot_once(buf);
+
 	pr_emerg("---[ end Kernel panic - not syncing: %s ]---\n", buf);
 
 	/* Do not scroll important messages printed above */
@@ -380,6 +462,15 @@ void panic(const char *fmt, ...)
 }
 
 EXPORT_SYMBOL(panic);
+
+/*
+ * Helper used in the kexec code, to validate if any
+ * panic notifier is set to execute early, before kdump.
+ */
+inline bool panic_notifiers_before_kdump(void)
+{
+	return panic_notifiers_level || crash_kexec_post_notifiers;
+}
 
 /*
  * TAINT_FORCED_RMMOD could be a per-module flag but the module
@@ -687,9 +778,11 @@ EXPORT_SYMBOL(__stack_chk_fail);
 #endif
 
 core_param(panic, panic_timeout, int, 0644);
-core_param(panic_print, panic_print, ulong, 0644);
 core_param(pause_on_oops, pause_on_oops, int, 0644);
 core_param(panic_on_warn, panic_on_warn, int, 0644);
+core_param(panic_notifiers_level, panic_notifiers_level, uint, 0644);
+
+/* DEPRECATED in favor of panic_notifiers_level */
 core_param(crash_kexec_post_notifiers, crash_kexec_post_notifiers, bool, 0644);
 
 static int __init oops_setup(char *s)

@@ -220,30 +220,34 @@ sclp_console_device(struct console *c, int *index)
 }
 
 /*
- * Make sure that all buffers will be flushed to the SCLP.
+ * This panic/reboot notifier makes sure that all buffers
+ * will be flushed to the SCLP.
  */
-static void
-sclp_console_flush(void)
-{
-	sclp_conbuf_emit();
-	sclp_console_sync_queue();
-}
-
 static int sclp_console_notify(struct notifier_block *self,
 			       unsigned long event, void *data)
 {
-	sclp_console_flush();
-	return NOTIFY_OK;
+	/*
+	 * Perform the lock check before effectively getting the
+	 * lock on sclp_conbuf_emit() / sclp_console_sync_queue()
+	 * to prevent potential lockups in atomic context.
+	 */
+	if (spin_is_locked(&sclp_con_lock))
+		return NOTIFY_DONE;
+
+	sclp_conbuf_emit();
+	sclp_console_sync_queue();
+
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = sclp_console_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 static struct notifier_block on_reboot_nb = {
 	.notifier_call = sclp_console_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 /*
@@ -284,7 +288,7 @@ sclp_console_init(void)
 	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 
 	/* enable printk-access to this driver */
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &on_panic_nb);
 	register_reboot_notifier(&on_reboot_nb);
 	register_console(&sclp_console);
 	return 0;

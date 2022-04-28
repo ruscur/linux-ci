@@ -85,6 +85,7 @@ hung_task_panic(struct notifier_block *this, unsigned long event, void *ptr)
 
 static struct notifier_block panic_block = {
 	.notifier_call = hung_task_panic,
+	.priority = INT_MAX, /* run early to prevent potential log flood */
 };
 
 static void check_hung_task(struct task_struct *t, unsigned long timeout)
@@ -378,7 +379,7 @@ static int watchdog(void *dummy)
 
 static int __init hung_task_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_info_list, &panic_block);
 
 	/* Disable hung task detector on suspend */
 	pm_notifier(hungtask_pm_notify, 0);

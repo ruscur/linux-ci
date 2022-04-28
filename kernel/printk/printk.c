@@ -35,6 +35,7 @@
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/crash_core.h>
+#include <linux/panic_notifier.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
 #include <linux/syslog.h>
@@ -3234,6 +3235,61 @@ void __init console_init(void)
 	}
 }
 
+#define PANIC_PRINT_TASK_INFO		0x00000001
+#define PANIC_PRINT_MEM_INFO		0x00000002
+#define PANIC_PRINT_TIMER_INFO		0x00000004
+#define PANIC_PRINT_LOCK_INFO		0x00000008
+#define PANIC_PRINT_FTRACE_INFO		0x00000010
+
+/* DEPRECATED - please use "panic_console_replay" */
+#define PANIC_PRINT_ALL_PRINTK_MSG	0x00000020
+
+#define PANIC_PRINT_ALL_CPU_BT		0x00000040
+
+unsigned long panic_print;
+bool panic_console_replay;
+
+static int panic_print_sys_info(struct notifier_block *self,
+				unsigned long ev, void *unused)
+{
+	if (panic_print & PANIC_PRINT_ALL_CPU_BT)
+		trigger_all_cpu_backtrace();
+
+	if (panic_print & PANIC_PRINT_TASK_INFO)
+		show_state();
+
+	if (panic_print & PANIC_PRINT_MEM_INFO)
+		show_mem(0, NULL);
+
+	if (panic_print & PANIC_PRINT_TIMER_INFO)
+		sysrq_timer_list_show();
+
+	if (panic_print & PANIC_PRINT_LOCK_INFO)
+		debug_show_all_locks();
+
+	if (panic_print & PANIC_PRINT_FTRACE_INFO)
+		ftrace_dump(DUMP_ALL);
+
+	/*
+	 * This is legacy/deprecated feature from panic_print,
+	 * the console force flushing. We have now the parameter
+	 * "panic_console_replay", but we need to keep the
+	 * retro-compatibility with the old stuff...
+	 */
+	if (panic_print & PANIC_PRINT_ALL_PRINTK_MSG)
+		panic_console_replay = true;
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_print_nb = {
+	.notifier_call = panic_print_sys_info,
+	.priority = INT_MIN, /* defer to run as late as possible */
+};
+
+core_param(panic_print, panic_print, ulong, 0644);
+core_param(panic_console_replay, panic_console_replay, bool, 0644);
+
 /*
  * Some boot consoles access data that is in the init section and which will
  * be discarded after the initcalls have been run. To make sure that no code
@@ -3252,6 +3308,12 @@ static int __init printk_late_init(void)
 {
 	struct console *con;
 	int ret;
+
+	/*
+	 * Register the panic notifier to print user information
+	 * in case the user have that set.
+	 */
+	atomic_notifier_chain_register(&panic_info_list, &panic_print_nb);
 
 	for_each_console(con) {
 		if (!(con->flags & CON_BOOT))
@@ -3399,6 +3461,18 @@ EXPORT_SYMBOL(printk_timed_ratelimit);
 
 static DEFINE_SPINLOCK(dump_list_lock);
 static LIST_HEAD(dump_list);
+static int num_dumpers;
+
+/**
+ * kmsg_has_dumpers - inform if there is any kmsg dumper registered.
+ *
+ * Returns true if there's at least one registered dumper, or false
+ * if otherwise.
+ */
+bool kmsg_has_dumpers(void)
+{
+	return num_dumpers ? true : false;
+}
 
 /**
  * kmsg_dump_register - register a kernel log dumper.
@@ -3423,6 +3497,7 @@ int kmsg_dump_register(struct kmsg_dumper *dumper)
 		dumper->registered = 1;
 		list_add_tail_rcu(&dumper->list, &dump_list);
 		err = 0;
+		num_dumpers++;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
 
@@ -3447,6 +3522,7 @@ int kmsg_dump_unregister(struct kmsg_dumper *dumper)
 		dumper->registered = 0;
 		list_del_rcu(&dumper->list);
 		err = 0;
+		num_dumpers--;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
 	synchronize_rcu();

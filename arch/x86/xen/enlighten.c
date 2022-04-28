@@ -290,7 +290,7 @@ static struct notifier_block xen_panic_block = {
 
 int xen_panic_handler_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &xen_panic_block);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &xen_panic_block);
 	return 0;
 }
 

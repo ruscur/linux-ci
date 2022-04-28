@@ -74,11 +74,11 @@ struct resource crashk_low_res = {
 int kexec_should_crash(struct task_struct *p)
 {
 	/*
-	 * If crash_kexec_post_notifiers is enabled, don't run
-	 * crash_kexec() here yet, which must be run after panic
-	 * notifiers in panic().
+	 * In case any panic notifiers are set to execute before kexec,
+	 * don't run crash_kexec() here yet, which must run after these
+	 * panic notifiers are executed, in the panic() path.
 	 */
-	if (crash_kexec_post_notifiers)
+	if (panic_notifiers_before_kdump())
 		return 0;
 	/*
 	 * There are 4 panic() calls in make_task_dead() path, each of which

@@ -8,7 +8,6 @@
  * Author: Max Asböck <amax@us.ibm.com>
  */
 
-#include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include "ibmasm.h"
 #include "dot_command.h"
@@ -24,7 +23,7 @@ static int suspend_heartbeats = 0;
  * In the case of a panic the interrupt handler continues to work and thus
  * continues to respond to heartbeats, making the service processor believe
  * the OS is still running and thus preventing a reboot.
- * To prevent this from happening a callback is added the panic_notifier_list.
+ * To prevent this from happening a callback is added in a panic notifier list.
  * Before responding to a heartbeat the driver checks if a panic has happened,
  * if yes it suspends heartbeat, causing the service processor to reboot as
  * expected.
@@ -32,20 +31,23 @@ static int suspend_heartbeats = 0;
 static int panic_happened(struct notifier_block *n, unsigned long val, void *v)
 {
 	suspend_heartbeats = 1;
-	return 0;
+	return NOTIFY_DONE;
 }
 
-static struct notifier_block panic_notifier = { panic_happened, NULL, 1 };
+static struct notifier_block panic_notifier = {
+	.notifier_call = panic_happened,
+};
 
 void ibmasm_register_panic_notifier(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
+	atomic_notifier_chain_register(&panic_pre_reboot_list,
+					&panic_notifier);
 }
 
 void ibmasm_unregister_panic_notifier(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-			&panic_notifier);
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
+					&panic_notifier);
 }
 
 

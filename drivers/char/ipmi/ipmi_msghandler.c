@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
-#include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/rcupdate.h>
@@ -5375,10 +5374,13 @@ static int ipmi_register_driver(void)
 	return rv;
 }
 
+/*
+ * we should execute this panic callback late, since it involves
+ * a complex call-chain and panic() runs in atomic context.
+ */
 static struct notifier_block panic_block = {
 	.notifier_call	= panic_event,
-	.next		= NULL,
-	.priority	= 200	/* priority: INT_MAX >= x >= 0 */
+	.priority	= INT_MIN + 1,
 };
 
 static int ipmi_init_msghandler(void)
@@ -5406,7 +5408,7 @@ static int ipmi_init_msghandler(void)
 	timer_setup(&ipmi_timer, ipmi_timeout, 0);
 	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &panic_block);
 
 	initialized = true;
 
@@ -5438,7 +5440,7 @@ static void __exit cleanup_ipmi(void)
 	if (initialized) {
 		destroy_workqueue(remove_work_wq);
 
-		atomic_notifier_chain_unregister(&panic_notifier_list,
+		atomic_notifier_chain_unregister(&panic_pre_reboot_list,
 						 &panic_block);
 
 		/*

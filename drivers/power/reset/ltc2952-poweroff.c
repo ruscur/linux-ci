@@ -279,7 +279,7 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 	pm_power_off = ltc2952_poweroff_kill;
 
 	data->panic_notifier.notifier_call = ltc2952_poweroff_notify_panic;
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_notifier_chain_register(&panic_hypervisor_list,
 				       &data->panic_notifier);
 	dev_info(&pdev->dev, "probe successful\n");
 
@@ -293,7 +293,7 @@ static int ltc2952_poweroff_remove(struct platform_device *pdev)
 	pm_power_off = NULL;
 	hrtimer_cancel(&data->timer_trigger);
 	hrtimer_cancel(&data->timer_wde);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_hypervisor_list,
 					 &data->panic_notifier);
 	return 0;
 }

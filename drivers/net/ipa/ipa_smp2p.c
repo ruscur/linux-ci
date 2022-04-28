@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/qcom/smem.h>
@@ -138,13 +137,13 @@ static int ipa_smp2p_panic_notifier_register(struct ipa_smp2p *smp2p)
 	smp2p->panic_notifier.notifier_call = ipa_smp2p_panic_notifier;
 	smp2p->panic_notifier.priority = INT_MAX;	/* Do it early */
 
-	return atomic_notifier_chain_register(&panic_notifier_list,
+	return atomic_notifier_chain_register(&panic_pre_reboot_list,
 					      &smp2p->panic_notifier);
 }
 
 static void ipa_smp2p_panic_notifier_unregister(struct ipa_smp2p *smp2p)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
 					 &smp2p->panic_notifier);
 }
 

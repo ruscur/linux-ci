@@ -2034,7 +2034,7 @@ static int on_panic_notify(struct notifier_block *self,
 			   unsigned long event, void *data)
 {
 	do_panic();
-	return NOTIFY_OK;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block on_panic_nb = {
@@ -2069,7 +2069,7 @@ void __init setup_ipl(void)
 		/* We have no info to copy */
 		break;
 	}
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &on_panic_nb);
 }
 
 void s390_reset_system(void)

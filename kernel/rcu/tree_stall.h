@@ -97,11 +97,12 @@ static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
 
 static struct notifier_block rcu_panic_block = {
 	.notifier_call = rcu_panic,
+	.priority = INT_MAX, /* run early to prevent potential log flood */
 };
 
 static int __init check_cpu_stall_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &rcu_panic_block);
+	atomic_notifier_chain_register(&panic_info_list, &rcu_panic_block);
 	return 0;
 }
 early_initcall(check_cpu_stall_init);

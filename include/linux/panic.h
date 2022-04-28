@@ -22,7 +22,6 @@ extern unsigned int sysctl_oops_all_cpu_backtrace;
 #endif /* CONFIG_SMP */
 
 extern int panic_timeout;
-extern unsigned long panic_print;
 extern int panic_on_oops;
 extern int panic_on_unrecovered_nmi;
 extern int panic_on_io_nmi;
@@ -34,8 +33,6 @@ extern bool panic_on_taint_nousertaint;
 extern int sysctl_panic_on_rcu_stall;
 extern int sysctl_max_rcu_stall_to_panic;
 extern int sysctl_panic_on_stackoverflow;
-
-extern bool crash_kexec_post_notifiers;
 
 /*
  * panic_cpu is used for synchronizing panic() and crash_kexec() execution. It

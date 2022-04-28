@@ -459,7 +459,7 @@ static struct notifier_block kernel_location_notifier = {
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_notifier_chain_register(&panic_info_list,
 				       &kernel_location_notifier);
 	return 0;
 }

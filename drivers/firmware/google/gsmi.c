@@ -629,7 +629,10 @@ static int gsmi_shutdown_reason(int reason)
 	if (saved_reason & (1 << reason))
 		return 0;
 
-	spin_lock_irqsave(&gsmi_dev.lock, flags);
+	if (!spin_trylock_irqsave(&gsmi_dev.lock, flags)) {
+		rc = -EBUSY;
+		goto out;
+	}
 
 	saved_reason |= (1 << reason);
 
@@ -646,6 +649,7 @@ static int gsmi_shutdown_reason(int reason)
 
 	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
 
+out:
 	if (rc < 0)
 		printk(KERN_ERR "gsmi: Log Shutdown Reason failed\n");
 	else
@@ -1030,7 +1034,7 @@ static __init int gsmi_init(void)
 
 	register_reboot_notifier(&gsmi_reboot_notifier);
 	register_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_notifier_chain_register(&panic_hypervisor_list,
 				       &gsmi_panic_notifier);
 
 	printk(KERN_INFO "gsmi version " DRIVER_VERSION " loaded\n");
@@ -1057,7 +1061,7 @@ static void __exit gsmi_exit(void)
 {
 	unregister_reboot_notifier(&gsmi_reboot_notifier);
 	unregister_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_hypervisor_list,
 					 &gsmi_panic_notifier);
 #ifdef CONFIG_EFI
 	efivars_unregister(&efivars);

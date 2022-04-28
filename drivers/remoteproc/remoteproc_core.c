@@ -2795,12 +2795,14 @@ static int rproc_panic_handler(struct notifier_block *nb, unsigned long event,
 static void __init rproc_init_panic(void)
 {
 	rproc_panic_nb.notifier_call = rproc_panic_handler;
-	atomic_notifier_chain_register(&panic_notifier_list, &rproc_panic_nb);
+	atomic_notifier_chain_register(&panic_pre_reboot_list,
+				       &rproc_panic_nb);
 }
 
 static void __exit rproc_exit_panic(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list, &rproc_panic_nb);
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
+					 &rproc_panic_nb);
 }
 
 static int __init remoteproc_init(void)

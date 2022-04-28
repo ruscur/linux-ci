@@ -247,7 +247,7 @@ static int __init activity_init(void)
 	int rc = led_trigger_register(&activity_led_trigger);
 
 	if (!rc) {
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_notifier_chain_register(&panic_hypervisor_list,
 					       &activity_panic_nb);
 		register_reboot_notifier(&activity_reboot_nb);
 	}
@@ -257,7 +257,7 @@ static int __init activity_init(void)
 static void __exit activity_exit(void)
 {
 	unregister_reboot_notifier(&activity_reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_notifier_chain_unregister(&panic_hypervisor_list,
 					 &activity_panic_nb);
 	led_trigger_unregister(&activity_led_trigger);
 }

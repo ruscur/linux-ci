@@ -13,7 +13,6 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include <linux/printk.h>
 #include <linux/string.h>
@@ -53,6 +52,7 @@ iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 
 static struct notifier_block iss_panic_block = {
 	.notifier_call = iss_panic_event,
+	.priority = INT_MIN, /* run as late as possible, may not return */
 };
 
 void __init platform_setup(char **p_cmdline)
@@ -81,5 +81,5 @@ void __init platform_setup(char **p_cmdline)
 		}
 	}
 
-	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &iss_panic_block);
 }

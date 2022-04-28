@@ -246,7 +246,7 @@ static int zcore_reboot_and_on_panic_handler(struct notifier_block *self,
 	if (hsa_available)
 		release_hsa();
 
-	return NOTIFY_OK;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block zcore_reboot_notifier = {
@@ -322,7 +322,8 @@ static int __init zcore_init(void)
 					     NULL, &zcore_hsa_fops);
 
 	register_reboot_notifier(&zcore_reboot_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list, &zcore_on_panic_notifier);
+	atomic_notifier_chain_register(&panic_hypervisor_list,
+				       &zcore_on_panic_notifier);
 
 	return 0;
 fail:

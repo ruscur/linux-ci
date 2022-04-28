@@ -25,6 +25,7 @@ touch $REBOOT_FLAG
 sync
 
 # cause crash
-# Note: If you use kdump and want to see kmesg-* files after reboot, you should
-#       specify 'crash_kexec_post_notifiers' in 1st kernel's cmdline.
+# Note: If you use kdump and want to see kmsg-* files after reboot, you should
+#       be sure that the parameter "panic_notifiers_level" is more than '2' (the
+#       default value for this parameter is '2') in the first kernel's cmdline.
 echo c > /proc/sysrq-trigger

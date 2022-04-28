@@ -535,20 +535,29 @@ con3270_wait_write(struct con3270 *cp)
 }
 
 /*
- * panic() calls con3270_flush through a panic_notifier
- * before the system enters a disabled, endless loop.
+ * The below function is called as a panic/reboot notifier before the
+ * system enters a disabled, endless loop.
+ *
+ * Notice we must use the spin_trylock() alternative, to prevent lockups
+ * in atomic context (panic routine runs with secondary CPUs, local IRQs
+ * and preemption disabled).
  */
-static void
-con3270_flush(void)
+static int con3270_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
 {
 	struct con3270 *cp;
 	unsigned long flags;
 
 	cp = condev;
 	if (!cp->view.dev)
-		return;
-	raw3270_activate_view(&cp->view);
-	spin_lock_irqsave(&cp->view.lock, flags);
+		return NOTIFY_DONE;
+
+	if (!raw3270_view_lock_unavailable(&cp->view))
+		raw3270_activate_view(&cp->view);
+
+	if (!spin_trylock_irqsave(&cp->view.lock, flags))
+		return NOTIFY_DONE;
+
 	con3270_wait_write(cp);
 	cp->nr_up = 0;
 	con3270_rebuild_update(cp);
@@ -560,23 +569,18 @@ con3270_flush(void)
 		con3270_wait_write(cp);
 	}
 	spin_unlock_irqrestore(&cp->view.lock, flags);
-}
 
-static int con3270_notify(struct notifier_block *self,
-			  unsigned long event, void *data)
-{
-	con3270_flush();
-	return NOTIFY_OK;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = con3270_notify,
-	.priority = 0,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 static struct notifier_block on_reboot_nb = {
 	.notifier_call = con3270_notify,
-	.priority = 0,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 /*
@@ -641,7 +645,7 @@ con3270_init(void)
 	condev->cline->len = 0;
 	con3270_create_status(condev);
 	condev->input = alloc_string(&condev->freemem, 80);
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	atomic_notifier_chain_register(&panic_pre_reboot_list, &on_panic_nb);
 	register_reboot_notifier(&on_reboot_nb);
 	register_console(&con3270);
 	return 0;

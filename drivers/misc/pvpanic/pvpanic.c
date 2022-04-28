@@ -34,7 +34,9 @@ pvpanic_send_event(unsigned int event)
 {
 	struct pvpanic_instance *pi_cur;
 
-	spin_lock(&pvpanic_lock);
+	if (!spin_trylock(&pvpanic_lock))
+		return;
+
 	list_for_each_entry(pi_cur, &pvpanic_list, list) {
 		if (event & pi_cur->capability & pi_cur->events)
 			iowrite8(event, pi_cur->base);
@@ -55,9 +57,13 @@ pvpanic_panic_notify(struct notifier_block *nb, unsigned long code, void *unused
 	return NOTIFY_DONE;
 }
 
+/*
+ * Call our notifier very early on panic, deferring the
+ * action taken to the hypervisor.
+ */
 static struct notifier_block pvpanic_panic_nb = {
 	.notifier_call = pvpanic_panic_notify,
-	.priority = 1, /* let this called before broken drm_fb_helper() */
+	.priority = INT_MAX,
 };
 
 static void pvpanic_remove(void *param)
@@ -95,7 +101,7 @@ static int pvpanic_init(void)
 	INIT_LIST_HEAD(&pvpanic_list);
 	spin_lock_init(&pvpanic_lock);
 
-	atomic_notifier_chain_register(&panic_notifier_list, &pvpanic_panic_nb);
+	atomic_notifier_chain_register(&panic_hypervisor_list, &pvpanic_panic_nb);
 
 	return 0;
 }
@@ -103,7 +109,7 @@ module_init(pvpanic_init);
 
 static void pvpanic_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list, &pvpanic_panic_nb);
+	atomic_notifier_chain_unregister(&panic_hypervisor_list, &pvpanic_panic_nb);
 
 }
 module_exit(pvpanic_exit);

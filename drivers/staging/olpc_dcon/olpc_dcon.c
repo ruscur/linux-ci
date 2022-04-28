@@ -653,7 +653,8 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	register_reboot_notifier(&dcon->reboot_nb);
-	atomic_notifier_chain_register(&panic_notifier_list, &dcon_panic_nb);
+	atomic_notifier_chain_register(&panic_pre_reboot_list,
+				       &dcon_panic_nb);
 
 	return 0;
 
@@ -676,7 +677,8 @@ static int dcon_remove(struct i2c_client *client)
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
 	unregister_reboot_notifier(&dcon->reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list, &dcon_panic_nb);
+	atomic_notifier_chain_unregister(&panic_pre_reboot_list,
+					 &dcon_panic_nb);
 
 	free_irq(DCON_IRQ, dcon);
 

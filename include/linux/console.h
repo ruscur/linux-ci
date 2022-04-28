@@ -169,6 +169,8 @@ enum con_flush_mode {
 	CONSOLE_REPLAY_ALL,
 };
 
+extern bool panic_console_replay;
+
 extern int add_preferred_console(char *name, int idx, char *options);
 extern void register_console(struct console *);
 extern int unregister_console(struct console *);
