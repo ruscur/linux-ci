@@ -109,6 +109,23 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 			&& strncmp(session->header.env.arch, "aarch64", 7))
 		return TEST_SKIP;
 
+	/*
+	 * In powerpc pSeries platform, not all the topology information
+	 * are exposed via sysfs. Due to restriction, detail like
+	 * physical_package_id will be set to -1. Hence skip this
+	 * test for pSeries.
+	 */
+	if (strncmp(session->header.env.arch, "powerpc", 7)) {
+		char *cpuinfo_platform = NULL;
+
+		cpuinfo_platform = cpuinfo_field("platform");
+		if (!strcmp(cpuinfo_platform, "pSeries")) {
+			free(cpuinfo_platform);
+			return TEST_SKIP;
+		}
+		free(cpuinfo_platform);
+	}
+
 	TEST_ASSERT_VAL("Session header CPU map not set", session->header.env.cpu);
 
 	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {

@@ -984,6 +984,60 @@ static int write_dir_format(struct feat_fd *ff,
 }
 
 /*
+ * Return entry from /proc/cpuinfo
+ * indicated by "search" parameter.
+ */
+char *cpuinfo_field(const char *search)
+{
+	FILE *file;
+	char *buf = NULL;
+	char *copy_buf = NULL, *p;
+	size_t len = 0;
+	int ret = -1;
+
+	if (!search)
+		return NULL;
+
+	file = fopen("/proc/cpuinfo", "r");
+	if (!file)
+		return NULL;
+
+	while (getline(&buf, &len, file) > 0) {
+		ret = strncmp(buf, search, strlen(search));
+		if (!ret)
+			break;
+	}
+
+	if (ret)
+		goto done;
+
+	/*
+	 * Trim the new line and separate
+	 * value for search field from ":"
+	 * in cpuinfo line output.
+	 * Example output line:
+	 * platform : <value>
+	 */
+	copy_buf = buf;
+	p = strchr(copy_buf, ':');
+	if (p && *(p+1) == ' ' && *(p+2))
+		copy_buf = p + 2;
+	p = strchr(copy_buf, '\n');
+	if (p)
+		*p = '\0';
+
+	/* Copy the filtered string to buf */
+	strcpy(buf, copy_buf);
+
+	fclose(file);
+	return buf;
+
+done:
+	free(buf);
+	fclose(file);
+	return NULL;
+}
+/*
  * Check whether a CPU is online
  *
  * Returns:
