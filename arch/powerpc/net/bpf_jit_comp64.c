@@ -777,42 +777,75 @@ emit_clear:
 		 * BPF_STX ATOMIC (atomic ops)
 		 */
 		case BPF_STX | BPF_ATOMIC | BPF_W:
-			if (imm != BPF_ADD) {
-				pr_err_ratelimited(
-					"eBPF filter atomic op code %02x (@%d) unsupported\n",
-					code, i);
-				return -ENOTSUPP;
-			}
+		case BPF_STX | BPF_ATOMIC | BPF_DW:
+			u32 save_reg = tmp2_reg;
+			u32 ret_reg = src_reg;
 
-			/* *(u32 *)(dst + off) += src */
-
-			/* Get EA into TMP_REG_1 */
-			EMIT(PPC_RAW_ADDI(tmp1_reg, dst_reg, off));
+			/* Get offset into TMP_REG_1 */
+			EMIT(PPC_RAW_LI(tmp1_reg, off));
 			tmp_idx = ctx->idx * 4;
 			/* load value from memory into TMP_REG_2 */
-			EMIT(PPC_RAW_LWARX(tmp2_reg, 0, tmp1_reg, 0));
-			/* add value from src_reg into this */
-			EMIT(PPC_RAW_ADD(tmp2_reg, tmp2_reg, src_reg));
-			/* store result back */
-			EMIT(PPC_RAW_STWCX(tmp2_reg, 0, tmp1_reg));
-			/* we're done if this succeeded */
-			PPC_BCC_SHORT(COND_NE, tmp_idx);
-			break;
-		case BPF_STX | BPF_ATOMIC | BPF_DW:
-			if (imm != BPF_ADD) {
+			if (size == BPF_DW)
+				EMIT(PPC_RAW_LDARX(tmp2_reg, tmp1_reg, dst_reg, 0));
+			else
+				EMIT(PPC_RAW_LWARX(tmp2_reg, tmp1_reg, dst_reg, 0));
+
+			/* Save old value in _R0 */
+			if (imm & BPF_FETCH)
+				EMIT(PPC_RAW_MR(_R0, tmp2_reg));
+
+			switch (imm) {
+			case BPF_ADD:
+			case BPF_ADD | BPF_FETCH:
+				EMIT(PPC_RAW_ADD(tmp2_reg, tmp2_reg, src_reg));
+				break;
+			case BPF_AND:
+			case BPF_AND | BPF_FETCH:
+				EMIT(PPC_RAW_AND(tmp2_reg, tmp2_reg, src_reg));
+				break;
+			case BPF_OR:
+			case BPF_OR | BPF_FETCH:
+				EMIT(PPC_RAW_OR(tmp2_reg, tmp2_reg, src_reg));
+				break;
+			case BPF_XOR:
+			case BPF_XOR | BPF_FETCH:
+				EMIT(PPC_RAW_XOR(tmp2_reg, tmp2_reg, src_reg));
+				break;
+			case BPF_CMPXCHG:
+				/*
+				 * Return old value in BPF_REG_0 for BPF_CMPXCHG &
+				 * in src_reg for other cases.
+				 */
+				ret_reg = bpf_to_ppc(BPF_REG_0);
+
+				/* Compare with old value in BPF_R0 */
+				if (size == BPF_DW)
+					EMIT(PPC_RAW_CMPD(bpf_to_ppc(BPF_REG_0), tmp2_reg));
+				else
+					EMIT(PPC_RAW_CMPW(bpf_to_ppc(BPF_REG_0), tmp2_reg));
+				/* Don't set if different from old value */
+				PPC_BCC_SHORT(COND_NE, (ctx->idx + 3) * 4);
+				fallthrough;
+			case BPF_XCHG:
+				save_reg = src_reg;
+				break;
+			default:
 				pr_err_ratelimited(
 					"eBPF filter atomic op code %02x (@%d) unsupported\n",
 					code, i);
-				return -ENOTSUPP;
+				return -EOPNOTSUPP;
 			}
-			/* *(u64 *)(dst + off) += src */
 
-			EMIT(PPC_RAW_ADDI(tmp1_reg, dst_reg, off));
-			tmp_idx = ctx->idx * 4;
-			EMIT(PPC_RAW_LDARX(tmp2_reg, 0, tmp1_reg, 0));
-			EMIT(PPC_RAW_ADD(tmp2_reg, tmp2_reg, src_reg));
-			EMIT(PPC_RAW_STDCX(tmp2_reg, 0, tmp1_reg));
+			/* store new value */
+			if (size == BPF_DW)
+				EMIT(PPC_RAW_STDCX(save_reg, tmp1_reg, dst_reg));
+			else
+				EMIT(PPC_RAW_STWCX(save_reg, tmp1_reg, dst_reg));
+			/* we're done if this succeeded */
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
+
+			if (imm & BPF_FETCH)
+				EMIT(PPC_RAW_MR(ret_reg, _R0));
 			break;
 
 		/*
