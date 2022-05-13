@@ -25,6 +25,7 @@
 #include <asm/setjmp.h>
 #include <asm/debug.h>
 #include <asm/interrupt.h>
+#include <asm/fadump.h>
 
 /*
  * The primary CPU waits a while for all secondary CPUs to enter. This is to
@@ -102,7 +103,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	/* NOTREACHED */
 }
 
-static void crash_kexec_prepare_cpus(int cpu)
+static void crash_kexec_prepare_cpus(void)
 {
 	unsigned int msecs;
 	volatile unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
@@ -203,7 +204,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 
 #else	/* ! CONFIG_SMP */
 
-static void crash_kexec_prepare_cpus(int cpu)
+static void crash_kexec_prepare_cpus(void)
 {
 	/*
 	 * move the secondaries to us so that we can copy
@@ -248,6 +249,42 @@ static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 #else
 static inline void crash_kexec_wait_realmode(int cpu) {}
 #endif	/* CONFIG_SMP && CONFIG_PPC64 */
+
+void crash_smp_send_stop(void)
+{
+	static int cpus_stopped;
+
+	/*
+	 * In case of fadump, register data for all CPUs is captured by f/w
+	 * on ibm,os-term rtas call. Skip IPI callbacks to other CPUs before
+	 * this rtas call to avoid tricky post processing of those CPUs'
+	 * backtraces.
+	 */
+	if (should_fadump_crash())
+		return;
+
+	if (cpus_stopped)
+		return;
+
+	cpus_stopped = 1;
+
+	/* Avoid hardlocking with irresponsive CPU holding logbuf_lock */
+	printk_deferred_enter();
+
+	/*
+	 * This function is only called after the system
+	 * has panicked or is otherwise in a critical state.
+	 * The minimum amount of code to allow a kexec'd kernel
+	 * to run successfully needs to happen here.
+	 *
+	 * In practice this means stopping other cpus in
+	 * an SMP system.
+	 * The kernel is broken so disable interrupts.
+	 */
+	hard_irq_disable();
+
+	crash_kexec_prepare_cpus();
+}
 
 /*
  * Register a function to be called on shutdown.  Only use this if you
@@ -312,21 +349,6 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	unsigned int i;
 	int (*old_handler)(struct pt_regs *regs);
 
-	/* Avoid hardlocking with irresponsive CPU holding logbuf_lock */
-	printk_deferred_enter();
-
-	/*
-	 * This function is only called after the system
-	 * has panicked or is otherwise in a critical state.
-	 * The minimum amount of code to allow a kexec'd kernel
-	 * to run successfully needs to happen here.
-	 *
-	 * In practice this means stopping other cpus in
-	 * an SMP system.
-	 * The kernel is broken so disable interrupts.
-	 */
-	hard_irq_disable();
-
 	/*
 	 * Make a note of crashing cpu. Will be used in machine_kexec
 	 * such that another IPI will not be sent.
@@ -340,7 +362,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	if (TRAP(regs) == INTERRUPT_SYSTEM_RESET)
 		mdelay(PRIMARY_TIMEOUT);
 
-	crash_kexec_prepare_cpus(crashing_cpu);
+	crash_smp_send_stop();
 
 	crash_save_cpu(regs, crashing_cpu);
 
