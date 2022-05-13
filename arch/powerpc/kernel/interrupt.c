@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/compat.h>
 #include <linux/sched/debug.h> /* for show_regs */
+#include <linux/randomize_kstack.h>
 
 #include <asm/kup.h>
 #include <asm/cputime.h>
@@ -82,6 +83,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
 
 	kuap_lock();
 
+	add_random_kstack_offset();
 	regs->orig_gpr3 = r3;
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
@@ -405,6 +407,7 @@ again:
 
 	/* Restore user access locks last */
 	kuap_user_restore(regs);
+	choose_random_kstack_offset(mftb() & 0xFF);
 
 	return ret;
 }
