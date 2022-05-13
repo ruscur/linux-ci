@@ -53,17 +53,17 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/watchdog.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
-#include <linux/module.h>
+
 #include <asm/div64.h>
 #include <asm/mpc52xx.h>
 
@@ -234,18 +234,17 @@ static const struct irq_domain_ops mpc52xx_gpt_irq_ops = {
 	.xlate = mpc52xx_gpt_irq_xlate,
 };
 
-static void
-mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
+static void mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt)
 {
 	int cascade_virq;
 	unsigned long flags;
 	u32 mode;
 
-	cascade_virq = irq_of_parse_and_map(node, 0);
-	if (!cascade_virq)
+	cascade_virq = platform_get_irq(to_platform_device(gpt->dev), 0);
+	if (cascade_virq < 0)
 		return;
 
-	gpt->irqhost = irq_domain_add_linear(node, 1, &mpc52xx_gpt_irq_ops, gpt);
+	gpt->irqhost = irq_domain_create_linear(dev_fwnode(gpt->dev), 1, &mpc52xx_gpt_irq_ops, gpt);
 	if (!gpt->irqhost) {
 		dev_err(gpt->dev, "irq_domain_add_linear() failed\n");
 		return;
@@ -314,17 +313,15 @@ mpc52xx_gpt_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-static void
-mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
+static void mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt)
 {
 	int rc;
 
-	/* Only setup GPIO if the device tree claims the GPT is
-	 * a GPIO controller */
-	if (!of_find_property(node, "gpio-controller", NULL))
+	/* Only setup GPIO if the device claims the GPT is a GPIO controller */
+	if (!device_property_present(gpt->dev, "gpio-controller"))
 		return;
 
-	gpt->gc.label = kasprintf(GFP_KERNEL, "%pOF", node);
+	gpt->gc.label = kasprintf(GFP_KERNEL, "%pfw", dev_fwnode(gpt->dev));
 	if (!gpt->gc.label) {
 		dev_err(gpt->dev, "out of memory\n");
 		return;
@@ -336,7 +333,7 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	gpt->gc.get = mpc52xx_gpt_gpio_get;
 	gpt->gc.set = mpc52xx_gpt_gpio_set;
 	gpt->gc.base = -1;
-	gpt->gc.of_node = node;
+	gpt->gc.parent = gpt->dev;
 
 	/* Setup external pin in GPIO mode */
 	clrsetbits_be32(&gpt->regs->mode, MPC52xx_GPT_MODE_MS_MASK,
@@ -349,8 +346,7 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	dev_dbg(gpt->dev, "%s() complete.\n", __func__);
 }
 #else /* defined(CONFIG_GPIOLIB) */
-static void
-mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *p, struct device_node *np) { }
+static void mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt) { }
 #endif /* defined(CONFIG_GPIOLIB) */
 
 /***********************************************************************
@@ -672,8 +668,7 @@ static int mpc52xx_gpt_wdt_init(void)
 	return err;
 }
 
-static int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
-				 const u32 *period)
+static int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt, const u32 period)
 {
 	u64 real_timeout;
 
@@ -681,14 +676,14 @@ static int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 	mpc52xx_gpt_wdt = gpt;
 
 	/* configure the wdt if the device tree contained a timeout */
-	if (!period || *period == 0)
+	if (period == 0)
 		return 0;
 
-	real_timeout = (u64) *period * 1000000000ULL;
+	real_timeout = (u64)period * 1000000000ULL;
 	if (mpc52xx_gpt_do_start(gpt, real_timeout, 0, 1))
 		dev_warn(gpt->dev, "starting as wdt failed\n");
 	else
-		dev_info(gpt->dev, "watchdog set to %us timeout\n", *period);
+		dev_info(gpt->dev, "watchdog set to %us timeout\n", period);
 	return 0;
 }
 
@@ -699,8 +694,7 @@ static int mpc52xx_gpt_wdt_init(void)
 	return 0;
 }
 
-static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
-					const u32 *period)
+static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt, const u32 period)
 {
 	return 0;
 }
@@ -720,33 +714,34 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 
 	raw_spin_lock_init(&gpt->lock);
 	gpt->dev = &ofdev->dev;
-	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
+	gpt->ipb_freq = mpc5xxx_get_bus_frequency(&ofdev->dev);
 	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
 	if (!gpt->regs)
 		return -ENOMEM;
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 
-	mpc52xx_gpt_gpio_setup(gpt, ofdev->dev.of_node);
-	mpc52xx_gpt_irq_setup(gpt, ofdev->dev.of_node);
+	mpc52xx_gpt_gpio_setup(gpt);
+	mpc52xx_gpt_irq_setup(gpt);
 
 	mutex_lock(&mpc52xx_gpt_list_mutex);
 	list_add(&gpt->list, &mpc52xx_gpt_list);
 	mutex_unlock(&mpc52xx_gpt_list_mutex);
 
 	/* check if this device could be a watchdog */
-	if (of_get_property(ofdev->dev.of_node, "fsl,has-wdt", NULL) ||
-	    of_get_property(ofdev->dev.of_node, "has-wdt", NULL)) {
-		const u32 *on_boot_wdt;
+	if (device_property_present(gpt->dev, "fsl,has-wdt") ||
+	    device_property_present(gpt->dev, "has-wdt")) {
+		u32 on_boot_wdt = 0;
+		int ret;
 
 		gpt->wdt_mode = MPC52xx_GPT_CAN_WDT;
-		on_boot_wdt = of_get_property(ofdev->dev.of_node,
-					      "fsl,wdt-on-boot", NULL);
-		if (on_boot_wdt) {
+		ret = device_property_read_u32(gpt->dev, "fsl,wdt-on-boot", &on_boot_wdt);
+		if (ret) {
+			dev_info(gpt->dev, "can function as watchdog\n");
+		} else {
 			dev_info(gpt->dev, "used as watchdog\n");
 			gpt->wdt_mode |= MPC52xx_GPT_IS_WDT;
-		} else
-			dev_info(gpt->dev, "can function as watchdog\n");
+		}
 		mpc52xx_gpt_wdt_setup(gpt, on_boot_wdt);
 	}
 
