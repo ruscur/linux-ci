@@ -240,14 +240,14 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 				/* +2 to make IP header L1 cache aligned */
 				skbn = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skbn != NULL) {
-					skb_reserve(skbn, 2);	/* align IP header */
-					skb_copy_from_linear_data(skb,
-						      skbn->data, pkt_len);
-					swap(skb, skbn);
 					dma_sync_single_for_cpu(fep->dev,
 						CBDR_BUFADDR(bdp),
 						L1_CACHE_ALIGN(pkt_len),
 						DMA_FROM_DEVICE);
+					skb_reserve(skbn, 2);	/* align IP header */
+					skb_copy_from_linear_data(skb,
+						      skbn->data, pkt_len);
+					swap(skb, skbn);
 				}
 			} else {
 				skbn = netdev_alloc_skb(dev, ENET_RX_FRSIZE);
