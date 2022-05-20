@@ -813,7 +813,8 @@ static void __init pSeries_setup_arch(void)
 
 	pseries_setup_security_mitigations();
 #ifdef CONFIG_PPC_64S_HASH_MMU
-	pseries_lpar_read_hblkrm_characteristics();
+	if (!radix_enabled())
+		pseries_lpar_read_hblkrm_characteristics();
 #endif
 
 	/* By default, only probe PCI (can be overridden by rtas_pci) */
