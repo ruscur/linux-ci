@@ -425,6 +425,18 @@ pnx833x_wdt:
 
 -------------------------------------------------
 
+pseries-wdt:
+    action:
+	Action taken when watchdog expires: 1 (power off), 2 (restart),
+	3 (dump and restart). (default=2)
+    timeout:
+	Initial watchdog timeout in seconds. (default=60)
+    nowayout:
+	Watchdog cannot be stopped once started.
+	(default=kernel config parameter)
+
+-------------------------------------------------
+
 rc32434_wdt:
     timeout:
 	Watchdog timeout value, in seconds (default=20)
