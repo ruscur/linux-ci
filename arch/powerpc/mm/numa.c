@@ -742,7 +742,7 @@ static int numa_setup_cpu(unsigned long lcpu)
 	of_node_put(cpu);
 
 out_present:
-	if (nid < 0 || !node_possible(nid))
+	if (nid < 0 || !node_online(nid))
 		nid = first_online_node;
 
 	/*
