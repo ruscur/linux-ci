@@ -22,8 +22,13 @@ ifdef CONFIG_PPC32
 # or platform code sets later on the command line, but they are needed
 # to set a sane 32-bit cpu target for the 64-bit cross compiler which
 # may default to the wrong ISA.
+# Never set -mcpu=powerpc option for gcc e500 compiler because this
+# option is unsupported and throws error. The correct option for
+# CONFIG_E500 is -mcpu=8540 and it is set few lines below.
+ifndef CONFIG_E500
 KBUILD_CFLAGS		+= -mcpu=powerpc
 KBUILD_AFLAGS		+= -mcpu=powerpc
+endif
 endif
 endif
 endif
