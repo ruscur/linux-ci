@@ -339,6 +339,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	unsigned long address;
 	unsigned int flags;
 	vm_fault_t fault;
+	bool need_unlock = true;
 	bool is_write;
 
 	tsk = current;
@@ -433,6 +434,13 @@ retry:
 			goto out_up;
 		goto out;
 	}
+
+	/* The fault is fully completed (including releasing mmap lock) */
+	if (fault & VM_FAULT_COMPLETED) {
+		need_unlock = false;
+		goto out_gmap;
+	}
+
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
@@ -452,6 +460,7 @@ retry:
 		mmap_read_lock(mm);
 		goto retry;
 	}
+out_gmap:
 	if (IS_ENABLED(CONFIG_PGSTE) && gmap) {
 		address =  __gmap_link(gmap, current->thread.gmap_addr,
 				       address);
@@ -466,7 +475,8 @@ retry:
 	}
 	fault = 0;
 out_up:
-	mmap_read_unlock(mm);
+	if (need_unlock)
+		mmap_read_unlock(mm);
 out:
 	return fault;
 }
