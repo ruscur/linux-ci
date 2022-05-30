@@ -53,6 +53,7 @@
 #include <linux/vmalloc.h>
 #include <linux/pgtable.h>
 #include <linux/static_call.h>
+#include <linux/sizes.h>
 
 #include <linux/uaccess.h>
 #include <asm/interrupt.h>
@@ -596,7 +597,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	return sum;
 }
 
-static inline void check_stack_overflow(void)
+static void check_stack_overflow(void)
 {
 	long sp;
 
@@ -605,11 +606,14 @@ static inline void check_stack_overflow(void)
 
 	sp = current_stack_pointer & (THREAD_SIZE - 1);
 
-	/* check for stack overflow: is there less than 2KB free? */
-	if (unlikely(sp < 2048)) {
-		pr_err("do_IRQ: stack overflow: %ld\n", sp);
-		dump_stack();
-	}
+	/* check for stack overflow: is there less than 2/3KB free? */
+	if (!IS_ENABLED(KASAN) && likely(sp >= SZ_2K))
+		return;
+	if (IS_ENABLED(KASAN) && likely(sp >= SZ_2K + SZ_1K))
+		return;
+
+	pr_err("do_IRQ: stack overflow: %ld\n", sp);
+	dump_stack();
 }
 
 static __always_inline void call_do_softirq(const void *sp)
