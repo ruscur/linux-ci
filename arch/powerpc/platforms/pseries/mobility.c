@@ -427,6 +427,35 @@ static int wait_for_vasi_session_suspending(u64 handle)
 	return ret;
 }
 
+static void wait_for_vasi_session_completed(u64 handle)
+{
+	unsigned long state = 0;
+	int ret;
+
+	pr_info("waiting for memory transfert to complete...\n");
+	/*
+	 * Wait for transition from H_VASI_RESUMED to
+	 * H_VASI_COMPLETED. Treat anything else as an error.
+	 */
+	while (true) {
+		ret = poll_vasi_state(handle, &state);
+
+		if (ret || state == H_VASI_COMPLETED)
+			break;
+
+		if (state != H_VASI_RESUMED) {
+			pr_err("unexpected H_VASI_STATE result %lu\n", state);
+			ret = -EIO;
+			break;
+		}
+
+		msleep(500);
+	}
+
+	pr_info("memory transfert completed (ret:%d state:%ld).\n",
+		ret, state);
+}
+
 static void prod_single(unsigned int target_cpu)
 {
 	long hvrc;
@@ -672,11 +701,18 @@ static int pseries_migrate_partition(u64 handle)
 
 	vas_migration_handler(VAS_SUSPEND);
 
+	pr_debug("Disabling the NMI watchdog\n");
+	watchdog_nmi_stop();
+
 	ret = pseries_suspend(handle);
-	if (ret == 0)
+	if (ret == 0) {
 		post_mobility_fixup();
-	else
+		wait_for_vasi_session_completed(handle);
+	} else
 		pseries_cancel_migration(handle, ret);
+
+	pr_debug("Enabling the NMI watchdog again\n");
+	watchdog_nmi_start();
 
 	vas_migration_handler(VAS_RESUME);
 
