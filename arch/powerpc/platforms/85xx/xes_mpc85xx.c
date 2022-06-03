@@ -130,6 +130,8 @@ static void __init xes_mpc85xx_setup_arch(void)
 	mpc85xx_smp_init();
 
 	fsl_pci_assign_primary();
+
+	of_node_put(root);
 }
 
 machine_arch_initcall(xes_mpc8572, mpc85xx_common_publish_devices);
