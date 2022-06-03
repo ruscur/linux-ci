@@ -21,6 +21,7 @@ struct mm_struct;
 #endif /* !CONFIG_PPC_BOOK3S */
 
 /* Note due to the way vm flags are laid out, the bits are XWR */
+#ifndef CONFIG_ARCH_HAS_VM_GET_PAGE_PROT
 #define __P000	PAGE_NONE
 #define __P001	PAGE_READONLY
 #define __P010	PAGE_COPY
@@ -38,6 +39,7 @@ struct mm_struct;
 #define __S101	PAGE_READONLY_X
 #define __S110	PAGE_SHARED_X
 #define __S111	PAGE_SHARED_X
+#endif
 
 #ifndef __ASSEMBLY__
 

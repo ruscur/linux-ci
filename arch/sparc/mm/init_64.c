@@ -2634,6 +2634,26 @@ void vmemmap_free(unsigned long start, unsigned long end,
 }
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
+/* These are actually filled in at boot time by sun4{u,v}_pgprot_init() */
+static pgprot_t protection_map[16] __ro_after_init = {
+	[VM_NONE]					= __pgprot(0),
+	[VM_READ]					= __pgprot(0),
+	[VM_WRITE]					= __pgprot(0),
+	[VM_WRITE | VM_READ]				= __pgprot(0),
+	[VM_EXEC]					= __pgprot(0),
+	[VM_EXEC | VM_READ]				= __pgprot(0),
+	[VM_EXEC | VM_WRITE]				= __pgprot(0),
+	[VM_EXEC | VM_WRITE | VM_READ]			= __pgprot(0),
+	[VM_SHARED]					= __pgprot(0),
+	[VM_SHARED | VM_READ]				= __pgprot(0),
+	[VM_SHARED | VM_WRITE]				= __pgprot(0),
+	[VM_SHARED | VM_WRITE | VM_READ]		= __pgprot(0),
+	[VM_SHARED | VM_EXEC]				= __pgprot(0),
+	[VM_SHARED | VM_EXEC | VM_READ]			= __pgprot(0),
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= __pgprot(0),
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= __pgprot(0)
+};
+
 static void prot_init_common(unsigned long page_none,
 			     unsigned long page_shared,
 			     unsigned long page_copy,

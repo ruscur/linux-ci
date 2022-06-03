@@ -65,6 +65,7 @@ void paging_init(void);
 extern unsigned long ptr_in_current_pgd;
 
 /*         xwr */
+#ifndef CONFIG_ARCH_HAS_VM_GET_PAGE_PROT
 #define __P000  PAGE_NONE
 #define __P001  PAGE_READONLY
 #define __P010  PAGE_COPY
@@ -82,6 +83,7 @@ extern unsigned long ptr_in_current_pgd;
 #define __S101	PAGE_READONLY
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
+#endif
 
 /* First physical page can be anywhere, the following is needed so that
  * va-->pa and vice versa conversions work properly without performance
