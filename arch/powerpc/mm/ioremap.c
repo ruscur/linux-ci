@@ -40,6 +40,7 @@ void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
+EXPORT_SYMBOL(ioremap_coherent);
 
 void __iomem *ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
