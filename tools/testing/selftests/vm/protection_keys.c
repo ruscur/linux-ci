@@ -44,9 +44,13 @@
 #include <unistd.h>
 #include <sys/ptrace.h>
 #include <setjmp.h>
+#include <getopt.h>
 
 #include "pkey-helpers.h"
 
+#define DEFAULT_ITERATIONS 22
+
+int debug_level;
 int iteration_nr = 1;
 int test_nr;
 
@@ -361,7 +365,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	 * here.
 	 */
 	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
-	if (DEBUG_LEVEL > 4)
+	if (debug_level > 4)
 		dump_mem(pkey_reg_ptr - 128, 256);
 	pkey_assert(*pkey_reg_ptr);
 #endif /* arch */
@@ -480,7 +484,7 @@ int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 		dprintf2("SYS_mprotect_key sret: %d\n", sret);
 		dprintf2("SYS_mprotect_key prot: 0x%lx\n", orig_prot);
 		dprintf2("SYS_mprotect_key failed, errno: %d\n", errno);
-		if (DEBUG_LEVEL >= 2)
+		if (debug_level >= 2)
 			perror("SYS_mprotect_pkey");
 	}
 	return sret;
@@ -1116,7 +1120,7 @@ void test_kernel_write_of_write_disabled_region(int *ptr, u16 pkey)
 	pkey_write_deny(pkey);
 	ret = read(test_fd, ptr, 100);
 	dprintf1("read ret: %d\n", ret);
-	if (ret < 0 && (DEBUG_LEVEL > 0))
+	if (ret < 0 && (debug_level > 0))
 		perror("verbose read result (OK for this to be bad)");
 	pkey_assert(ret);
 }
@@ -1155,7 +1159,7 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
 	pkey_write_deny(pkey);
 	futex_ret = syscall(SYS_futex, ptr, FUTEX_WAIT, some_int-1, NULL,
 			&ignored, ignored);
-	if (DEBUG_LEVEL > 0)
+	if (debug_level > 0)
 		perror("futex");
 	dprintf1("futex() ret: %d\n", futex_ret);
 }
@@ -1221,9 +1225,9 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 		int new_pkey;
 		dprintf1("%s() alloc loop: %d\n", __func__, i);
 		new_pkey = alloc_pkey();
-		dprintf4("%s()::%d, err: %d pkey_reg: 0x%016llx"
+		dprintf4("%s()::%d, errno: %d pkey_reg: 0x%016llx"
 				" shadow: 0x%016llx\n",
-				__func__, __LINE__, err, __read_pkey_reg(),
+				__func__, __LINE__, errno, __read_pkey_reg(),
 				shadow_pkey_reg);
 		read_pkey_reg(); /* for shadow checking */
 		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
@@ -1550,6 +1554,16 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	do_not_expect_pkey_fault("plain read on recently PROT_EXEC area");
 }
 
+void test_pkey_alloc_on_unsupported_cpu(void)
+{
+	int test_pkey = sys_pkey_alloc(0, 0);
+
+	dprintf1("pkey_alloc: %d (%d %s)\n", test_pkey, errno,
+		 strerror(errno));
+	pkey_assert(test_pkey < 0);
+	pkey_assert(errno == ENOSPC);
+}
+
 void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
 {
 	int size = PAGE_SIZE;
@@ -1626,11 +1640,52 @@ void pkey_setup_shadow(void)
 	shadow_pkey_reg = __read_pkey_reg();
 }
 
-int main(void)
+static void print_help_and_exit(char *argv0)
 {
-	int nr_iterations = 22;
-	int pkeys_supported = is_pkeys_supported();
+	printf("Usage: %s [-h,-d,-i <iter>]\n", argv0);
+	printf("	--help,-h   This help\n");
+	printf("	--debug,-d  Increase debug level for each -d\n");
+	printf("	--iterations,-i <iter>  repeate test <iter> times\n");
+	printf("		default: %d\n", DEFAULT_ITERATIONS);
+	printf("\n");
+}
 
+int main(int argc, char *argv[])
+{
+	int nr_iterations = DEFAULT_ITERATIONS;
+	int pkeys_supported;
+
+	while (1) {
+		static struct option long_options[] = {
+			{"help",	no_argument,		0,	'h' },
+			{"debug",	no_argument,		0,	'd' },
+			{"iterations",	required_argument,	0,	'i' },
+			{0,		0,			0,	0 }
+		};
+		int option_index = 0;
+		int c;
+
+		c = getopt_long(argc, argv, "hdi:", long_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 'h':
+			print_help_and_exit(argv[0]);
+			return 0;
+		case 'd':
+			debug_level++;
+			break;
+		case 'i':
+			nr_iterations = strtoul(optarg, NULL, 0);
+			break;
+		default:
+			print_help_and_exit(argv[0]);
+			exit(-1);
+		}
+	}
+
+	pkeys_supported = is_pkeys_supported();
 	srand((unsigned int)time(NULL));
 
 	setup_handlers();
@@ -1642,6 +1697,8 @@ int main(void)
 		int *ptr;
 
 		printf("running PKEY tests for unsupported CPU/OS\n");
+
+		test_pkey_alloc_on_unsupported_cpu();
 
 		ptr  = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 		assert(ptr != (void *)-1);

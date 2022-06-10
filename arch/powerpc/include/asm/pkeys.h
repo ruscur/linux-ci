@@ -85,18 +85,16 @@ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 static inline int mm_pkey_alloc(struct mm_struct *mm)
 {
 	/*
-	 * Note: this is the one and only place we make sure that the pkey is
+	 * Note: this is the one and only place to make sure that the pkey is
 	 * valid as far as the hardware is concerned. The rest of the kernel
 	 * trusts that only good, valid pkeys come out of here.
 	 */
 	u32 all_pkeys_mask = (u32)(~(0x0));
 	int ret;
 
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return -1;
 	/*
-	 * Are we out of pkeys? We must handle this specially because ffz()
-	 * behavior is undefined if there are no zeros.
+	 * Out of pkeys?  Handle this specially because ffz() behavior is
+	 * undefined if there are no zeros.
 	 */
 	if (mm_pkey_allocation_map(mm) == all_pkeys_mask)
 		return -1;
@@ -107,17 +105,9 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 	return ret;
 }
 
-static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
+static inline void mm_pkey_free(struct mm_struct *mm, int pkey)
 {
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return -1;
-
-	if (!mm_pkey_is_allocated(mm, pkey))
-		return -EINVAL;
-
 	__mm_pkey_free(mm, pkey);
-
-	return 0;
 }
 
 /*

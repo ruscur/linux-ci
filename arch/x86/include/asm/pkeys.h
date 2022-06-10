@@ -105,14 +105,9 @@ int mm_pkey_alloc(struct mm_struct *mm)
 }
 
 static inline
-int mm_pkey_free(struct mm_struct *mm, int pkey)
+void mm_pkey_free(struct mm_struct *mm, int pkey)
 {
-	if (!mm_pkey_is_allocated(mm, pkey))
-		return -EINVAL;
-
 	mm_set_pkey_free(mm, pkey);
-
-	return 0;
 }
 
 static inline int vma_pkey(struct vm_area_struct *vma)

@@ -23,9 +23,8 @@
 
 #define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 0
-#endif
+extern int debug_level;
+
 #define DPRINT_IN_SIGNAL_BUF_SIZE 4096
 extern int dprint_in_signal;
 extern char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
@@ -58,7 +57,7 @@ static inline void sigsafe_printf(const char *format, ...)
 	}
 }
 #define dprintf_level(level, args...) do {	\
-	if (level <= DEBUG_LEVEL)		\
+	if (level <= debug_level)		\
 		sigsafe_printf(args);		\
 } while (0)
 #define dprintf0(args...) dprintf_level(0, args)

@@ -773,6 +773,9 @@ SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
 	int pkey;
 	int ret;
 
+	if (!arch_pkeys_enabled())
+		return -ENOSPC;
+
 	/* No flags supported yet. */
 	if (flags)
 		return -EINVAL;
@@ -800,10 +803,16 @@ out:
 
 SYSCALL_DEFINE1(pkey_free, int, pkey)
 {
-	int ret;
+	int ret = -EINVAL;
+
+	if (!arch_pkeys_enabled())
+		return ret;
 
 	mmap_write_lock(current->mm);
-	ret = mm_pkey_free(current->mm, pkey);
+	if (mm_pkey_is_allocated(current->mm, pkey)) {
+		mm_pkey_free(current->mm, pkey);
+		ret = 0;
+	}
 	mmap_write_unlock(current->mm);
 
 	/*
