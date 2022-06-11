@@ -184,6 +184,8 @@ static void __init pnv_check_guarded_cores(void)
 	}
 }
 
+__init void powernv_rng_init(void);
+
 static void __init pnv_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
@@ -203,6 +205,8 @@ static void __init pnv_setup_arch(void)
 	pnv_check_guarded_cores();
 
 	/* XXX PMCS */
+
+	powernv_rng_init();
 }
 
 static void __init pnv_init(void)
