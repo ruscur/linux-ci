@@ -48,6 +48,39 @@ struct update_props_workarea {
 #define MIGRATION_SCOPE	(1)
 #define PRRN_SCOPE -2
 
+#ifdef CONFIG_PPC_WATCHDOG
+static unsigned int lpm_nmi_wd_factor = 200;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table lpm_nmi_wd_factor_ctl_table[] = {
+	{
+		.procname	= "lpm_nmi_watchdog_factor",
+		.data		= &lpm_nmi_wd_factor,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+	},
+	{}
+};
+static struct ctl_table lpm_nmi_wd_factor_sysctl_root[] = {
+	{
+		.procname       = "kernel",
+		.mode           = 0555,
+		.child          = lpm_nmi_wd_factor_ctl_table,
+	},
+	{}
+};
+
+static int __init register_lpm_nmi_wd_factor_sysctl(void)
+{
+	register_sysctl_table(lpm_nmi_wd_factor_sysctl_root);
+
+	return 0;
+}
+device_initcall(register_lpm_nmi_wd_factor_sysctl);
+#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_PPC_WATCHDOG */
+
 static int mobility_rtas_call(int token, char *buf, s32 scope)
 {
 	int rc;
@@ -427,6 +460,43 @@ static int wait_for_vasi_session_suspending(u64 handle)
 	return ret;
 }
 
+static void wait_for_vasi_session_completed(u64 handle)
+{
+	unsigned long state = 0;
+	int ret;
+
+	pr_info("waiting for memory transfert to complete...\n");
+	/*
+	 * Wait for transition from H_VASI_RESUMED to
+	 * H_VASI_COMPLETED. Treat anything else as an error.
+	 */
+	while (true) {
+		ret = poll_vasi_state(handle, &state);
+
+		/*
+		 * If the memory transfer is already complete and the migration
+		 * has been cleaned up by the hypervisor, H_PARAMETER is return,
+		 * which is translate in EINVAL by poll_vasi_state().
+		 */
+		if (ret == -EINVAL || (!ret && state == H_VASI_COMPLETED)) {
+			pr_info("memory transfert completed.\n");
+			break;
+		}
+
+		if (ret) {
+			pr_err("H_VASI_STATE return error (%d)\n", ret);
+			break;
+		}
+
+		if (state != H_VASI_RESUMED) {
+			pr_err("unexpected H_VASI_STATE result %lu\n", state);
+			break;
+		}
+
+		msleep(500);
+	}
+}
+
 static void prod_single(unsigned int target_cpu)
 {
 	long hvrc;
@@ -665,6 +735,7 @@ static int pseries_suspend(u64 handle)
 static int pseries_migrate_partition(u64 handle)
 {
 	int ret;
+	unsigned int factor = lpm_nmi_wd_factor;
 
 	ret = wait_for_vasi_session_suspending(handle);
 	if (ret)
@@ -672,11 +743,26 @@ static int pseries_migrate_partition(u64 handle)
 
 	vas_migration_handler(VAS_SUSPEND);
 
+#ifdef CONFIG_PPC_WATCHDOG
+	if (factor) {
+		pr_info("Set the NMI watchdog factor to %u%%\n", factor);
+		watchdog_nmi_set_lpm_factor(factor);
+	}
+#endif /* CONFIG_PPC_WATCHDOG */
+
 	ret = pseries_suspend(handle);
-	if (ret == 0)
+	if (ret == 0) {
 		post_mobility_fixup();
-	else
+		wait_for_vasi_session_completed(handle);
+	} else
 		pseries_cancel_migration(handle, ret);
+
+#ifdef CONFIG_PPC_WATCHDOG
+	if (factor) {
+		pr_info("Restoring NMI watchdog timer\n");
+		watchdog_nmi_set_lpm_factor(0);
+	}
+#endif /* CONFIG_PPC_WATCHDOG */
 
 	vas_migration_handler(VAS_RESUME);
 

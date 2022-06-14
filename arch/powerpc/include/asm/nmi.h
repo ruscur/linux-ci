@@ -5,8 +5,10 @@
 #ifdef CONFIG_PPC_WATCHDOG
 extern void arch_touch_nmi_watchdog(void);
 long soft_nmi_interrupt(struct pt_regs *regs);
+void watchdog_nmi_set_lpm_factor(u64 factor);
 #else
 static inline void arch_touch_nmi_watchdog(void) {}
+static void watchdog_nmi_set_lpm_factor(u64 factor) {}
 #endif
 
 #ifdef CONFIG_NMI_IPI
