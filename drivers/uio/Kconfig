@@ -105,6 +105,20 @@ config UIO_NETX
 	  To compile this driver as a module, choose M here; the module
 	  will be called uio_netx.
 
+config UIO_FSL_85XX_CACHE_SRAM
+	tristate "Freescale 85xx L2-Cache-SRAM UIO driver"
+	depends on FSL_SOC_BOOKE && PPC32
+	help
+	  Driver for user level access of freescale mpc85xx l2-cache-sram.
+
+	  Freescale's mpc85xx provides an option of configuring a part of
+	  (or full) cache memory as SRAM. The driver does this configuring
+	  work and exports SRAM to user-space for access form user level.
+	  This is extremely helpful for user applications that require
+	  high performance memory accesses.
+
+	  If you don't know what to do here, say N.
+
 config UIO_FSL_ELBC_GPCM
 	tristate "eLBC/GPCM driver"
 	depends on FSL_LBC

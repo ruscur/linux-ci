@@ -719,9 +719,7 @@ static int uio_mmap_logical(struct vm_area_struct *vma)
 }
 
 static const struct vm_operations_struct uio_physical_vm_ops = {
-#ifdef CONFIG_HAVE_IOREMAP_PROT
 	.access = generic_access_phys,
-#endif
 };
 
 static int uio_mmap_physical(struct vm_area_struct *vma)

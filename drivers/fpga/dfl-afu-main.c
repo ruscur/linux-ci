@@ -797,9 +797,7 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 static const struct vm_operations_struct afu_vma_ops = {
-#ifdef CONFIG_HAVE_IOREMAP_PROT
 	.access = generic_access_phys,
-#endif
 };
 
 static int afu_mmap(struct file *filp, struct vm_area_struct *vma)

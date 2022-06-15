@@ -5413,6 +5413,13 @@ out_unmap:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(generic_access_phys);
+#else
+int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
+			void *buf, int len, int write)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(generic_access_phys);
 #endif
 
 /*
@@ -5437,9 +5444,8 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 		ret = get_user_pages_remote(mm, addr, 1,
 				gup_flags, &page, &vma, NULL);
 		if (ret <= 0) {
-#ifndef CONFIG_HAVE_IOREMAP_PROT
-			break;
-#else
+			if (!IS_ENABLED(CONFIG_HAVE_IOREMAP_PROT))
+				break;
 			/*
 			 * Check if this is a VM_IO | VM_PFNMAP VMA, which
 			 * we can access using slightly different code.
@@ -5453,7 +5459,6 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 			if (ret <= 0)
 				break;
 			bytes = ret;
-#endif
 		} else {
 			bytes = len;
 			offset = addr & (PAGE_SIZE-1);
