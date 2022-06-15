@@ -683,17 +683,16 @@ void __do_irq(struct pt_regs *regs)
 void __do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	void *cursp, *irqsp, *sirqsp;
+	void *cursp, *irqsp;
 
 	/* Switch to the irq stack to handle this */
 	cursp = (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
-	irqsp = hardirq_ctx[raw_smp_processor_id()];
-	sirqsp = softirq_ctx[raw_smp_processor_id()];
+	irqsp = normirq_ctx[raw_smp_processor_id()];
 
 	check_stack_overflow();
 
 	/* Already there ? */
-	if (unlikely(cursp == irqsp || cursp == sirqsp)) {
+	if (unlikely(cursp == irqsp)) {
 		__do_irq(regs);
 		set_irq_regs(old_regs);
 		return;
@@ -719,10 +718,8 @@ static void __init vmap_irqstack_init(void)
 {
 	int i;
 
-	for_each_possible_cpu(i) {
-		softirq_ctx[i] = alloc_vm_stack();
-		hardirq_ctx[i] = alloc_vm_stack();
-	}
+	for_each_possible_cpu(i)
+		normirq_ctx[i] = alloc_vm_stack();
 }
 
 
@@ -744,12 +741,11 @@ void    *dbgirq_ctx[NR_CPUS] __read_mostly;
 void *mcheckirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
-void *softirq_ctx[NR_CPUS] __read_mostly;
-void *hardirq_ctx[NR_CPUS] __read_mostly;
+void *normirq_ctx[NR_CPUS] __read_mostly;
 
 void do_softirq_own_stack(void)
 {
-	call_do_softirq(softirq_ctx[smp_processor_id()]);
+	call_do_softirq(normirq_ctx[smp_processor_id()]);
 }
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
