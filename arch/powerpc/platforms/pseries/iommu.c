@@ -700,6 +700,33 @@ struct iommu_table_ops iommu_table_lpar_multi_ops = {
 	.get = tce_get_pSeriesLP
 };
 
+/*
+ * Find nearest ibm,dma-window (default DMA window) or direct DMA window or
+ * dynamic 64bit DMA window, walking up the device tree.
+ */
+static struct device_node *pci_dma_find(struct device_node *dn,
+					const __be32 **dma_window)
+{
+	const __be32 *dw = NULL;
+
+	for ( ; dn && PCI_DN(dn); dn = dn->parent) {
+		dw = of_get_property(dn, "ibm,dma-window", NULL);
+		if (dw) {
+			if (dma_window)
+				*dma_window = dw;
+			return dn;
+		}
+		dw = of_get_property(dn, DIRECT64_PROPNAME, NULL);
+		if (dw)
+			return dn;
+		dw = of_get_property(dn, DMA64_PROPNAME, NULL);
+		if (dw)
+			return dn;
+	}
+
+	return NULL;
+}
+
 static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 {
 	struct iommu_table *tbl;
@@ -712,20 +739,10 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	pr_debug("pci_dma_bus_setup_pSeriesLP: setting up bus %pOF\n",
 		 dn);
 
-	/*
-	 * Find nearest ibm,dma-window (default DMA window), walking up the
-	 * device tree
-	 */
-	for (pdn = dn; pdn != NULL; pdn = pdn->parent) {
-		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
-		if (dma_window != NULL)
-			break;
-	}
+	pdn = pci_dma_find(dn, &dma_window);
 
-	if (dma_window == NULL) {
+	if (dma_window == NULL)
 		pr_debug("  no ibm,dma-window property !\n");
-		return;
-	}
 
 	ppci = PCI_DN(pdn);
 
@@ -735,11 +752,13 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	if (!ppci->table_group) {
 		ppci->table_group = iommu_pseries_alloc_group(ppci->phb->node);
 		tbl = ppci->table_group->tables[0];
-		iommu_table_setparms_lpar(ppci->phb, pdn, tbl,
-				ppci->table_group, dma_window);
+		if (dma_window) {
+			iommu_table_setparms_lpar(ppci->phb, pdn, tbl,
+						  ppci->table_group, dma_window);
 
-		if (!iommu_init_table(tbl, ppci->phb->node, 0, 0))
-			panic("Failed to initialize iommu table");
+			if (!iommu_init_table(tbl, ppci->phb->node, 0, 0))
+				panic("Failed to initialize iommu table");
+		}
 		iommu_register_group(ppci->table_group,
 				pci_domain_nr(bus), 0);
 		pr_debug("  created table: %p\n", ppci->table_group);
@@ -1429,14 +1448,20 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 
 		pci->table_group->tables[1] = newtbl;
 
-		/* Keep default DMA window struct if removed */
-		if (default_win_removed) {
-			tbl->it_size = 0;
-			vfree(tbl->it_map);
-			tbl->it_map = NULL;
-		}
-
 		set_iommu_table_base(&dev->dev, newtbl);
+	}
+
+	if (default_win_removed) {
+		struct property *def_win;
+		struct pci_dn *pci = PCI_DN(pdn);
+
+		iommu_tce_table_put(pci->table_group->tables[0]);
+		def_win = of_find_property(pdn, "ibm,dma-window", NULL);
+		if (def_win) {
+			of_remove_property(pdn, def_win);
+			dev_info(&dev->dev, "Removed default DMA window for %pOF\n", pdn);
+		}
+		pci->table_group->tables[0] = NULL;
 	}
 
 	spin_lock(&dma_win_list_lock);
@@ -1503,13 +1528,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	dn = pci_device_to_OF_node(dev);
 	pr_debug("  node is %pOF\n", dn);
 
-	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
-	     pdn = pdn->parent) {
-		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
-		if (dma_window)
-			break;
-	}
-
+	pdn = pci_dma_find(dn, &dma_window);
 	if (!pdn || !PCI_DN(pdn)) {
 		printk(KERN_WARNING "pci_dma_dev_setup_pSeriesLP: "
 		       "no DMA window found for pci dev=%s dn=%pOF\n",
@@ -1540,7 +1559,6 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
 {
 	struct device_node *dn = pci_device_to_OF_node(pdev), *pdn;
-	const __be32 *dma_window = NULL;
 
 	/* only attempt to use a new window if 64-bit DMA is requested */
 	if (dma_mask < DMA_BIT_MASK(64))
@@ -1554,13 +1572,7 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
 	 * search upwards in the tree until we either hit a dma-window
 	 * property, OR find a parent with a table already allocated.
 	 */
-	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
-			pdn = pdn->parent) {
-		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
-		if (dma_window)
-			break;
-	}
-
+	pdn = pci_dma_find(dn, NULL);
 	if (pdn && PCI_DN(pdn))
 		return enable_ddw(pdev, pdn);
 
