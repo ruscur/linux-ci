@@ -73,6 +73,7 @@ static int gpio_halt_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	int gpio, err, irq;
 	int trigger;
+	int ret;
 
 	if (!node)
 		return -ENODEV;
@@ -84,20 +85,24 @@ static int gpio_halt_probe(struct platform_device *pdev)
 
 	/* Technically we could just read the first one, but punish
 	 * DT writers for invalid form. */
-	if (of_gpio_count(halt_node) != 1)
-		return -EINVAL;
+	if (of_gpio_count(halt_node) != 1) {
+		ret = -EINVAL;
+		goto err_put;
+	}
 
 	/* Get the gpio number relative to the dynamic base. */
 	gpio = of_get_gpio_flags(halt_node, 0, &flags);
-	if (!gpio_is_valid(gpio))
-		return -EINVAL;
+	if (!gpio_is_valid(gpio)) {
+		ret = -EINVAL;
+		gotot err_put;
+	}
 
 	err = gpio_request(gpio, "gpio-halt");
 	if (err) {
 		printk(KERN_ERR "gpio-halt: error requesting GPIO %d.\n",
 		       gpio);
-		halt_node = NULL;
-		return err;
+		ret = err;
+		goto err_put;
 	}
 
 	trigger = (flags == OF_GPIO_ACTIVE_LOW);
@@ -112,8 +117,8 @@ static int gpio_halt_probe(struct platform_device *pdev)
 		printk(KERN_ERR "gpio-halt: error requesting IRQ %d for "
 		       "GPIO %d.\n", irq, gpio);
 		gpio_free(gpio);
-		halt_node = NULL;
-		return err;
+		ret = err;
+		goto err_put;
 	}
 
 	/* Register our halt function */
@@ -122,8 +127,12 @@ static int gpio_halt_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "gpio-halt: registered GPIO %d (%d trigger, %d"
 	       " irq).\n", gpio, trigger, irq);
+	ret = 0;
 
-	return 0;
+err_put:
+	of_node_put(halt_node);
+	halt_node = NULL;
+	return ret;
 }
 
 static int gpio_halt_remove(struct platform_device *pdev)
