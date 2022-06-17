@@ -122,6 +122,7 @@ static unsigned int mpic_msgr_number_of_blocks(void)
 			count += 1;
 		}
 	}
+	of_node_put(aliases);
 
 	return count;
 }
@@ -150,6 +151,7 @@ static int mpic_msgr_block_number(struct device_node *node)
 		if (node == of_find_node_by_path(prop->value))
 			break;
 	}
+	of_node_put(aliases);
 
 	return index == number_of_blocks ? -1 : index;
 }
