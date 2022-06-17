@@ -563,9 +563,9 @@ static __init int add_pcspkr(void)
 	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "pnpPNP,100");
-	of_node_put(np);
 	if (!np)
 		return -ENODEV;
+	of_node_put(np);
 
 	pd = platform_device_alloc("pcspkr", -1);
 	if (!pd)
