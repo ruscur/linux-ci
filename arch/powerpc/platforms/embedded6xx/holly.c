@@ -122,6 +122,7 @@ static void __init holly_init_pci(void)
 	np = of_find_node_by_type(NULL, "pci");
 	if (np)
 		tsi108_setup_pci(np, HOLLY_PCI_CFG_PHYS, 1);
+	of_node_put(np);
 
 	ppc_md.pci_exclude_device = holly_exclude_device;
 	if (ppc_md.progress)
