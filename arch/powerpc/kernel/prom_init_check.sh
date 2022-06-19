@@ -16,7 +16,7 @@
 grep "^CONFIG_KASAN=y$" .config >/dev/null
 if [ $? -eq 0 ]
 then
-	MEM_FUNCS="__memcpy __memset"
+	MEM_FUNCS="__memcpy __memset memset"
 else
 	MEM_FUNCS="memcpy memset"
 fi
