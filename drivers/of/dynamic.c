@@ -313,9 +313,7 @@ static void property_list_free(struct property *prop_list)
 
 	for (prop = prop_list; prop != NULL; prop = next) {
 		next = prop->next;
-		kfree(prop->name);
-		kfree(prop->value);
-		kfree(prop);
+		of_property_free(prop);
 	}
 }
 
@@ -361,54 +359,110 @@ void of_node_release(struct kobject *kobj)
 	property_list_free(node->deadprops);
 	fwnode_links_purge(of_fwnode_handle(node));
 
-	kfree(node->full_name);
+	if (node->full_name != (const char *) (node + 1))
+		kfree(node->full_name);
+
 	kfree(node->data);
 	kfree(node);
 }
 
 /**
- * __of_prop_dup - Copy a property dynamically.
- * @prop:	Property to copy
- * @allocflags:	Allocation flags (typically pass GFP_KERNEL)
+ * of_property_free - Free a property allocated dynamically.
+ * @prop:	Property to be freed
+ */
+void of_property_free(const struct property *prop)
+{
+	if (!of_property_check_flag(prop, OF_DYNAMIC))
+		return;
+
+	if (prop->value != prop + 1)
+		kfree(prop->value);
+
+	kfree(prop->name);
+	kfree(prop);
+}
+EXPORT_SYMBOL(of_property_free);
+
+/**
+ * of_property_alloc - Allocate a property dynamically.
+ * @name:	Name of the new property
+ * @value:	Value that will be copied into the new property value or NULL
+ *		if only @len allocation is needed.
+ * @len:	Length of new property value and if @value is provided, the
+ *		length of the value to be copied
  *
- * Copy a property by dynamically allocating the memory of both the
+ * Create a property by dynamically allocating the memory of both the
  * property structure and the property name & contents. The property's
  * flags have the OF_DYNAMIC bit set so that we can differentiate between
  * dynamically allocated properties and not.
  *
  * Return: The newly allocated property or NULL on out of memory error.
  */
-struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
-{
-	struct property *new;
 
-	new = kzalloc(sizeof(*new), allocflags);
-	if (!new)
+struct property *of_property_alloc(const char *name, const void *value,
+				   size_t len)
+{
+	struct property *prop;
+
+	prop = kzalloc(sizeof(*prop) + len, GFP_KERNEL);
+	if (!prop)
 		return NULL;
 
-	/*
-	 * NOTE: There is no check for zero length value.
-	 * In case of a boolean property, this will allocate a value
-	 * of zero bytes. We do this to work around the use
-	 * of of_get_property() calls on boolean values.
-	 */
-	new->name = kstrdup(prop->name, allocflags);
-	new->value = kmemdup(prop->value, prop->length, allocflags);
-	new->length = prop->length;
-	if (!new->name || !new->value)
-		goto err_free;
+	prop->name = kstrdup(name, GFP_KERNEL);
+	if (!prop->name)
+		goto out_err;
 
-	/* mark the property as dynamic */
-	of_property_set_flag(new, OF_DYNAMIC);
+	prop->value = prop + 1;
+	if (value)
+		memcpy(prop->value, value, len);
 
-	return new;
+	prop->length = len;
+	of_property_set_flag(prop, OF_DYNAMIC);
 
- err_free:
-	kfree(new->name);
-	kfree(new->value);
-	kfree(new);
+	return prop;
+
+out_err:
+	of_property_free(prop);
+
 	return NULL;
 }
+EXPORT_SYMBOL(of_property_alloc);
+
+/**
+ * of_node_alloc - Allocate a node dynamically.
+ * @name:	Node name
+ *
+ * Create a node by dynamically allocating the memory of both the
+ * node structure and the node name & contents. The node's
+ * flags have the OF_DYNAMIC & OF_DETACHED bit set so that we can
+ * differentiate between dynamically allocated nodes and not.
+ *
+ * Return: The newly allocated node or NULL on out of memory error.
+ */
+struct device_node *of_node_alloc(const char *name)
+{
+	struct device_node *node;
+	int name_len = 0;
+
+	if (name)
+		name_len = strlen(name) + 1;
+
+	node = kzalloc(sizeof(*node) + name_len, GFP_KERNEL);
+	if (!node)
+		return NULL;
+
+	if (name) {
+		node->full_name = (const char *) (node + 1);
+		strcpy((char *)node->full_name, name);
+	}
+
+	of_node_set_flag(node, OF_DYNAMIC);
+	of_node_set_flag(node, OF_DETACHED);
+	of_node_init(node);
+
+	return node;
+}
+EXPORT_SYMBOL(of_node_alloc);
 
 /**
  * __of_node_dup() - Duplicate or create an empty device node dynamically.
@@ -426,30 +480,19 @@ struct device_node *__of_node_dup(const struct device_node *np,
 {
 	struct device_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = of_node_alloc(full_name);
 	if (!node)
 		return NULL;
-	node->full_name = kstrdup(full_name, GFP_KERNEL);
-	if (!node->full_name) {
-		kfree(node);
-		return NULL;
-	}
-
-	of_node_set_flag(node, OF_DYNAMIC);
-	of_node_set_flag(node, OF_DETACHED);
-	of_node_init(node);
 
 	/* Iterate over and duplicate all properties */
 	if (np) {
 		struct property *pp, *new_pp;
 		for_each_property_of_node(np, pp) {
-			new_pp = __of_prop_dup(pp, GFP_KERNEL);
+			new_pp = __of_prop_dup(pp);
 			if (!new_pp)
 				goto err_prop;
 			if (__of_add_property(node, new_pp)) {
-				kfree(new_pp->name);
-				kfree(new_pp->value);
-				kfree(new_pp);
+				of_property_free(new_pp);
 				goto err_prop;
 			}
 		}
