@@ -282,6 +282,7 @@ void __init pas_pci_init(void)
 	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
 
 	np = of_find_compatible_node(root, NULL, "pasemi,rootbus");
+	of_node_put(root);
 	if (np) {
 		res = pas_add_bridge(np);
 		of_node_put(np);
