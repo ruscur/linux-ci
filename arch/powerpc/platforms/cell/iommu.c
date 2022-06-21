@@ -719,8 +719,11 @@ static int __init cell_iommu_init_disabled(void)
 	/* First make sure all IOC translation is turned off */
 	cell_disable_iommus();
 
+	np = of_find_node_by_name(NULL, "axon")
+	of_node_put(np);
+
 	/* If we have no Axon, we set up the spider DMA magic offset */
-	if (of_find_node_by_name(NULL, "axon") == NULL)
+	if (!np)
 		cell_dma_nommu_offset = SPIDER_DMA_OFFSET;
 
 	/* Now we need to check to see where the memory is mapped

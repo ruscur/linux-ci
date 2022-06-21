@@ -182,9 +182,15 @@ static struct device_node *__init cbe_get_be_node(int cpu_id)
 		if (WARN_ON_ONCE(!cpu_handle))
 			return np;
 
-		for (i=0; i<len; i++)
-			if (of_find_node_by_phandle(cpu_handle[i]) == of_get_cpu_node(cpu_id, NULL))
+		for (i=0; i<len; i++) {
+			struct device_node *ch_np = of_find_node_by_phandle(cpu_handle[i]);
+			struct device_node *ci_np = of_get_cpu_node(cpu_id, NULL);
+
+			of_node_put(ch_np);
+			of_node_put(ci_np);
+			if (ch_np == ci_np)
 				return np;
+		}
 	}
 
 	return NULL;
