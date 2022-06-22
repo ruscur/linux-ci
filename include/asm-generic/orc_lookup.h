@@ -23,6 +23,8 @@
 
 #ifndef LINKER_SCRIPT
 
+#include <asm-generic/sections.h>
+
 extern unsigned int orc_lookup[];
 extern unsigned int orc_lookup_end[];
 
@@ -30,5 +32,45 @@ extern unsigned int orc_lookup_end[];
 #define LOOKUP_STOP_IP		(unsigned long)_etext
 
 #endif /* LINKER_SCRIPT */
+
+#ifndef __ASSEMBLY__
+
+#include <asm/orc_types.h>
+
+#ifdef CONFIG_UNWINDER_ORC
+void orc_lookup_init(void);
+void orc_lookup_module_init(struct module *mod,
+			    void *orc_ip, size_t orc_ip_size,
+			    void *orc, size_t orc_size);
+#else
+static inline void orc_lookup_init(void) {}
+static inline
+void orc_lookup_module_init(struct module *mod,
+			    void *orc_ip, size_t orc_ip_size,
+			    void *orc, size_t orc_size)
+{
+}
+#endif
+
+struct orc_entry *arch_orc_find(unsigned long ip);
+
+#define orc_warn(fmt, ...) \
+	printk_deferred_once(KERN_WARNING "WARNING: " fmt, ##__VA_ARGS__)
+
+#define orc_warn_current(args...)					\
+({									\
+	if (state->task == current && !state->error)			\
+		orc_warn(args);						\
+})
+
+struct orc_entry *orc_find(unsigned long ip);
+
+extern bool orc_init;
+extern int __start_orc_unwind_ip[];
+extern int __stop_orc_unwind_ip[];
+extern struct orc_entry __start_orc_unwind[];
+extern struct orc_entry __stop_orc_unwind[];
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ORC_LOOKUP_H */
