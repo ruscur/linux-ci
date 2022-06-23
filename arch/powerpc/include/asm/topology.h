@@ -60,7 +60,7 @@ static inline int early_cpu_to_node(int cpu)
 	 * Fall back to node 0 if nid is unset (it should be, except bugs).
 	 * This allows callers to safely do NODE_DATA(early_cpu_to_node(cpu)).
 	 */
-	return (nid < 0) ? 0 : nid;
+	return (nid < 0) ? first_online_node : nid;
 }
 
 int of_drconf_to_nid_single(struct drmem_lmb *lmb);
