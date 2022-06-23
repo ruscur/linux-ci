@@ -134,7 +134,7 @@ static inline bool pfn_valid(unsigned long pfn)
 
 #define virt_addr_valid(vaddr)	({					\
 	unsigned long _addr = (unsigned long)vaddr;			\
-	_addr >= PAGE_OFFSET && _addr < (unsigned long)high_memory &&	\
+	_addr >= PAGE_OFFSET && _addr < (unsigned long)VMALLOC_START &&	\
 	pfn_valid(virt_to_pfn(_addr));					\
 })
 

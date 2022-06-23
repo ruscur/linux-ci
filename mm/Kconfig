@@ -475,6 +475,9 @@ config EXCLUSIVE_SYSTEM_RAM
 config HAVE_BOOTMEM_INFO_NODE
 	def_bool n
 
+config ARCH_HAS_ADD_PAGES
+	bool
+
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	bool
 
