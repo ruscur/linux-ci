@@ -80,8 +80,6 @@ static struct platform_device *fsl_usb2_device_register(
 					const char *name, int id)
 {
 	struct platform_device *pdev;
-	const struct resource *res = ofdev->resource;
-	unsigned int num = ofdev->num_resources;
 	int retval;
 
 	pdev = platform_device_alloc(name, id);
@@ -106,11 +104,8 @@ static struct platform_device *fsl_usb2_device_register(
 	if (retval)
 		goto error;
 
-	if (num) {
-		retval = platform_device_add_resources(pdev, res, num);
-		if (retval)
-			goto error;
-	}
+	pdev->dev.of_node = ofdev->dev.of_node;
+	pdev->dev.of_node_reused = true;
 
 	retval = platform_device_add(pdev);
 	if (retval)
