@@ -29,7 +29,7 @@ static const struct of_device_id child_match[] = {
 
 static void gpio_halt_wfn(struct work_struct *work)
 {
-	/* Likely wont return */
+	/* Likely won't return */
 	orderly_poweroff(true);
 }
 static DECLARE_WORK(gpio_halt_wq, gpio_halt_wfn);
@@ -51,7 +51,7 @@ static void __noreturn gpio_halt_cb(void)
 
 	printk(KERN_INFO "gpio-halt: triggering GPIO.\n");
 
-	/* Probably wont return */
+	/* Probably won't return */
 	gpio_set_value(gpio, trigger);
 
 	panic("Halt failed\n");
@@ -147,7 +147,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 
 static const struct of_device_id gpio_halt_match[] = {
 	/* We match on the gpio bus itself and scan the children since they
-	 * wont be matched against us. We know the bus wont match until it
+	 * won't be matched against us. We know the bus won't match until it
 	 * has been registered too. */
 	{
 		.compatible = "fsl,qoriq-gpio",
