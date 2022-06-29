@@ -101,6 +101,10 @@
 #include <linux/stackdepot.h>
 #include <net/net_namespace.h>
 
+#ifdef CONFIG_RANDOMIZE_KSTACK_OFFSET
+#include <linux/randomize_kstack.h>
+#endif
+
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
