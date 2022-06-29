@@ -9,7 +9,7 @@
 #include <asm/feature-fixups.h>
 
 #ifndef SELFTEST_CASE
-/* 0 == most CPUs, 1 == POWER6, 2 == Cell */
+/* 0 == most CPUs, 2 == Cell */
 #define SELFTEST_CASE	0
 #endif
 
@@ -68,19 +68,6 @@ _GLOBAL(__copy_tofrom_user_base)
 	andi.	r6,r6,7
 	PPC_MTOCRF(0x01,r5)
 	blt	cr1,.Lshort_copy
-/* Below we want to nop out the bne if we're on a CPU that has the
- * CPU_FTR_UNALIGNED_LD_STD bit set and the CPU_FTR_CP_USE_DCBTZ bit
- * cleared.
- * At the time of writing the only CPU that has this combination of bits
- * set is Power6.
- */
-test_feature = (SELFTEST_CASE == 1)
-BEGIN_FTR_SECTION
-	nop
-FTR_SECTION_ELSE
-	bne	.Ldst_unaligned
-ALT_FTR_SECTION_END(CPU_FTR_UNALIGNED_LD_STD | CPU_FTR_CP_USE_DCBTZ, \
-		    CPU_FTR_UNALIGNED_LD_STD)
 .Ldst_aligned:
 	addi	r3,r3,-16
 r3_offset = 16
