@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/jiffies.h>
 #include <linux/cache.h>
 #include <linux/err.h>
 #include <linux/device.h>
@@ -1268,7 +1269,8 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	int rc, c;
+	unsigned long deadline;
+	int rc;
 
 	/*
 	 * Don't allow secondary threads to come online if inhibited
@@ -1313,23 +1315,10 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	}
 
 	/*
-	 * wait to see if the cpu made a callin (is actually up).
-	 * use this value that I found through experimentation.
-	 * -- Cort
+	 * Give the remote CPU five seconds to enter the kernel.
 	 */
-	if (system_state < SYSTEM_RUNNING)
-		for (c = 50000; c && !cpu_callin_map[cpu]; c--)
-			udelay(100);
-#ifdef CONFIG_HOTPLUG_CPU
-	else
-		/*
-		 * CPUs can take much longer to come up in the
-		 * hotplug case.  Wait five seconds.
-		 */
-		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
-			msleep(1);
-#endif
-
+	deadline = jiffies + msecs_to_jiffies(5000);
+	spin_until_cond(cpu_callin_map[cpu] != 0 || time_after(jiffies, deadline));
 	if (!cpu_callin_map[cpu]) {
 		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
 		return -ENOENT;
