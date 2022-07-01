@@ -166,7 +166,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 {
 	u64 addr;
 	const __be32 *addrp;
-	struct device_node *tsi = of_get_parent(np);
+	struct device_node *tsi;
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.
@@ -194,7 +194,8 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	if (of_node_is_type(tsi, "tsi-bridge"))
+	tsi = of_get_parent(np);
+	if (of_node_is_type(tsi, "tsi-bridge") || (of_node_put(tsi), 0))
 		return add_legacy_port(np, -1, UPIO_TSI, addr, addr,
 				       0, legacy_port_flags, 0);
 	else
