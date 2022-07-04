@@ -52,7 +52,8 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 	rmem = of_reserved_mem_lookup(mem_node);
 	if (!rmem) {
 		dev_err(dev, "of_reserved_mem_lookup() returned NULL\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_of_put;
 	}
 	*addr = rmem->base;
 	*size = rmem->size;
@@ -66,24 +67,35 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 	prop = of_find_property(mem_node, "reg", &len);
 	if (!prop) {
 		prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
-		if (!prop)
-			return -ENOMEM;
+		if (!prop) {
+			err = -ENOMEM;
+			goto out_of_put;
+		}
 		prop->value = res_array = devm_kzalloc(dev, sizeof(__be32) * 4,
 						       GFP_KERNEL);
-		if (!prop->value)
-			return -ENOMEM;
+		if (!prop->value) {
+			err = -ENOMEM;
+			goto out_of_put;
+		}
 		res_array[0] = cpu_to_be32(upper_32_bits(*addr));
 		res_array[1] = cpu_to_be32(lower_32_bits(*addr));
 		res_array[2] = cpu_to_be32(upper_32_bits(*size));
 		res_array[3] = cpu_to_be32(lower_32_bits(*size));
 		prop->length = sizeof(__be32) * 4;
 		prop->name = devm_kstrdup(dev, "reg", GFP_KERNEL);
-		if (!prop->name)
-			return -ENOMEM;
+		if (!prop->name) {
+			err = -ENOMEM;
+			goto out_of_put;
+		}
 		err = of_add_property(mem_node, prop);
 		if (err)
-			return err;
+			goto out_of_put;
 	}
+	of_node_put(mem_node);
 
 	return 0;
+
+out_of_put:
+	of_node_put(mem_node);
+	return err;
 }
