@@ -423,7 +423,6 @@ static int __init fsl_gtm_init(void)
 
 		/* We don't want to lose the node and its ->data */
 		np->data = gtm;
-		of_node_get(np);
 
 		continue;
 err:
