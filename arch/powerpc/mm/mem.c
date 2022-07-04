@@ -406,3 +406,14 @@ int devmem_is_allowed(unsigned long pfn)
  * the EHEA driver. Drop this when drivers/net/ethernet/ibm/ehea is removed.
  */
 EXPORT_SYMBOL_GPL(walk_system_ram_range);
+
+bool __virt_addr_valid(unsigned long kaddr)
+{
+	if (kaddr < PAGE_OFFSET)
+		return false;
+	if (is_vmalloc_addr((void *) kaddr))
+		return false;
+	return pfn_valid(virt_to_pfn(kaddr));
+}
+EXPORT_SYMBOL(__virt_addr_valid);
+
