@@ -20,6 +20,7 @@
 #include <linux/irq.h>
 #include <linux/vmalloc.h>
 #include <linux/of.h>
+#include <linux/iommu.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -27,6 +28,7 @@
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
+#include <asm/iommu.h>
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
@@ -69,6 +71,7 @@ static int __init pcibios_init(void)
 		ppc_md.pcibios_fixup();
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
+	bus_set_iommu(&pci_bus_type, &spapr_tce_iommu_ops);
 
 	return 0;
 }
