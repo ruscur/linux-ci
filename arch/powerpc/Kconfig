@@ -380,6 +380,17 @@ config PPC_OF_PLATFORM_PCI
 	depends on PCI
 	depends on PPC64 # not supported on 32 bits yet
 
+config PPC_PCI_DOMAIN_FROM_OF_REG
+	bool "Use OF reg property for PCI domain"
+	depends on PCI
+	default y if PPC_PSERIES || PPC_POWERNV
+	help
+	  By default PCI domain for host bridge during its registration is
+	  chosen as the lowest unused PCI domain number.
+
+	  When this option is enabled then PCI domain can be determined
+	  also from lower bits of the OF / Device Tree 'reg' property.
+
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
