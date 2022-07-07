@@ -158,10 +158,8 @@ void __init irqstack_early_init(void)
 
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by default */
-	for_each_possible_cpu(i) {
-		softirq_ctx[i] = alloc_stack();
-		hardirq_ctx[i] = alloc_stack();
-	}
+	for_each_possible_cpu(i)
+		normirq_ctx[i] = alloc_stack();
 }
 
 #ifdef CONFIG_VMAP_STACK

@@ -49,8 +49,7 @@ extern void *mcheckirq_ctx[NR_CPUS];
 /*
  * Per-cpu stacks for handling hard and soft interrupts.
  */
-extern void *hardirq_ctx[NR_CPUS];
-extern void *softirq_ctx[NR_CPUS];
+extern void *normirq_ctx[NR_CPUS];
 
 void __do_IRQ(struct pt_regs *regs);
 extern void __init init_IRQ(void);
