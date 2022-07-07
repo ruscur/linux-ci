@@ -1715,4 +1715,4 @@ static int __init discover_phbs(void)
 
 	return 0;
 }
-core_initcall(discover_phbs);
+postcore_initcall_sync(discover_phbs);
