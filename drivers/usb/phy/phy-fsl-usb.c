@@ -855,6 +855,8 @@ int usb_otg_start(struct platform_device *pdev)
 	 * with host/device */
 
 	usb_dr_regs = ioremap(res->start, sizeof(struct usb_dr_mmap));
+	if (!usb_dr_regs)
+		return -ENOMEM;
 	p_otg->dr_mem_map = (struct usb_dr_mmap *)usb_dr_regs;
 	pdata->regs = (void *)usb_dr_regs;
 
