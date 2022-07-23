@@ -135,7 +135,7 @@ notrace void kexec_copy_flush(struct kimage *image)
 
 #ifdef CONFIG_SMP
 
-static int kexec_all_irq_disabled = 0;
+static int kexec_all_irq_disabled;
 
 static void kexec_smp_down(void *arg)
 {
