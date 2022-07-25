@@ -34,6 +34,20 @@
 .endm
 
 /*
+ * This expands to a sequence of register clears for regs start to end
+ * inclusive, of the form:
+ *
+ *   li rN, 0
+ */
+.macro NULLIFY_REGS start, end
+	.Lreg=\start
+	.rept (\end - \start + 1)
+	li	.Lreg, 0
+	.Lreg=.Lreg+1
+	.endr
+.endm
+
+/*
  * Macros for storing registers into and loading registers from
  * exception frames.
  */
@@ -48,6 +62,14 @@
 #define SAVE_NVGPRS(base)		SAVE_GPRS(13, 31, base)
 #define REST_NVGPRS(base)		REST_GPRS(13, 31, base)
 #endif
+
+#define	NULLIFY_GPRS(start, end)	NULLIFY_REGS start, end
+#ifdef __powerpc64__
+#define	NULLIFY_NVGPRS()		NULLIFY_GPRS(14, 31)
+#else
+#define	NULLIFY_NVGPRS()		NULLIFY_GPRS(13, 31)
+#endif
+#define	NULLIFY_GPR(n)			NULLIFY_GPRS(n, n)
 
 #define SAVE_GPR(n, base)		SAVE_GPRS(n, n, base)
 #define REST_GPR(n, base)		REST_GPRS(n, n, base)
