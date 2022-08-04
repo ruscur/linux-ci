@@ -22,5 +22,7 @@
 #define PHY_TYPE_QSGMII		9
 #define PHY_TYPE_DPHY		10
 #define PHY_TYPE_CPHY		11
+#define PHY_TYPE_2500BASEX	12
+#define PHY_TYPE_10GBASER	13
 
 #endif /* _DT_BINDINGS_PHY */
