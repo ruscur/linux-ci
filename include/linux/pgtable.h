@@ -1703,8 +1703,8 @@ typedef unsigned int pgtbl_mod_mask;
  *		w: (no) no	w: (no) no	w: (copy) copy	w: (no) no
  *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
  *
- * On arm64, PROT_EXEC has the following behaviour for both MAP_SHARED and
- * MAP_PRIVATE (with Enhanced PAN supported):
+ * On arm64 with Enhanced PAN and powerpc with the Radix MMU, PROT_EXEC has the
+ * following behaviour for both MAP_SHARED and MAP_PRIVATE:
  *								r: (no) no
  *								w: (no) no
  *								x: (yes) yes
