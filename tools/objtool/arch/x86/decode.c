@@ -23,6 +23,14 @@
 #include <objtool/builtin.h>
 #include <arch/elf.h>
 
+bool arch_ftrace_match(char *name)
+{
+	if (!strcmp(func->name, "__fentry__"))
+		return true;
+
+	return false;
+}
+
 static int is_x86_64(const struct elf *elf)
 {
 	switch (elf->ehdr.e_machine) {
