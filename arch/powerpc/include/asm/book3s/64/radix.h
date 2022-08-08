@@ -19,6 +19,9 @@
 #include <asm/cpu_has_feature.h>
 #endif
 
+/* Execute-only page protections, Hash can use RX + execute-only pkey */
+#define PAGE_EXECONLY	__pgprot(_PAGE_BASE | _PAGE_EXEC)
+
 /* An empty PTE can still have a R or C writeback */
 #define RADIX_PTE_NONE_MASK		(_PAGE_DIRTY | _PAGE_ACCESSED)
 

@@ -27,6 +27,7 @@
 #include <asm/tlb.h>
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
+#include <asm/pkeys.h>
 
 #ifdef CONFIG_PPC64
 #define PGD_ALIGN (sizeof(pgd_t) * MAX_PTRS_PER_PGD)
@@ -474,7 +475,7 @@ out:
 EXPORT_SYMBOL_GPL(__find_linux_pte);
 
 /* Note due to the way vm flags are laid out, the bits are XWR */
-const pgprot_t protection_map[16] = {
+static pgprot_t protection_map[16] __ro_after_init = {
 	[VM_NONE]					= PAGE_NONE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
@@ -493,6 +494,36 @@ const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED_X
 };
 
-#ifndef CONFIG_PPC_BOOK3S_64
-DECLARE_VM_GET_PAGE_PROT
+#ifdef CONFIG_PPC_RADIX_MMU
+static int __init radix_update_protection_map(void)
+{
+	if (early_radix_enabled()) {
+		/* Radix directly supports execute-only page protections */
+		protection_map[VM_EXEC] = PAGE_EXECONLY;
+		protection_map[VM_EXEC | VM_SHARED] = PAGE_EXECONLY;
+	}
+
+	return 0;
+}
+arch_initcall(radix_update_protection_map);
+#endif /* CONFIG_PPC_RADIX_MMU */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+pgprot_t vm_get_page_prot(unsigned long vm_flags)
+{
+	unsigned long prot = pgprot_val(protection_map[vm_flags &
+					(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]);
+
+	if (vm_flags & VM_SAO)
+		prot |= _PAGE_SAO;
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	prot |= vmflag_to_pte_pkey_bits(vm_flags);
 #endif
+
+	return __pgprot(prot);
+}
+EXPORT_SYMBOL(vm_get_page_prot);
+#else
+DECLARE_VM_GET_PAGE_PROT
+#endif /* CONFIG_PPC_BOOK3S_64 */

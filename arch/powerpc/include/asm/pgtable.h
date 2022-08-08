@@ -60,7 +60,6 @@ extern void paging_init(void);
 void poking_init(void);
 
 extern unsigned long ioremap_bot;
-extern const pgprot_t protection_map[16];
 
 /*
  * kern_addr_valid is intended to indicate whether an address is a valid
