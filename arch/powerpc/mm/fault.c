@@ -270,6 +270,16 @@ static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma
 		return false;
 	}
 
+	if (unlikely(!(vma->vm_flags & VM_READ))) {
+		/*
+		 * If we're on Radix, then this could be a read attempt on
+		 * execute-only memory.  On other MMUs, an "exec-only" page
+		 * will be given RX flags, so this might be redundant.
+		 */
+		if (radix_enabled())
+			return true;
+	}
+
 	if (unlikely(!vma_is_accessible(vma)))
 		return true;
 	/*

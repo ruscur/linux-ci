@@ -617,6 +617,10 @@ void __init radix__early_init_mmu(void)
 	__pmd_frag_nr = RADIX_PMD_FRAG_NR;
 	__pmd_frag_size_shift = RADIX_PMD_FRAG_SIZE_SHIFT;
 
+	/* Radix directly supports execute-only page protections */
+	protection_map[VM_EXEC] = PAGE_EXECONLY;
+	protection_map[VM_EXEC | VM_SHARED] = PAGE_EXECONLY;
+
 	radix_init_pgtable();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
