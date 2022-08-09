@@ -1043,7 +1043,7 @@ static int copy_property(void *fdt, int node_offset, const struct device_node *d
 			 const char *propname)
 {
 	const void *prop, *fdtprop;
-	int len = 0, fdtlen = 0, ret;
+	int len = 0, fdtlen = 0, ret = -EINVAL;
 
 	prop = of_get_property(dn, propname, &len);
 	fdtprop = fdt_getprop(fdt, node_offset, propname, &fdtlen);
