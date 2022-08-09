@@ -270,7 +270,11 @@ static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma
 		return false;
 	}
 
-	if (unlikely(!vma_is_accessible(vma)))
+	/* On Radix, a read fault could be from PROT_NONE or PROT_EXEC */
+	if (unlikely(radix_enabled() && !(vma->vm_flags & VM_READ)))
+		return true;
+	/* Check for a PROT_NONE fault on other MMUs */
+	else if (unlikely(!vma_is_accessible(vma)))
 		return true;
 	/*
 	 * We should ideally do the vma pkey access check here. But in the
