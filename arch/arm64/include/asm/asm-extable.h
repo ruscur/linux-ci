@@ -10,6 +10,7 @@
 #define EX_TYPE_UACCESS_ERR_ZERO	2
 #define EX_TYPE_KACCESS_ERR_ZERO	3
 #define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	4
+#define EX_TYPE_COPY_PAGE_MC		5
 
 /* Data fields for EX_TYPE_UACCESS_ERR_ZERO */
 #define EX_DATA_REG_ERR_SHIFT	0
@@ -57,6 +58,10 @@
  */
 	.macro          _asm_extable_uaccess, insn, fixup
 	_ASM_EXTABLE_UACCESS(\insn, \fixup)
+	.endm
+
+	.macro          _asm_extable_copy_page_mc, insn, fixup
+	__ASM_EXTABLE_RAW(\insn, \fixup, EX_TYPE_COPY_PAGE_MC, 0)
 	.endm
 
 /*
