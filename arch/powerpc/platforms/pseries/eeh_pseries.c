@@ -47,11 +47,13 @@ static void pseries_eeh_init_edev(struct pci_dn *pdn);
 
 static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 {
-	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pci_dn *pdn;
 
 	if (eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
+	eeh_recovery_lock();
+	pdn = pci_get_pdn(pdev);
 	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
 #ifdef CONFIG_PCI_IOV
 	if (pdev->is_virtfn) {
@@ -82,6 +84,7 @@ static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 	}
 #endif
 	eeh_probe_device(pdev);
+	eeh_recovery_unlock();
 }
 
 

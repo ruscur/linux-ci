@@ -131,6 +131,9 @@ struct pci_controller {
 	struct irq_domain	*dev_domain;
 	struct irq_domain	*msi_domain;
 	struct fwnode_handle	*fwnode;
+
+	bool eeh_in_progress;
+	struct list_head eeh_eventlist;
 };
 
 /* These are used for config access before all the PCI probing

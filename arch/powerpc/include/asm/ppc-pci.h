@@ -40,7 +40,7 @@ extern int rtas_setup_phb(struct pci_controller *phb);
 void eeh_addr_cache_insert_dev(struct pci_dev *dev);
 void eeh_addr_cache_rmv_dev(struct pci_dev *dev);
 struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr);
-void eeh_slot_error_detail(struct eeh_pe *pe, int severity);
+void eeh_slot_error_detail(unsigned int event_id, struct eeh_pe *pe, int severity);
 int eeh_pci_enable(struct eeh_pe *pe, int function);
 int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed);
 void eeh_save_bars(struct eeh_dev *edev);

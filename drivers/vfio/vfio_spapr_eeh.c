@@ -54,6 +54,7 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 		if (op.argsz < minsz || op.flags)
 			return -EINVAL;
 
+		eeh_recovery_lock();
 		switch (op.op) {
 		case VFIO_EEH_PE_DISABLE:
 			ret = eeh_pe_set_option(pe, EEH_OPT_DISABLE);
@@ -84,10 +85,14 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 			break;
 		case VFIO_EEH_PE_INJECT_ERR:
 			minsz = offsetofend(struct vfio_eeh_pe_op, err.mask);
-			if (op.argsz < minsz)
+			if (op.argsz < minsz) {
+				eeh_recovery_unlock();
 				return -EINVAL;
-			if (copy_from_user(&op, (void __user *)arg, minsz))
+			}
+			if (copy_from_user(&op, (void __user *)arg, minsz)) {
+				eeh_recovery_unlock();
 				return -EFAULT;
+			}
 
 			ret = eeh_pe_inject_err(pe, op.err.type, op.err.func,
 						op.err.addr, op.err.mask);
@@ -95,6 +100,7 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 		default:
 			ret = -EINVAL;
 		}
+		eeh_recovery_unlock();
 	}
 
 	return ret;
