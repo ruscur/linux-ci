@@ -64,6 +64,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixu
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
 
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP_FILL
+
 static u8* pci_to_OF_bus_map;
 static int pci_bus_count;
 
@@ -223,6 +225,8 @@ pci_create_OF_bus_map(void)
 }
 #endif
 
+#endif /* CONFIG_PPC_PCI_OF_BUS_MAP_FILL */
+
 #endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP) */
 
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
@@ -264,6 +268,7 @@ static int __init pcibios_init(void)
 	}
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP_FILL
 	pci_bus_count = next_busno;
 
 	/* OpenFirmware based machines need a map of OF bus
@@ -272,6 +277,7 @@ static int __init pcibios_init(void)
 	 */
 	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
+#endif
 #endif
 
 	/* Call common code to handle resource allocation */
