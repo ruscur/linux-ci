@@ -276,6 +276,11 @@ config PPC_EARLY_DEBUG_OPAL_HVSI
 	  Select this to enable early debugging for the PowerNV platform
 	  using an "hvsi" console
 
+config PPC_EARLY_DEBUG_16550
+	bool "Serial 16550"
+	help
+	  Select this to enable early debugging via Serial 16550 console
+
 config PPC_EARLY_DEBUG_MEMCONS
 	bool "In memory console"
 	help
@@ -353,6 +358,15 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 	  used for early debug output.  Because it is needed before
 	  platform probing is done, all platforms selected must
 	  share the same address.
+
+config PPC_EARLY_DEBUG_16550_PHYSADDR
+	hex "Early debug Serial 16550 physical address"
+	depends on PPC_EARLY_DEBUG_16550
+
+config PPC_EARLY_DEBUG_16550_STRIDE
+	int "Early debug Serial 16550 stride"
+	depends on PPC_EARLY_DEBUG_16550
+	default 1
 
 config FAIL_IOMMU
 	bool "Fault-injection capability for IOMMU"
