@@ -68,6 +68,40 @@
 			read-only;
 		};
 	};
+
+	cpld@3,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,p1021rdb-pc-cpld", "simple-bus", "syscon";
+		reg = <0x3 0x0 0x20000>;
+		ranges = <0x0 0x3 0x0 0x20000>;
+
+		watchdog@2 {
+			compatible = "maxim,max6370";
+			reg = <0x2 0x1>;
+			gpios = <&gpio 11 1>;
+		};
+
+		led@8 {
+			compatible = "register-bit-led";
+			reg = <0x8 0x1>;
+			offset = <0x8>;
+			mask = <0x1>;
+			active-low;
+			default-state = "keep";
+			label = "status";
+			function = "status";
+			color = <6>; /* LED_COLOR_ID_YELLOW */
+		};
+
+		reboot@d {
+			compatible = "syscon-reboot";
+			reg = <0xd 0x1>;
+			offset = <0xd>;
+			mask = <0x1>;
+			value = <0x1>;
+		};
+	};
 };
 
 &soc {
@@ -76,6 +110,9 @@
 			compatible = "dallas,ds1339";
 			reg = <0x68>;
 		};
+	};
+
+	gpio: gpio-controller@fc00 {
 	};
 
 	mdio@24000 {
