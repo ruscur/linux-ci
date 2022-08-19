@@ -70,9 +70,7 @@
 
 #undef SHOW_GATWICK_IRQS
 
-int ppc_override_l2cr = 0;
-int ppc_override_l2cr_value;
-int has_l2cache = 0;
+static int has_l2cache;
 
 int pmac_newworld;
 
@@ -228,6 +226,9 @@ static void __init ohare_init(void)
 
 static void __init l2cr_init(void)
 {
+	int ppc_override_l2cr = 0;
+	int ppc_override_l2cr_value;
+
 	/* Checks "l2cr-value" property in the registry */
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
 		struct device_node *np;
