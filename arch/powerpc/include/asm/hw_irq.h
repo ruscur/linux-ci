@@ -121,7 +121,7 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  * for the critical section and as a clobber because
  * we changed paca->irq_soft_mask
  */
-static inline notrace void irq_soft_mask_set(unsigned long mask)
+static inline notrace __no_kcsan __no_sanitize_address void irq_soft_mask_set(unsigned long mask)
 {
 	/*
 	 * The irq mask must always include the STD bit if any are set.
