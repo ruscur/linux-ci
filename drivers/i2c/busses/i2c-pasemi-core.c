@@ -21,6 +21,7 @@
 #define REG_MTXFIFO	0x00
 #define REG_MRXFIFO	0x04
 #define REG_SMSTA	0x14
+#define REG_IMASK   0x18
 #define REG_CTL		0x1c
 #define REG_REV		0x28
 
@@ -80,13 +81,20 @@ static int pasemi_smb_waitready(struct pasemi_smbus *smbus)
 {
 	int timeout = 10;
 	unsigned int status;
+	unsigned int bitmask = SMSTA_XEN | SMSTA_MTN;
 
-	status = reg_read(smbus, REG_SMSTA);
-
-	while (!(status & SMSTA_XEN) && timeout--) {
-		msleep(1);
+	if (smbus->use_irq) {
+		reinit_completion(&smbus->irq_completion);
+		reg_write(smbus, REG_IMASK, bitmask);
+		wait_for_completion_timeout(&smbus->irq_completion, msecs_to_jiffies(10));
 		status = reg_read(smbus, REG_SMSTA);
+	} else {
+		while (!(status & SMSTA_XEN) && timeout--) {
+			msleep(1);
+			status = reg_read(smbus, REG_SMSTA);
+		}
 	}
+
 
 	/* Got NACK? */
 	if (status & SMSTA_MTN)
@@ -300,7 +308,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 	case I2C_SMBUS_BLOCK_DATA:
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		data->block[0] = len;
-		for (i = 1; i <= len; i ++) {
+		for (i = 1; i <= len; i++) {
 			rd = RXFIFO_RD(smbus);
 			if (rd & MRXFIFO_EMPTY) {
 				err = -ENODATA;
@@ -348,6 +356,8 @@ int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 	if (smbus->hw_rev != PASEMI_HW_REV_PCI)
 		smbus->hw_rev = reg_read(smbus, REG_REV);
 
+	reg_write(smbus, REG_IMASK, 0);
+
 	pasemi_reset(smbus);
 
 	error = devm_i2c_add_adapter(smbus->dev, &smbus->adapter);
@@ -355,4 +365,13 @@ int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 		return error;
 
 	return 0;
+}
+
+irqreturn_t pasemi_irq_handler(int irq, void *dev_id)
+{
+	struct pasemi_smbus *smbus = (struct pasemi_smbus *)dev_id;
+
+	reg_write(smbus, REG_IMASK, 0);
+	complete(&smbus->irq_completion);
+	return IRQ_HANDLED;
 }
