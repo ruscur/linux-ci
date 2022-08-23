@@ -113,7 +113,11 @@ static inline void __hard_RI_enable(void)
 
 static inline notrace unsigned long irq_soft_mask_return(void)
 {
-	return READ_ONCE(local_paca->irq_soft_mask);
+	unsigned long flags;
+
+	asm volatile("lbz%X1 %0,%1" : "=r" (flags) : "m" (local_paca->irq_soft_mask));
+
+	return flags;
 }
 
 /*
@@ -140,8 +144,7 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		WARN_ON(mask && !(mask & IRQS_DISABLED));
 
-	WRITE_ONCE(local_paca->irq_soft_mask, mask);
-	barrier();
+	asm volatile("stb%X1 %0,%1" : : "r" (mask), "m" (local_paca->irq_soft_mask) : "memory");
 }
 
 static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
