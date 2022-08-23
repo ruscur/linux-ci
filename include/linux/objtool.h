@@ -45,8 +45,6 @@ struct unwind_hint {
 
 #ifdef CONFIG_OBJTOOL
 
-#include <asm/asm.h>
-
 #ifndef __ASSEMBLY__
 
 #define UNWIND_HINT(sp_reg, sp_offset, type, end)		\
@@ -87,7 +85,7 @@ struct unwind_hint {
 #define ANNOTATE_NOENDBR					\
 	"986: \n\t"						\
 	".pushsection .discard.noendbr\n\t"			\
-	_ASM_PTR " 986b\n\t"					\
+	".quad 986b\n\t"					\
 	".popsection\n\t"
 
 #define ASM_REACHABLE							\
@@ -144,7 +142,7 @@ struct unwind_hint {
 
 .macro STACK_FRAME_NON_STANDARD func:req
 	.pushsection .discard.func_stack_frame_non_standard, "aw"
-	_ASM_PTR \func
+	.quad \func
 	.popsection
 .endm
 
