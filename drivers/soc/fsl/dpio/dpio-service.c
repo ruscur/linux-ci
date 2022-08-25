@@ -331,7 +331,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_register);
  * @dev: the device that requests to be deregistered
  *
  * This function should be called only after sending the MC command to
- * to detach the notification-producing device from the DPIO.
+ * detach the notification-producing device from the DPIO.
  */
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
 				 struct dpaa2_io_notification_ctx *ctx,
