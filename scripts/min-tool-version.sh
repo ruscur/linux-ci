@@ -14,7 +14,13 @@ fi
 
 case "$1" in
 binutils)
-	echo 2.23.0
+	if [ "$SRCARCH" = powerpc ]; then
+		# binutils 2.24 miscompiles weak symbols in some circumstances
+		# binutils 2.23 do not define the TOC symbol
+		echo 2.25.0
+	else
+		echo 2.23.0
+	fi
 	;;
 gcc)
 	echo 5.1.0
