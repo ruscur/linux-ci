@@ -44,7 +44,15 @@ else
 BOOTCFLAGS	+= -m64 -mcpu=powerpc64
 endif
 else
+ifdef CONFIG_PPC32
+ifdef CONFIG_TARGET_CPU_BOOL
+BOOTCFLAGS	+= -m32 -mcpu=$(CONFIG_TARGET_CPU)
+else
 BOOTCFLAGS	+= -m32 -mcpu=powerpc
+endif
+else
+BOOTCFLAGS	+= -m32 -mcpu=powerpc
+endif
 endif
 
 BOOTCFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
