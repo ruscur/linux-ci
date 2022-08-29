@@ -48,7 +48,7 @@
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
 
-static inline void do_enter_rtas(unsigned long args)
+static __always_inline void do_enter_rtas(unsigned long args)
 {
 	unsigned long msr;
 
@@ -435,7 +435,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 #endif
 
 
-static void
+noinstr static void
 va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
 		      va_list list)
 {

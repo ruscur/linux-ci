@@ -201,13 +201,13 @@ inline uint32_t rtas_ext_event_company_id(struct rtas_ext_event_log_v6 *ext_log)
 #define PSERIES_ELOG_SECT_ID_MCE		(('M' << 8) | 'C')
 
 static
-inline uint16_t pseries_errorlog_id(struct pseries_errorlog *sect)
+__always_inline uint16_t pseries_errorlog_id(struct pseries_errorlog *sect)
 {
 	return be16_to_cpu(sect->id);
 }
 
 static
-inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
+__always_inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
 {
 	return be16_to_cpu(sect->length);
 }
