@@ -1248,11 +1248,11 @@ static ssize_t amd_event_sysfs_show(char *page, u64 config)
 	return x86_event_sysfs_show(page, config, event);
 }
 
-static void amd_pmu_sched_task(struct perf_event_context *ctx,
+static void amd_pmu_sched_task(struct perf_event_pmu_context *pmu_ctx,
 				 bool sched_in)
 {
 	if (sched_in && x86_pmu.lbr_nr)
-		amd_pmu_brs_sched_task(ctx, sched_in);
+		amd_pmu_brs_sched_task(pmu_ctx, sched_in);
 }
 
 static u64 amd_pmu_limit_period(struct perf_event *event, u64 left)
