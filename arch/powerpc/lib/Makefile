@@ -38,14 +38,6 @@ obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
 
 obj-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
 
-# See corresponding test in arch/powerpc/Makefile
-# 64-bit linker creates .sfpr on demand for final link (vmlinux),
-# so it is only needed for modules, and only for older linkers which
-# do not support --save-restore-funcs
-ifeq ($(call ld-ifversion, -lt, 22500, y),y)
-extra-$(CONFIG_PPC64)	+= crtsavres.o
-endif
-
 obj-$(CONFIG_PPC_BOOK3S_64) += copyuser_power7.o copypage_power7.o \
 			       memcpy_power7.o restart_table.o
 
