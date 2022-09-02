@@ -1,5 +1,5 @@
 /*
- * e500v2 Power ISA Device Tree Source (include)
+ * e500v1 Power ISA Device Tree Source (include)
  *
  * Copyright 2012 Freescale Semiconductor Inc.
  *
@@ -44,7 +44,6 @@
 		power-isa-ecl;		// Embedded Cache Locking
 		power-isa-mmc;		// Memory Coherence
 		power-isa-sp;		// Signal Processing Engine
-		power-isa-sp.fd;	// SPE.Embedded Float Scalar Double
 		power-isa-sp.fs;	// SPE.Embedded Float Scalar Single
 		power-isa-sp.fv;	// SPE.Embedded Float Vector
 		mmu-type = "power-embedded";
