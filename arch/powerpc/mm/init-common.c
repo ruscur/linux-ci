@@ -150,6 +150,8 @@ void pgtable_cache_add(unsigned int shift)
 }
 EXPORT_SYMBOL_GPL(pgtable_cache_add);	/* used by kvm_hv module */
 
+void pt_frag_init(void);
+
 void pgtable_cache_init(void)
 {
 	pgtable_cache_add(PGD_INDEX_SIZE);
@@ -163,4 +165,6 @@ void pgtable_cache_init(void)
 	 */
 	if (PUD_CACHE_INDEX)
 		pgtable_cache_add(PUD_CACHE_INDEX);
+
+	pt_frag_init();
 }

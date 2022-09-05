@@ -2243,6 +2243,10 @@ static inline spinlock_t *ptlock_ptr(struct page *page)
 }
 #endif /* ALLOC_SPLIT_PTLOCKS */
 
+spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd);
+bool ptlock_init(struct page *page);
+
+#if 0
 static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
 {
 	return ptlock_ptr(pmd_page(*pmd));
@@ -2263,6 +2267,7 @@ static inline bool ptlock_init(struct page *page)
 	spin_lock_init(ptlock_ptr(page));
 	return true;
 }
+#endif
 
 #else	/* !USE_SPLIT_PTE_PTLOCKS */
 /*
@@ -2328,16 +2333,19 @@ static inline void pgtable_pte_page_dtor(struct page *page)
 
 #if USE_SPLIT_PMD_PTLOCKS
 
-static struct page *pmd_to_page(pmd_t *pmd)
+static inline struct page *pmd_to_page(pmd_t *pmd)
 {
 	unsigned long mask = ~(PTRS_PER_PMD * sizeof(pmd_t) - 1);
 	return virt_to_page((void *)((unsigned long) pmd & mask));
 }
 
+#if 0
 static inline spinlock_t *pmd_lockptr(struct mm_struct *mm, pmd_t *pmd)
 {
 	return ptlock_ptr(pmd_to_page(pmd));
 }
+#endif
+spinlock_t *pmd_lockptr(struct mm_struct *mm, pmd_t *pmd);
 
 static inline bool pmd_ptlock_init(struct page *page)
 {
