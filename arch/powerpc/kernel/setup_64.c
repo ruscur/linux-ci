@@ -34,6 +34,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
+#include <asm/asm-prototypes.h>
 #include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -180,6 +181,8 @@ static void __init fixup_boot_paca(void)
 {
 	/* The boot cpu is started */
 	get_paca()->cpu_start = 1;
+	/* Give the early boot machine check stack somewhere to use */
+	get_paca()->mc_emergency_sp = (void *)&init_thread_union + (THREAD_SIZE/2);
 	/* Allow percpu accesses to work until we setup percpu data */
 	get_paca()->data_offset = 0;
 	/* Mark interrupts disabled in PACA */
@@ -354,6 +357,9 @@ void __init early_setup(unsigned long dt_ptr)
 	fixup_boot_paca();
 
 	/* -------- printk is now safe to use ------- */
+
+	if (mfmsr() & MSR_HV)
+		enable_machine_check();
 
 	/* Try new device tree based feature discovery ... */
 	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
