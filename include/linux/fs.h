@@ -704,9 +704,9 @@ struct inode {
 
 struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode);
 
-static inline unsigned int i_blocksize(const struct inode *node)
+static inline size_t i_blocksize(const struct inode *node)
 {
-	return (1 << node->i_blkbits);
+	return (1UL << node->i_blkbits);
 }
 
 static inline int inode_unhashed(struct inode *inode)

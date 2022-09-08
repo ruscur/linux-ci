@@ -2376,7 +2376,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	const struct address_space_operations *aops = mapping->a_ops;
-	unsigned int blocksize = i_blocksize(inode);
+	size_t blocksize = i_blocksize(inode);
 	struct page *page;
 	void *fsdata;
 	pgoff_t index, curidx;
@@ -2454,7 +2454,7 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 			get_block_t *get_block, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
-	unsigned int blocksize = i_blocksize(inode);
+	size_t blocksize = i_blocksize(inode);
 	unsigned int zerofrom;
 	int err;
 
@@ -2542,7 +2542,7 @@ int block_truncate_page(struct address_space *mapping,
 {
 	pgoff_t index = from >> PAGE_SHIFT;
 	unsigned offset = from & (PAGE_SIZE-1);
-	unsigned blocksize;
+	size_t blocksize;
 	sector_t iblock;
 	unsigned length, pos;
 	struct inode *inode = mapping->host;

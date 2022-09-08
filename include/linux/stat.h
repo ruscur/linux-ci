@@ -23,7 +23,7 @@ struct kstat {
 	u32		result_mask;	/* What fields the user got */
 	umode_t		mode;
 	unsigned int	nlink;
-	uint32_t	blksize;	/* Preferred I/O size */
+	size_t		blksize;	/* Preferred I/O size */
 	u64		attributes;
 	u64		attributes_mask;
 #define KSTAT_ATTR_FS_IOC_FLAGS				\
