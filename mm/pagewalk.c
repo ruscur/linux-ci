@@ -65,7 +65,7 @@ static int walk_hugepd_range(hugepd_t *phpd, unsigned long addr,
 	int err = 0;
 	const struct mm_walk_ops *ops = walk->ops;
 	int shift = hugepd_shift(*phpd);
-	int page_size = 1 << shift;
+	long page_size = 1UL << shift;
 
 	if (!ops->pte_entry)
 		return 0;
