@@ -565,7 +565,7 @@ static void cmm_balloon_compaction_init(void)
  * Return value:
  * 	0 on success / other on failure
  **/
-static int cmm_init(void)
+static int __init cmm_init(void)
 {
 	int rc;
 
@@ -615,7 +615,7 @@ out_balloon_compaction:
  * Return value:
  * 	nothing
  **/
-static void cmm_exit(void)
+static void __exit cmm_exit(void)
 {
 	if (cmm_thread_ptr)
 		kthread_stop(cmm_thread_ptr);
