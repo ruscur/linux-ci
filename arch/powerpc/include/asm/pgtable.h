@@ -158,6 +158,57 @@ struct seq_file;
 void arch_report_meminfo(struct seq_file *m);
 #endif /* CONFIG_PPC64 */
 
+#define pud_pfn pud_pfn
+static inline int pud_pfn(pud_t pud)
+{
+	/*
+	 * Currently all calls to pud_pfn() are gated around a pud_devmap()
+	 * check so this should never be used. If it grows another user we
+	 * want to know about it.
+	 */
+#ifndef CONFIG_PAGE_TABLE_CHECK
+	BUILD_BUG();
+#else
+	BUG();
+#endif
+	return 0;
+}
+
+static inline bool pte_user_accessible_page(pte_t pte)
+{
+	return (pte_val(pte) & _PAGE_PRESENT) && pte_user(pte);
+}
+
+#ifdef CONFIG_PPC64
+
+static inline bool pmd_user_accessible_page(pmd_t pmd)
+{
+	return pmd_is_leaf(pmd) && pmd_present(pmd)
+				&& pte_user(pmd_pte(pmd));
+}
+
+static inline bool pud_user_accessible_page(pud_t pud)
+{
+	return pud_is_leaf(pud) && pud_present(pud)
+				&& pte_user(pud_pte(pud));
+}
+
+#else
+
+static inline bool pmd_user_accessible_page(pmd_t pmd)
+{
+	BUG();
+	return false;
+}
+
+static inline bool pud_user_accessible_page(pud_t pud)
+{
+	BUG();
+	return false;
+}
+
+#endif /* CONFIG_PPC64 */
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PGTABLE_H */
