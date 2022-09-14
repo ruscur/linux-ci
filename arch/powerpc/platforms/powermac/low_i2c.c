@@ -1488,6 +1488,7 @@ static int __init pmac_i2c_create_platform_devices(void)
 {
 	struct pmac_i2c_bus *bus;
 	int i = 0;
+	int ret;
 
 	/* In the case where we are initialized from smp_init(), we must
 	 * not use the timer (and thus the irq). It's safe from now on
@@ -1503,7 +1504,11 @@ static int __init pmac_i2c_create_platform_devices(void)
 			return -ENOMEM;
 		bus->platform_dev->dev.platform_data = bus;
 		bus->platform_dev->dev.of_node = bus->busnode;
-		platform_device_add(bus->platform_dev);
+		ret = platform_device_add(bus->platform_dev);
+		if (ret) {
+			platform_device_put(bus->platform_dev);
+			return ret;
+		}
 	}
 
 	/* Now call platform "init" functions */
