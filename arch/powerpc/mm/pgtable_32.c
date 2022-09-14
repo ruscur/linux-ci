@@ -158,10 +158,9 @@ void mark_rodata_ro(void)
 	}
 
 	/*
-	 * mark .text and .rodata as read only. Use __init_begin rather than
-	 * __end_rodata to cover NOTES and EXCEPTION_TABLE.
+	 * mark .text and .rodata as read only.
 	 */
-	numpages = PFN_UP((unsigned long)__init_begin) -
+	numpages = PFN_UP((unsigned long)__end_rodata) -
 		   PFN_DOWN((unsigned long)_stext);
 
 	set_memory_ro((unsigned long)_stext, numpages);
