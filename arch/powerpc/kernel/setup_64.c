@@ -34,6 +34,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
+#include <asm/asm-prototypes.h>
 #include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -176,14 +177,24 @@ early_param("smt-enabled", early_smt_enabled);
 #endif /* CONFIG_SMP */
 
 /** Fix up paca fields required for the boot cpu */
-static void __init fixup_boot_paca(void)
+static void __init fixup_boot_paca(struct paca_struct *boot_paca)
 {
 	/* The boot cpu is started */
-	get_paca()->cpu_start = 1;
+	boot_paca->cpu_start = 1;
+	/*
+	 * Give the early boot machine check stack somewhere to use, use
+	 * half of the init stack. This is a bit hacky but there should not be
+	 * deep stack usage in early init so shouldn't overflow it or overwrite
+	 * things.
+	 */
+	boot_paca->mc_emergency_sp = (void *)&init_thread_union +
+		(THREAD_SIZE/2);
 	/* Allow percpu accesses to work until we setup percpu data */
-	get_paca()->data_offset = 0;
-	/* Mark interrupts disabled in PACA */
-	irq_soft_mask_set(IRQS_DISABLED);
+	boot_paca->data_offset = 0;
+	/* Mark interrupts soft and hard disabled in PACA */
+	boot_paca->irq_soft_mask = IRQS_DISABLED;
+	boot_paca->irq_happened = PACA_IRQ_HARD_DIS;
+	WARN_ON(mfmsr() & MSR_EE);
 }
 
 static void __init configure_exceptions(void)
@@ -350,10 +361,14 @@ void __init early_setup(unsigned long dt_ptr)
 	 * what CPU we are on.
 	 */
 	initialise_paca(&boot_paca, 0);
-	setup_paca(&boot_paca);
-	fixup_boot_paca();
+	fixup_boot_paca(&boot_paca);
+	WARN_ON(local_paca != 0);
+	setup_paca(&boot_paca); /* install the paca into registers */
 
 	/* -------- printk is now safe to use ------- */
+
+	if (mfmsr() & MSR_HV)
+		enable_machine_check();
 
 	/* Try new device tree based feature discovery ... */
 	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
@@ -377,8 +392,8 @@ void __init early_setup(unsigned long dt_ptr)
 		/* Poison paca_ptrs[0] again if it's not the boot cpu */
 		memset(&paca_ptrs[0], 0x88, sizeof(paca_ptrs[0]));
 	}
-	setup_paca(paca_ptrs[boot_cpuid]);
-	fixup_boot_paca();
+	fixup_boot_paca(paca_ptrs[boot_cpuid]);
+	setup_paca(paca_ptrs[boot_cpuid]); /* install the paca into registers */
 
 	/*
 	 * Configure exception handlers. This include setting up trampolines
