@@ -3,6 +3,7 @@
  *  Copyright 2008 Michael Ellerman, IBM Corporation.
  */
 
+#include <linux/mm.h>
 #include <linux/kprobes.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -14,32 +15,7 @@
 #include <asm/page.h>
 #include <asm/code-patching.h>
 #include <asm/inst.h>
-
-static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
-{
-	if (!ppc_inst_prefixed(instr)) {
-		u32 val = ppc_inst_val(instr);
-
-		__put_kernel_nofault(patch_addr, &val, u32, failed);
-	} else {
-		u64 val = ppc_inst_as_ulong(instr);
-
-		__put_kernel_nofault(patch_addr, &val, u64, failed);
-	}
-
-	asm ("dcbst 0, %0; sync; icbi 0,%1; sync; isync" :: "r" (patch_addr),
-							    "r" (exec_addr));
-
-	return 0;
-
-failed:
-	return -EPERM;
-}
-
-int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
-{
-	return __patch_instruction(addr, instr, addr);
-}
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
 static DEFINE_PER_CPU(struct vm_struct *, text_poke_area);
@@ -147,16 +123,44 @@ static void unmap_patch_area(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 
-static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int __patch_text(void *dest, const void *src, size_t size, bool is_exec, void *exec_addr)
 {
-	int err;
-	u32 *patch_addr;
-	unsigned long text_poke_addr;
-	pte_t *pte;
-	unsigned long pfn = get_patch_pfn(addr);
+	if (virt_to_pfn(dest) != virt_to_pfn(dest + size - 1))
+		return -EFAULT;
 
-	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
-	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+	switch (size) {
+		case 1:
+			__put_kernel_nofault(dest, src, u8, failed);
+			break;
+		case 2:
+			__put_kernel_nofault(dest, src, u16, failed);
+			break;
+		case 4:
+			__put_kernel_nofault(dest, src, u32, failed);
+			break;
+		case 8:
+			__put_kernel_nofault(dest, src, u64, failed);
+			break;
+	}
+
+	asm ("dcbst 0, %0; sync" :: "r" (dest));
+
+	if (is_exec)
+		asm ("icbi 0,%0; sync; isync" :: "r" (exec_addr));
+
+	return 0;
+
+failed:
+	return -EPERM;
+}
+
+static pte_t *start_text_patch(void* dest, u32 **patch_addr)
+{
+	pte_t *pte;
+	unsigned long text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
+	unsigned long pfn = get_patch_pfn(dest);
+
+	*patch_addr = (u32 *)(text_poke_addr + offset_in_page(dest));
 
 	pte = virt_to_kpte(text_poke_addr);
 	__set_pte_at(&init_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
@@ -164,38 +168,73 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	if (radix_enabled())
 		asm volatile("ptesync": : :"memory");
 
-	err = __patch_instruction(addr, instr, patch_addr);
+	return pte;
+}
 
+static void finish_text_patch(pte_t *pte)
+{
+	unsigned long text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
 	pte_clear(&init_mm, text_poke_addr, pte);
 	flush_tlb_kernel_range(text_poke_addr, text_poke_addr + PAGE_SIZE);
+}
+
+static int do_patch_text(void *dest, const void *src, size_t size, bool is_exec)
+{
+	int err;
+	pte_t *pte;
+	u32 *patch_addr;
+
+	pte = start_text_patch(dest, &patch_addr);
+	err = __patch_text(patch_addr, src, size, is_exec, dest);
+	finish_text_patch(pte);
 
 	return err;
 }
 
-static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int patch_text(void *dest, const void *src, size_t size, bool is_exec)
 {
 	int err;
 	unsigned long flags;
 
-	/*
-	 * During early early boot patch_instruction is called
-	 * when text_poke_area is not ready, but we still need
-	 * to allow patching. We just do the plain old patching
-	 */
+	/* Make sure we aren't patching a freed init section */
+	if (static_branch_likely(&init_mem_is_free) && init_section_contains(dest, 4))
+		return 0;
+
 	if (!static_branch_likely(&poking_init_done))
-		return raw_patch_instruction(addr, instr);
+		return __patch_text(dest, src, size, is_exec, dest);
 
 	local_irq_save(flags);
-	err = __do_patch_instruction(addr, instr);
+	err = do_patch_text(dest, src, size, is_exec);
 	local_irq_restore(flags);
 
 	return err;
 }
+
+int patch_text_data(void *dest, const void *src, size_t size) {
+	return patch_text(dest, src, size, false);
+}
+
+int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	if (!ppc_inst_prefixed(instr)) {
+		u32 val = ppc_inst_val(instr);
+		return __patch_text(addr, &val, sizeof(val), true, addr);
+	} else {
+		u64 val = ppc_inst_as_ulong(instr);
+		return __patch_text(addr, &val, sizeof(val), true, addr);
+	}
+}
+
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
 static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	return raw_patch_instruction(addr, instr);
+}
+
+void *patch_memory(void *dest, const void *src, size_t size)
+{
+	return memcpy(dest, src, size);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
@@ -204,11 +243,13 @@ __ro_after_init DEFINE_STATIC_KEY_FALSE(init_mem_is_free);
 
 int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
-	/* Make sure we aren't patching a freed init section */
-	if (static_branch_likely(&init_mem_is_free) && init_section_contains(addr, 4))
-		return 0;
-
-	return do_patch_instruction(addr, instr);
+	if (!ppc_inst_prefixed(instr)) {
+		u32 val = ppc_inst_val(instr);
+		return patch_text(addr, &val, sizeof(val), true);
+	} else {
+		u64 val = ppc_inst_as_ulong(instr);
+		return patch_text(addr, &val, sizeof(val), true);
+	}
 }
 NOKPROBE_SYMBOL(patch_instruction);
 

@@ -76,6 +76,7 @@ int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 int patch_branch(u32 *addr, unsigned long target, int flags);
 int patch_instruction(u32 *addr, ppc_inst_t instr);
 int raw_patch_instruction(u32 *addr, ppc_inst_t instr);
+int patch_text_data(void *dest, const void *src, size_t size);
 
 static inline unsigned long patch_site_addr(s32 *site)
 {
@@ -125,6 +126,7 @@ int translate_branch(ppc_inst_t *instr, const u32 *dest, const u32 *src);
 bool is_conditional_branch(ppc_inst_t instr);
 
 #define OP_RT_RA_MASK	0xffff0000UL
+#define OP_SI_MASK	0x0000ffffUL
 #define LIS_R2		(PPC_RAW_LIS(_R2, 0))
 #define ADDIS_R2_R12	(PPC_RAW_ADDIS(_R2, _R12, 0))
 #define ADDI_R2_R2	(PPC_RAW_ADDI(_R2, _R2, 0))

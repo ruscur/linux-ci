@@ -248,7 +248,7 @@ config PPC
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 	select HAVE_STACKPROTECTOR		if PPC32 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r2)
 	select HAVE_STACKPROTECTOR		if PPC64 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r13)
-	select HAVE_STATIC_CALL			if PPC32
+	select HAVE_STATIC_CALL			if PPC_ENABLE_STATIC_CALL
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HUGETLB_PAGE_SIZE_VARIABLE	if PPC_BOOK3S_64 && HUGETLB_PAGE
@@ -1022,6 +1022,26 @@ config PPC_RTAS_FILTER
 
 	  Say Y unless you know what you are doing and the filter is causing
 	  problems for you.
+
+config PPC_ENABLE_STATIC_CALL
+	bool "Enable static calls"
+	default y
+	depends on PPC32 || PPC64_ELF_ABI_V2
+	help
+	  PowerPC static calls with the ELF V2 ABI must ensure the TOC remains
+	  consistent. The benefit is only noticeable when indirect branch prediction
+	  is disabled. Otherwise, the generic implementation is better as it is
+	  inlined and effectively a direct branch with a hot predictor.
+
+config PPC_STATIC_CALL_KUNIT_TEST
+	tristate "KUnit tests for PPC64 ELF ABI V2 static calls"
+	default KUNIT_ALL_TESTS
+	depends on HAVE_STATIC_CALL && PPC64_ELF_ABI_V2 && KUNIT && m
+	help
+	  Tests that check the TOC is kept consistent across all combinations
+	  of caller/trampoline/target being kernel/module. Must be built as a
+	  module and loaded at runtime to ensure the module has a different
+	  TOC to the kernel.
 
 endmenu
 

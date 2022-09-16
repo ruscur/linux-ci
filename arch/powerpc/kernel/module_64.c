@@ -55,6 +55,11 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 	 * of function and try to derive r2 from it). */
 	return PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
 }
+
+static bool need_r2save_stub(unsigned char st_other) {
+	return ((st_other & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT) == 1;
+}
+
 #else
 
 static func_desc_t func_desc(unsigned long addr)
@@ -64,6 +69,10 @@ static func_desc_t func_desc(unsigned long addr)
 static unsigned int local_entry_offset(const Elf64_Sym *sym)
 {
 	return 0;
+}
+
+static bool need_r2save_stub(unsigned char st_other) {
+	return false;
 }
 
 void *dereference_module_function_descriptor(struct module *mod, void *ptr)
@@ -423,8 +432,17 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 		return create_ftrace_stub(entry, addr, me);
 
 	for (i = 0; i < ARRAY_SIZE(ppc64_stub_insns); i++) {
-		if (patch_instruction(&entry->jump[i],
-				      ppc_inst(ppc64_stub_insns[i])))
+		ppc_inst_t inst = ppc_inst(ppc64_stub_insns[i]);
+
+		// Replace the indirect branch with a direct branch where possible
+		if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2) && i == 4) {
+			ppc_inst_t direct;
+			if (create_branch(&direct, (void*) entry + (i * 4), addr, 0) == 0) {
+				inst = direct;
+			}
+		}
+
+		if (patch_instruction(&entry->jump[i], inst))
 			return 0;
 	}
 
@@ -632,7 +650,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC_REL24:
 			/* FIXME: Handle weak symbols here --RR */
 			if (sym->st_shndx == SHN_UNDEF ||
-			    sym->st_shndx == SHN_LIVEPATCH) {
+			    sym->st_shndx == SHN_LIVEPATCH ||
+			    need_r2save_stub(sym->st_other)) {
 				/* External: go via stub */
 				value = stub_for_addr(sechdrs, value, me,
 						strtab + sym->st_name);
