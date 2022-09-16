@@ -1150,6 +1150,12 @@ static inline void save_sprs(struct thread_struct *t)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
+	if (t->regs) {
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
+			t->regs->amr = mfspr(SPRN_AMR);
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUEP))
+			t->regs->iamr = mfspr(SPRN_IAMR);
+	}
 #endif
 }
 
@@ -1228,6 +1234,13 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_P9_TIDR) &&
 	    old_thread->tidr != new_thread->tidr)
 		mtspr(SPRN_TIDR, new_thread->tidr);
+	if (new_thread->regs) {
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
+			mtspr(SPRN_AMR, new_thread->regs->amr);
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUEP))
+			mtspr(SPRN_IAMR, new_thread->regs->iamr);
+		isync();
+	}
 #endif
 
 }
