@@ -920,7 +920,7 @@ int cxl_attach_dedicated_process_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 	 * Ideally we should do a wmb() here to make sure the changes to the
 	 * PE are visible to the card before we call afu_enable.
 	 * On ppc64 though all mmios are preceded by a 'sync' instruction hence
-	 * we dont dont need one here.
+	 * we dont need one here.
 	 */
 
 	result = cxl_ops->afu_reset(afu);
