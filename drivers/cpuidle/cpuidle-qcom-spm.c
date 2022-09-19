@@ -72,6 +72,7 @@ static struct cpuidle_driver qcom_spm_idle_driver = {
 	.owner = THIS_MODULE,
 	.states[0] = {
 		.enter			= spm_enter_idle_state,
+		.flags			= CPUIDLE_FLAG_RCU_IDLE,
 		.exit_latency		= 1,
 		.target_residency	= 1,
 		.power_usage		= UINT_MAX,

@@ -53,6 +53,7 @@ static struct cpuidle_driver arm_idle_driver __initdata = {
 	 * handler for idle state index 0.
 	 */
 	.states[0] = {
+		.flags			= CPUIDLE_FLAG_RCU_IDLE,
 		.enter                  = arm_enter_idle_state,
 		.exit_latency           = 1,
 		.target_residency       = 1,
