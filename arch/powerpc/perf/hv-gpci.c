@@ -70,9 +70,9 @@ static const struct attribute_group format_group = {
 	.attrs = format_attrs,
 };
 
-static const struct attribute_group event_group = {
+static struct attribute_group event_group = {
 	.name  = "events",
-	.attrs = hv_gpci_event_attrs,
+	/* .attrs is set in init */
 };
 
 #define HV_CAPS_ATTR(_name, _format)				\
@@ -352,6 +352,11 @@ static int hv_gpci_init(void)
 
 	/* sampling not supported */
 	h_gpci_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		event_group.attrs = hv_gpci_event_attrs;
+	else
+		event_group.attrs = hv_gpci_event_attrs_v6;
 
 	r = perf_pmu_register(&h_gpci_pmu, h_gpci_pmu.name, -1);
 	if (r)

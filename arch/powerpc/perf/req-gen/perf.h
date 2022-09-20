@@ -139,6 +139,23 @@ PMU_EVENT_ATTR_STRING(							\
 #define REQUEST_(r_name, r_value, r_idx_1, r_fields)			\
 	r_fields
 
+/* Generate event list for platforms with counter_info_version 0x6 or below */
+static __maybe_unused struct attribute *hv_gpci_event_attrs_v6[] = {
+#include REQUEST_FILE
+	NULL
+};
+
+/*
+ * Based on getPerfCountInfo v1.018 documentation, some of the hv-gpci
+ * events got deprecated for platforms firmware that supports
+ * counter_info_version 0x8 or above.
+ * Undefining macro EVENT_ENABLE, to disable the addition of deprecated
+ * events in "hv_gpci_event_attrs" attribute group, for platforms that
+ * supports counter_info_version 0x8 or above.
+ */
+#undef EVENT_ENABLE
+
+/* Generate event list for platforms with counter_info_version 0x8 or above*/
 static __maybe_unused struct attribute *hv_gpci_event_attrs[] = {
 #include REQUEST_FILE
 	NULL
