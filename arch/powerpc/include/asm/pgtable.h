@@ -158,6 +158,53 @@ struct seq_file;
 void arch_report_meminfo(struct seq_file *m);
 #endif /* CONFIG_PPC64 */
 
+/*
+ * Currently only consumed by page_table_check_pud_{set,clear}. Since clears
+ * and sets to page table entries at any level are done through
+ * page_table_check_pte_{set,clear}, provide stub implementation.
+ */
+#ifndef pud_pfn
+#define pud_pfn pud_pfn
+static inline int pud_pfn(pud_t pud)
+{
+	WARN(1, "pud: platform does not use pud entries directly");
+	return 0;
+}
+#endif
+
+static inline bool pte_user_accessible_page(pte_t pte)
+{
+	return pte_present(pte) && pte_user(pte);
+}
+
+#ifdef CONFIG_PPC64
+
+static inline bool pmd_user_accessible_page(pmd_t pmd)
+{
+	return pmd_is_leaf(pmd) && pmd_present(pmd) && pmd_user(pmd);
+}
+
+static inline bool pud_user_accessible_page(pud_t pud)
+{
+	return pud_is_leaf(pud) && pud_present(pud) && pud_user(pud);
+}
+
+#else
+
+static inline bool pmd_user_accessible_page(pmd_t pmd)
+{
+	WARN(1, "pmd: multi-level paging unsupported on ppc32");
+	return false;
+}
+
+static inline bool pud_user_accessible_page(pud_t pud)
+{
+	WARN(1, "pud: multi-level paging unsupported on ppc32");
+	return false;
+}
+
+#endif /* CONFIG_PPC64 */
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PGTABLE_H */
