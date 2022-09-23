@@ -36,6 +36,9 @@ struct bug_entry {
 #else
 	signed int	bug_addr_disp;
 #endif
+#ifdef CONFIG_GENERIC_BUG_ARCH_ENTRY
+	struct arch_bug_entry arch;
+#endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	const char	*file;
@@ -46,6 +49,15 @@ struct bug_entry {
 #endif
 	unsigned short	flags;
 };
+
+static inline unsigned long bug_addr(const struct bug_entry *bug)
+{
+#ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+	return (unsigned long)&bug->bug_addr_disp + bug->bug_addr_disp;
+#else
+	return bug->bug_addr;
+#endif
+}
 #endif	/* CONFIG_GENERIC_BUG */
 
 /*

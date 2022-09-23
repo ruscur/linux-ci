@@ -50,15 +50,6 @@
 
 extern struct bug_entry __start___bug_table[], __stop___bug_table[];
 
-static inline unsigned long bug_addr(const struct bug_entry *bug)
-{
-#ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	return (unsigned long)&bug->bug_addr_disp + bug->bug_addr_disp;
-#else
-	return bug->bug_addr;
-#endif
-}
-
 #ifdef CONFIG_MODULES
 /* Updates are protected by module mutex */
 static LIST_HEAD(module_bug_list);
@@ -209,12 +200,21 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 	return BUG_TRAP_TYPE_BUG;
 }
 
+#ifndef arch_generic_bug_entry_clear_once
+#define arch_generic_bug_entry_clear_once(bug)
+#endif
+
 static void clear_once_table(struct bug_entry *start, struct bug_entry *end)
 {
 	struct bug_entry *bug;
 
-	for (bug = start; bug < end; bug++)
-		bug->flags &= ~BUGFLAG_DONE;
+	for (bug = start; bug < end; bug++) {
+		bool triggered = bug->flags & BUGFLAG_DONE;
+		if (triggered) {
+			bug->flags &= ~BUGFLAG_DONE;
+			arch_generic_bug_entry_clear_once(bug);
+		}
+	}
 }
 
 void generic_bug_clear_once(void)

@@ -1458,6 +1458,44 @@ static int emulate_math(struct pt_regs *regs)
 static inline int emulate_math(struct pt_regs *regs) { return -1; }
 #endif
 
+static DEFINE_MUTEX(bug_lock);
+
+void arch_generic_bug_entry_clear_once(struct bug_entry *bug)
+{
+	unsigned long bugaddr = bug_addr(bug);
+
+	BUG_ON(!bug->arch.insn);
+
+	mutex_lock(&bug_lock);
+	if (bug->arch.insn == 0) {
+		mutex_unlock(&bug_lock);
+		return;
+	}
+	patch_instruction((u32 *)bugaddr, ppc_inst(bug->arch.insn));
+	bug->arch.insn = 0;
+	mutex_unlock(&bug_lock);
+}
+
+static void bug_entry_done_once(struct bug_entry *bug)
+{
+	unsigned long bugaddr = bug_addr(bug);
+	unsigned int insn;
+
+	if (!mutex_trylock(&bug_lock))
+		return;
+
+	if (bug->arch.insn != 0)
+		goto out;
+
+	if (__get_user(insn, (unsigned int __user *)bugaddr))
+		goto out;
+
+	patch_instruction((u32 *)bugaddr, ppc_inst(PPC_RAW_NOP()));
+
+out:
+	mutex_unlock(&bug_lock);
+}
+
 static void do_program_check(struct pt_regs *regs)
 {
 	unsigned int reason = get_reason(regs);
@@ -1494,13 +1532,19 @@ static void do_program_check(struct pt_regs *regs)
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
-			const struct exception_table_entry *entry;
+			struct bug_entry *bug;
+			unsigned long recov;
 
-			entry = search_exception_tables(bugaddr);
-			if (entry) {
-				regs_set_return_ip(regs, extable_fixup(entry) + regs->nip - bugaddr);
-				return;
-			}
+			bug = find_bug(bugaddr);
+			if (!bug || bug->arch.recovery_addr_disp == 0)
+				recov = regs->nip + 4;
+			else
+				recov = bugaddr - bug->arch.recovery_addr_disp;
+			if (bug && (bug->flags & BUGFLAG_ONCE))
+				bug_entry_done_once(bug);
+
+			regs_set_return_ip(regs, recov);
+			return;
 		}
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 		return;

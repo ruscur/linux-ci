@@ -14,6 +14,8 @@
 .macro __EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - .
+	 .4byte 0
+	 .4byte 0
 	 .4byte 5002f - .
 	 .short \line, \flags
 	 .org 5001b+BUG_ENTRY_SIZE
@@ -26,6 +28,8 @@
 .macro __EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - .
+	 .4byte 0
+	 .4byte 0
 	 .short \flags
 	 .org 5001b+BUG_ENTRY_SIZE
 	 .previous
@@ -33,7 +37,6 @@
 #endif /* verbose */
 
 .macro EMIT_WARN_ENTRY addr,file,line,flags
-	EX_TABLE(\addr,\addr+4)
 	__EMIT_BUG_ENTRY \addr,\file,\line,\flags
 .endm
 
@@ -45,12 +48,19 @@
 .endm
 
 #else /* !__ASSEMBLY__ */
+struct arch_bug_entry {
+	signed int recovery_addr_disp;
+	unsigned int insn;
+};
+
 /* _EMIT_BUG_ENTRY expects args %0,%1,%2,%3 to be FILE, LINE, flags and
    sizeof(struct bug_entry), respectively */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define _EMIT_BUG_ENTRY				\
 	".section __bug_table,\"aw\"\n"		\
 	"2:	.4byte 1b - .\n"		\
+	"	.4byte 0\n"			\
+	"	.4byte 0\n"			\
 	"	.4byte %0 - .\n"		\
 	"	.short %1, %2\n"		\
 	".org 2b+%3\n"				\
@@ -59,6 +69,29 @@
 #define _EMIT_BUG_ENTRY				\
 	".section __bug_table,\"aw\"\n"		\
 	"2:	.4byte 1b - .\n"		\
+	"	.4byte 0\n"			\
+	"	.4byte 0\n"			\
+	"	.short %2\n"			\
+	".org 2b+%3\n"				\
+	".previous\n"
+#endif
+
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+#define _EMIT_WARN_ENTRY(label)			\
+	".section __bug_table,\"aw\"\n"		\
+	"2:	.4byte 1b - .\n"		\
+	"	.4byte 1b - %l[" #label "]\n"	\
+	"	.4byte 0\n"			\
+	"	.4byte %0 - .\n"		\
+	"	.short %1, %2\n"		\
+	".org 2b+%3\n"				\
+	".previous\n"
+#else
+#define _EMIT_WARN_ENTRY(label)			\
+	".section __bug_table,\"aw\"\n"		\
+	"2:	.4byte 1b - .\n"		\
+	"	.4byte 1b - %l[" #label "]\n"	\
+	"	.4byte 0\n"			\
 	"	.short %2\n"			\
 	".org 2b+%3\n"				\
 	".previous\n"
@@ -76,12 +109,11 @@
 #define WARN_ENTRY(insn, flags, label, ...)		\
 	asm_volatile_goto(				\
 		"1:	" insn "\n"			\
-		EX_TABLE(1b, %l[label])			\
-		_EMIT_BUG_ENTRY				\
+		_EMIT_WARN_ENTRY(label)			\
 		: : "i" (__FILE__), "i" (__LINE__),	\
 		  "i" (flags),				\
 		  "i" (sizeof(struct bug_entry)),	\
-		  ##__VA_ARGS__ : : label)
+		  ##__VA_ARGS__ : "cr0" : label)
 
 /*
  * BUG_ON() and WARN_ON() do their best to cooperate with compile-time
@@ -126,7 +158,7 @@ __label_warn_on:						\
 		} else {					\
 			__label__ __label_warn_on;		\
 								\
-			WARN_ENTRY(PPC_TLNEI " %4, 0",		\
+			WARN_ENTRY(PPC_TLNEI " %4, 0 ; cmpdi %4, 0 ; bne %l[__label_warn_on]",		\
 				   BUGFLAG_WARNING | BUGFLAG_TAINT(TAINT_WARN),	\
 				   __label_warn_on,		\
 				   "r" ((__force long)(x)));	\
@@ -153,6 +185,9 @@ __label_warn_on:						\
 #define _EMIT_BUG_ENTRY
 #define _EMIT_WARN_ENTRY
 #endif
+#define arch_generic_bug_entry_clear_once
+void arch_generic_bug_entry_clear_once(struct bug_entry *bug);
+
 #endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
