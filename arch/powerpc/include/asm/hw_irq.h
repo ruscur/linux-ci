@@ -111,7 +111,7 @@ static inline void __hard_RI_enable(void)
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 
-static inline notrace unsigned long irq_soft_mask_return(void)
+noinstr static unsigned long irq_soft_mask_return(void)
 {
 	unsigned long flags;
 
@@ -128,7 +128,7 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  * for the critical section and as a clobber because
  * we changed paca->irq_soft_mask
  */
-static inline notrace void irq_soft_mask_set(unsigned long mask)
+noinstr static void irq_soft_mask_set(unsigned long mask)
 {
 	/*
 	 * The irq mask must always include the STD bit if any are set.
@@ -155,7 +155,7 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 		: "memory");
 }
 
-static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
+noinstr static unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
 	unsigned long flags;
 
@@ -191,7 +191,7 @@ static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 	return flags;
 }
 
-static inline unsigned long arch_local_save_flags(void)
+static __always_inline unsigned long arch_local_save_flags(void)
 {
 	return irq_soft_mask_return();
 }
