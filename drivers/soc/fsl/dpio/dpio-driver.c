@@ -326,7 +326,7 @@ static struct fsl_mc_driver dpaa2_dpio_driver = {
 	.match_id_table = dpaa2_dpio_match_id_table
 };
 
-static int dpio_driver_init(void)
+static int __init dpio_driver_init(void)
 {
 	if (!zalloc_cpumask_var(&cpus_unused_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -335,7 +335,7 @@ static int dpio_driver_init(void)
 	return fsl_mc_driver_register(&dpaa2_dpio_driver);
 }
 
-static void dpio_driver_exit(void)
+static void __exit dpio_driver_exit(void)
 {
 	free_cpumask_var(cpus_unused_mask);
 	fsl_mc_driver_unregister(&dpaa2_dpio_driver);
