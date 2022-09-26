@@ -501,11 +501,6 @@ void free_zone_device_page(struct page *page)
 	 */
 	page->mapping = NULL;
 	page->pgmap->ops->page_free(page);
-
-	/*
-	 * Reset the page count to 1 to prepare for handing out the page again.
-	 */
-	set_page_count(page, 1);
 }
 
 #ifdef CONFIG_FS_DAX
