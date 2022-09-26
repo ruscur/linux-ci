@@ -1124,8 +1124,8 @@ tlb_load_linear:
 	 * we only use 1G pages for now. That might have to be changed in a
 	 * final implementation, especially when dealing with hypervisors
 	 */
-	ld	r11,PACATOC(r13)
-	ld	r11,linear_map_top@got(r11)
+	__LOAD_PACA_TOC(r11)
+	LOAD_REG_ADDR_ALTTOC(r11, r11, linear_map_top)
 	ld	r10,0(r11)
 	tovirt(10,10)
 	cmpld	cr0,r16,r10
