@@ -15,20 +15,47 @@
 #include <asm/code-patching.h>
 #include <asm/inst.h>
 
-static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
+static int __always_inline ___patch_memory(void *patch_addr,
+					   unsigned long data,
+					   void *prog_addr,
+					   size_t size)
 {
-	if (!ppc_inst_prefixed(instr)) {
-		u32 val = ppc_inst_val(instr);
-
-		__put_kernel_nofault(patch_addr, &val, u32, failed);
-	} else {
-		u64 val = ppc_inst_as_ulong(instr);
-
-		__put_kernel_nofault(patch_addr, &val, u64, failed);
+	switch (size) {
+	case 1:
+		__put_kernel_nofault(patch_addr, &data, u8, failed);
+		break;
+	case 2:
+		__put_kernel_nofault(patch_addr, &data, u16, failed);
+		break;
+	case 4:
+		__put_kernel_nofault(patch_addr, &data, u32, failed);
+		break;
+#ifdef CONFIG_PPC64
+	case 8:
+		__put_kernel_nofault(patch_addr, &data, u64, failed);
+		break;
+#endif
+	default:
+		unreachable();
 	}
 
-	asm ("dcbst 0, %0; sync; icbi 0,%1; sync; isync" :: "r" (patch_addr),
-							    "r" (exec_addr));
+	dcbst(patch_addr);
+	dcbst(patch_addr + size - 1); /* Last byte of data may cross a cacheline */
+
+	mb(); /* sync */
+
+	/* Flush on the EA that may be executed in case of a non-coherent icache */
+	icbi(prog_addr);
+
+	/* Also flush the last byte of the instruction if it may be a
+	 * prefixed instruction and we aren't assuming minimum 64-byte
+	 * cacheline sizes
+	 */
+	if (IS_ENABLED(CONFIG_PPC64) && L1_CACHE_BYTES < 64)
+		icbi(prog_addr + size - 1);
+
+	mb(); /* sync */
+	isync();
 
 	return 0;
 
@@ -38,7 +65,10 @@ failed:
 
 int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
-	return __patch_instruction(addr, instr, addr);
+	if (ppc_inst_prefixed(instr))
+		return ___patch_memory(addr, ppc_inst_as_ulong(instr), addr, sizeof(u64));
+	else
+		return ___patch_memory(addr, ppc_inst_val(instr), addr, sizeof(u32));
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -147,24 +177,22 @@ static void unmap_patch_area(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 
-static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int __always_inline __do_patch_memory(void *dest, unsigned long src, size_t size)
 {
 	int err;
 	u32 *patch_addr;
-	unsigned long text_poke_addr;
 	pte_t *pte;
-	unsigned long pfn = get_patch_pfn(addr);
+	unsigned long text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
+	unsigned long pfn = get_patch_pfn(dest);
 
-	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
-	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
-
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(dest));
 	pte = virt_to_kpte(text_poke_addr);
 	__set_pte_at(&init_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
 	/* See ptesync comment in radix__set_pte_at() */
 	if (radix_enabled())
 		asm volatile("ptesync": : :"memory");
 
-	err = __patch_instruction(addr, instr, patch_addr);
+	err = ___patch_memory(patch_addr, src, dest, size);
 
 	pte_clear(&init_mm, text_poke_addr, pte);
 	flush_tlb_kernel_range(text_poke_addr, text_poke_addr + PAGE_SIZE);
@@ -172,7 +200,7 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	return err;
 }
 
-static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int __always_inline do_patch_memory(void *dest, unsigned long src, size_t size)
 {
 	int err;
 	unsigned long flags;
@@ -183,32 +211,42 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	 * to allow patching. We just do the plain old patching
 	 */
 	if (!static_branch_likely(&poking_init_done))
-		return raw_patch_instruction(addr, instr);
+		return ___patch_memory(dest, src, dest, size);
 
 	local_irq_save(flags);
-	err = __do_patch_instruction(addr, instr);
+	err = __do_patch_memory(dest, src, size);
 	local_irq_restore(flags);
 
 	return err;
 }
+
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
-static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int do_patch_memory(void *dest, unsigned long src, size_t size)
 {
-	return raw_patch_instruction(addr, instr);
+	return ___patch_memory(dest, src, dest, size);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
 __ro_after_init DEFINE_STATIC_KEY_FALSE(init_mem_is_free);
 
-int patch_instruction(u32 *addr, ppc_inst_t instr)
+int __patch_memory(void *dest, unsigned long src, size_t size)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (static_branch_likely(&init_mem_is_free) && init_section_contains(addr, 4))
+	if (static_branch_likely(&init_mem_is_free) && init_section_contains(dest, 4))
 		return 0;
 
-	return do_patch_instruction(addr, instr);
+	return do_patch_memory(dest, src, size);
+}
+NOKPROBE_SYMBOL(__patch_memory);
+
+int patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	if (ppc_inst_prefixed(instr))
+		return patch_memory(addr, ppc_inst_as_ulong(instr));
+	else
+		return patch_memory(addr, ppc_inst_val(instr));
 }
 NOKPROBE_SYMBOL(patch_instruction);
 

@@ -55,6 +55,12 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 	 * of function and try to derive r2 from it). */
 	return PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
 }
+
+static bool need_r2save_stub(unsigned char st_other)
+{
+	return ((st_other & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT) == 1;
+}
+
 #else
 
 static func_desc_t func_desc(unsigned long addr)
@@ -64,6 +70,11 @@ static func_desc_t func_desc(unsigned long addr)
 static unsigned int local_entry_offset(const Elf64_Sym *sym)
 {
 	return 0;
+}
+
+static bool need_r2save_stub(unsigned char st_other)
+{
+	return false;
 }
 
 void *dereference_module_function_descriptor(struct module *mod, void *ptr)
@@ -129,6 +140,12 @@ static u32 ppc64_stub_insns[] = {
 	PPC_RAW_MTCTR(_R12),
 	PPC_RAW_BCTR(),
 };
+
+#ifdef CONFIG_PPC64_ELF_ABI_V1
+#define PPC64_STUB_MTCTR_OFFSET 5
+#else
+#define PPC64_STUB_MTCTR_OFFSET 4
+#endif
 
 /* Count how many different 24-bit relocations (different symbol,
    different addend) */
@@ -418,6 +435,8 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 	long reladdr;
 	func_desc_t desc;
 	int i;
+	u32 *jump_seq_addr = &entry->jump[PPC64_STUB_MTCTR_OFFSET];
+	ppc_inst_t direct;
 
 	if (is_mprofile_ftrace_call(name))
 		return create_ftrace_stub(entry, addr, me);
@@ -427,6 +446,11 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 				      ppc_inst(ppc64_stub_insns[i])))
 			return 0;
 	}
+
+	/* Replace indirect branch sequence with direct branch where possible */
+	if (!create_branch(&direct, jump_seq_addr, addr, 0))
+		if (patch_instruction(jump_seq_addr, direct))
+			return 0;
 
 	/* Stub uses address relative to r2. */
 	reladdr = (unsigned long)entry - my_r2(sechdrs, me);
@@ -632,7 +656,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC_REL24:
 			/* FIXME: Handle weak symbols here --RR */
 			if (sym->st_shndx == SHN_UNDEF ||
-			    sym->st_shndx == SHN_LIVEPATCH) {
+			    sym->st_shndx == SHN_LIVEPATCH ||
+			    need_r2save_stub(sym->st_other)) {
 				/* External: go via stub */
 				value = stub_for_addr(sechdrs, value, me,
 						strtab + sym->st_name);
