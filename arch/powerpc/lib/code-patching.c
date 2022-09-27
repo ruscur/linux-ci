@@ -41,7 +41,6 @@ int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 	return __patch_instruction(addr, instr, addr);
 }
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
 static DEFINE_PER_CPU(struct vm_struct *, text_poke_area);
 
 static int map_patch_area(void *addr, unsigned long text_poke_addr);
@@ -88,6 +87,9 @@ static __ro_after_init DEFINE_STATIC_KEY_FALSE(poking_init_done);
  */
 void __init poking_init(void)
 {
+	if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
+		return;
+
 	BUG_ON(!cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 		"powerpc/text_poke:online", text_area_cpu_up,
 		text_area_cpu_down));
@@ -158,7 +160,7 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr & PAGE_MASK;
 	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
 
-	pte = virt_to_kpte(text_poke_addr);
+	pte = pte_offset_kernel(pmd_off_k(text_poke_addr), text_poke_addr);
 	__set_pte_at(&init_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
 	/* See ptesync comment in radix__set_pte_at() */
 	if (radix_enabled())
@@ -172,7 +174,7 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	return err;
 }
 
-static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
+int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	int err;
 	unsigned long flags;
@@ -182,7 +184,8 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	 * when text_poke_area is not ready, but we still need
 	 * to allow patching. We just do the plain old patching
 	 */
-	if (!static_branch_likely(&poking_init_done))
+	if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) ||
+	    !static_branch_likely(&poking_init_done))
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
@@ -190,25 +193,6 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	local_irq_restore(flags);
 
 	return err;
-}
-#else /* !CONFIG_STRICT_KERNEL_RWX */
-
-static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
-{
-	return raw_patch_instruction(addr, instr);
-}
-
-#endif /* CONFIG_STRICT_KERNEL_RWX */
-
-__ro_after_init DEFINE_STATIC_KEY_FALSE(init_mem_is_free);
-
-int patch_instruction(u32 *addr, ppc_inst_t instr)
-{
-	/* Make sure we aren't patching a freed init section */
-	if (static_branch_likely(&init_mem_is_free) && init_section_contains(addr, 4))
-		return 0;
-
-	return do_patch_instruction(addr, instr);
 }
 NOKPROBE_SYMBOL(patch_instruction);
 
