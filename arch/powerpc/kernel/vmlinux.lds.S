@@ -382,7 +382,6 @@ SECTIONS
 	_end = . ;
 	PROVIDE32 (end = .);
 
-	STABS_DEBUG
 	DWARF_DEBUG
 	ELF_DETAILS
 
