@@ -56,10 +56,8 @@ void __init kasan_init(void)
 	u64 i;
 	pte_t zero_pte = pfn_pte(virt_to_pfn(kasan_early_shadow_page), PAGE_KERNEL);
 
-	if (!early_radix_enabled()) {
-		pr_warn("KASAN not enabled as it requires radix!");
+	if (WARN(!early_radix_enabled(), "KASAN known broken on HPT"))
 		return;
-	}
 
 	for_each_mem_range(i, &start, &end)
 		kasan_init_phys_region((void *)start, (void *)end);
