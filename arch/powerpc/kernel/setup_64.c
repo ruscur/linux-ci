@@ -362,6 +362,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 * So set up a temporary paca. It will be replaced below once we know
 	 * what CPU we are on.
 	 */
+	__per_cpu_offset[0] = 0;
 	initialise_paca(&boot_paca, 0);
 	fixup_boot_paca(&boot_paca);
 	WARN_ON(local_paca != 0);
@@ -828,7 +829,7 @@ static __init int pcpu_cpu_to_node(int cpu)
 	return early_cpu_to_node(cpu);
 }
 
-unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1 ] = PER_CPU_OFFSET_POISON };
 EXPORT_SYMBOL(__per_cpu_offset);
 
 void __init setup_per_cpu_areas(void)
