@@ -1899,7 +1899,6 @@ DEFINE_INTERRUPT_HANDLER(vsx_unavailable_tm)
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 #ifdef CONFIG_PPC64
-DECLARE_INTERRUPT_HANDLER_NMI(performance_monitor_exception_nmi);
 DEFINE_INTERRUPT_HANDLER_NMI(performance_monitor_exception_nmi)
 {
 	__this_cpu_inc(irq_stat.pmu_irqs);
@@ -1910,7 +1909,6 @@ DEFINE_INTERRUPT_HANDLER_NMI(performance_monitor_exception_nmi)
 }
 #endif
 
-DECLARE_INTERRUPT_HANDLER_ASYNC(performance_monitor_exception_async);
 DEFINE_INTERRUPT_HANDLER_ASYNC(performance_monitor_exception_async)
 {
 	__this_cpu_inc(irq_stat.pmu_irqs);
