@@ -826,31 +826,10 @@ int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 	mutex_unlock(&vas_pseries_mutex);
 	return rc;
 }
-/*
- * Total number of default credits available (target_credits)
- * in LPAR depends on number of cores configured. It varies based on
- * whether processors are in shared mode or dedicated mode.
- * Get the notifier when CPU configuration is changed with DLPAR
- * operation so that get the new target_credits (vas default capabilities)
- * and then update the existing windows usage if needed.
- */
-static int pseries_vas_notifier(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	struct of_reconfig_data *rd = data;
-	struct device_node *dn = rd->dn;
-	const __be32 *intserv = NULL;
-	int new_nr_creds, len, rc = 0;
 
-	if ((action == OF_RECONFIG_ATTACH_NODE) ||
-		(action == OF_RECONFIG_DETACH_NODE))
-		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
-					  &len);
-	/*
-	 * Processor config is not changed
-	 */
-	if (!intserv)
-		return NOTIFY_OK;
+int pseries_vas_dlpar_cpu(void)
+{
+	int new_nr_creds, rc = 0;
 
 	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
 					vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
@@ -865,6 +844,43 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
 
 	return rc;
+}
+
+/*
+ * Total number of default credits available (target_credits)
+ * in LPAR depends on number of cores configured. It varies based on
+ * whether processors are in shared mode or dedicated mode.
+ * Get the notifier when CPU configuration is changed with DLPAR
+ * operation so that get the new target_credits (vas default capabilities)
+ * and then update the existing windows usage if needed.
+ */
+static int pseries_vas_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct of_reconfig_data *rd = data;
+	struct device_node *dn = rd->dn;
+	const __be32 *intserv = NULL;
+	int len;
+
+	/*
+	 * For shared CPU partition, the hypervisor assigns total credits
+	 * based on entitled core capacity. So updating VAS windows will
+	 * be called from lparcfg_write().
+	 */
+	if (is_shared_processor())
+		return NOTIFY_OK;
+
+	if ((action == OF_RECONFIG_ATTACH_NODE) ||
+		(action == OF_RECONFIG_DETACH_NODE))
+		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
+					  &len);
+	/*
+	 * Processor config is not changed
+	 */
+	if (!intserv)
+		return NOTIFY_OK;
+
+	return pseries_vas_dlpar_cpu();
 }
 
 static struct notifier_block pseries_vas_nb = {
