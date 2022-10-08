@@ -26,6 +26,10 @@
 #include <linux/sched/debug.h>
 #include <linux/jump_label.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ipi.h>
+#undef CREATE_TRACE_POINTS
+
 #include "smpboot.h"
 #include "sched/smp.h"
 
@@ -154,6 +158,18 @@ void __init call_function_init(void)
 		init_llist_head(&per_cpu(call_single_queue, i));
 
 	smpcfd_prepare_cpu(smp_processor_id());
+}
+
+static inline void send_call_function_ipi_mask(const struct cpumask *mask)
+{
+	trace_ipi_send_cpumask(_RET_IP_, mask);
+	arch_send_call_function_ipi_mask(mask);
+}
+
+void smp_send_reschedule(int cpu)
+{
+	trace_ipi_send_cpu(_RET_IP_, cpu);
+	arch_smp_send_reschedule(cpu);
 }
 
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
@@ -967,7 +983,7 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 		if (nr_cpus == 1)
 			send_call_function_single_ipi(last_cpu);
 		else if (likely(nr_cpus > 1))
-			arch_send_call_function_ipi_mask(cfd->cpumask_ipi);
+			send_call_function_ipi_mask(cfd->cpumask_ipi);
 
 		cfd_seq_store(this_cpu_ptr(&cfd_seq_local)->pinged, this_cpu, CFD_SEQ_NOCPU, CFD_SEQ_PINGED);
 	}
