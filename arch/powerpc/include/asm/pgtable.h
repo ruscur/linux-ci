@@ -48,6 +48,9 @@ struct mm_struct;
 /* Keep these as a macros to avoid include dependency mess */
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
+
+#define pgd_offset_k(address)		pgd_offset_pgd(swapper_pg_dir, (address))
+
 /*
  * Select all bits except the pfn
  */
