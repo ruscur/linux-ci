@@ -83,10 +83,13 @@ static phys_addr_t get_qe_base(void)
 	return qebase;
 }
 
-void qe_reset(void)
+int qe_reset(void)
 {
 	if (qe_immr == NULL)
 		qe_immr = ioremap(get_qe_base(), QE_IMMAP_SIZE);
+
+	if (qe_immr == NULL)
+		return -ENOMEM;
 
 	qe_snums_init();
 
@@ -98,6 +101,8 @@ void qe_reset(void)
 
 	if (qe_sdma_init())
 		panic("sdma init failed!");
+
+	return 0;
 }
 
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
@@ -644,9 +649,8 @@ static int __init qe_init(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
 	if (!np)
 		return -ENODEV;
-	qe_reset();
 	of_node_put(np);
-	return 0;
+	return qe_reset();
 }
 subsys_initcall(qe_init);
 
@@ -654,7 +658,7 @@ subsys_initcall(qe_init);
 static int qe_resume(struct platform_device *ofdev)
 {
 	if (!qe_alive_during_sleep())
-		qe_reset();
+		return qe_reset();
 	return 0;
 }
 
