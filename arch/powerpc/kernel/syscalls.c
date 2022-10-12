@@ -97,6 +97,17 @@ COMPAT_SYSCALL_DEFINE1(ppc64_personality, unsigned long, personality)
 {
 	return do_ppc64_personality(personality);
 }
+
+COMPAT_SYSCALL_DEFINE6(ppc_sync_file_range2,
+		       int, fd, unsigned int, flags,
+		       unsigned int, offset1, unsigned int, offset2,
+		       unsigned int, nbytes1, unsigned int, nbytes2)
+{
+	loff_t offset = merge_64(offset1, offset2);
+	loff_t nbytes = merge_64(nbytes1, nbytes2);
+
+	return ksys_sync_file_range(fd, offset, nbytes, flags);
+}
 #endif /* CONFIG_COMPAT */
 #endif /* CONFIG_PPC64 */
 

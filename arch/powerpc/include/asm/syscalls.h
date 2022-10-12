@@ -79,7 +79,19 @@ long compat_sys_old_getrlimit(unsigned int resource,
 			      struct compat_rlimit __user *rlim);
 long compat_sys_sigreturn(void);
 long compat_sys_rt_sigreturn(void);
+long compat_sys_ppc_sync_file_range2(int fd, unsigned int flags,
+				     unsigned int offset1,
+				     unsigned int offset2,
+				     unsigned int nbytes1,
+				     unsigned int nbytes2);
 #endif /* CONFIG_COMPAT */
+
+#if defined(CONFIG_PPC32) || defined(CONFIG_COMPAT)
+long sys_ppc_fadvise64_64(int fd, int advice,
+			  u32 offset_high, u32 offset_low,
+			  u32 len_high, u32 len_low);
+#endif
+
 
 /*
  * Architecture specific signatures required by long long munging:
@@ -89,6 +101,22 @@ long compat_sys_rt_sigreturn(void);
  * responsible for combining parameter pairs.
  */
 
+#ifdef CONFIG_PPC32
+long sys_ppc_pread64(unsigned int fd,
+		     char __user *ubuf, compat_size_t count,
+		     u32 reg6, u32 pos1, u32 pos2);
+long sys_ppc_pwrite64(unsigned int fd,
+		      const char __user *ubuf, compat_size_t count,
+		      u32 reg6, u32 pos1, u32 pos2);
+long sys_ppc_readahead(int fd, u32 r4,
+		       u32 offset1, u32 offset2, u32 count);
+long sys_ppc_truncate64(const char __user *path, u32 reg4,
+		        unsigned long len1, unsigned long len2);
+long sys_ppc_ftruncate64(unsigned int fd, u32 reg4,
+			 unsigned long len1, unsigned long len2);
+long sys_ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
+			 size_t len, int advice);
+#endif
 #ifdef CONFIG_COMPAT
 long compat_sys_mmap2(unsigned long addr, size_t len,
 		      unsigned long prot, unsigned long flags,
@@ -107,18 +135,7 @@ long compat_sys_ppc_ftruncate64(unsigned int fd, u32 reg4,
 				unsigned long len1, unsigned long len2);
 long compat_sys_ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
 				size_t len, int advice);
-long compat_sys_ppc_sync_file_range2(int fd, unsigned int flags,
-				     unsigned int offset1,
-				     unsigned int offset2,
-				     unsigned int nbytes1,
-				     unsigned int nbytes2);
 #endif /* CONFIG_COMPAT */
-
-#if defined(CONFIG_PPC32) || defined(CONFIG_COMPAT)
-long sys_ppc_fadvise64_64(int fd, int advice,
-			  u32 offset_high, u32 offset_low,
-			  u32 len_high, u32 len_low);
-#endif
 
 #else
 
