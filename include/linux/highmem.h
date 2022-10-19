@@ -319,6 +319,25 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
 
 #endif
 
+static inline int copy_user_highpage_mc(struct page *to, struct page *from,
+					unsigned long vaddr, struct vm_area_struct *vma)
+{
+	unsigned long ret = 0;
+#ifdef copy_mc_to_kernel
+	char *vfrom, *vto;
+
+	vfrom = kmap_local_page(from);
+	vto = kmap_local_page(to);
+	ret = copy_mc_to_kernel(vto, vfrom, PAGE_SIZE);
+	kunmap_local(vto);
+	kunmap_local(vfrom);
+#else
+	copy_user_highpage(to, from, vaddr, vma);
+#endif
+
+	return ret;
+}
+
 #ifndef __HAVE_ARCH_COPY_HIGHPAGE
 
 static inline void copy_highpage(struct page *to, struct page *from)
