@@ -173,7 +173,7 @@ void giveup_fpu(struct task_struct *tsk)
 EXPORT_SYMBOL(giveup_fpu);
 
 /*
- * Make sure the floating-point register state in the
+ * Make sure the floating-point register state in
  * the thread_struct is up to date for task tsk.
  */
 void flush_fp_to_thread(struct task_struct *tsk)
