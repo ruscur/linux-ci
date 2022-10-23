@@ -2580,7 +2580,7 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 	unsigned char temp[16];
 
 	for (n = ndump; n > 0;) {
-		r = n < 16? n: 16;
+		r = min(n, 16);
 		nr = mread(adrs, temp, r);
 		adrs += nr;
 		for (m = 0; m < r; ++m) {
@@ -2984,7 +2984,7 @@ prdump(unsigned long adrs, long ndump)
 	for (n = ndump; n > 0;) {
 		printf(REG, adrs);
 		putchar(' ');
-		r = n < 16? n: 16;
+		r = min(n, 16);
 		nr = mread(adrs, temp, r);
 		adrs += nr;
 		for (m = 0; m < r; ++m) {
