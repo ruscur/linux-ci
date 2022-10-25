@@ -94,6 +94,11 @@ static inline void hash__local_flush_tlb_page(struct vm_area_struct *vma,
 {
 }
 
+static inline void hash__local_flush_tlb_page_psize(struct mm_struct *mm,
+						    unsigned long vmaddr, int psize)
+{
+}
+
 static inline void hash__flush_tlb_page(struct vm_area_struct *vma,
 				    unsigned long vmaddr)
 {
