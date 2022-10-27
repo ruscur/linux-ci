@@ -276,6 +276,7 @@ struct interrupt_nmi_state {
 	u8 irq_soft_mask;
 	u8 irq_happened;
 	u8 ftrace_enabled;
+	u8 mmu_enabled;
 	u64 softe;
 #endif
 };
@@ -303,6 +304,7 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	state->irq_soft_mask = local_paca->irq_soft_mask;
 	state->irq_happened = local_paca->irq_happened;
 	state->softe = regs->softe;
+	state->mmu_enabled = !!(mfmsr() & MSR_DR);
 
 	/*
 	 * Set IRQS_ALL_DISABLED unconditionally so irqs_disabled() does
@@ -333,46 +335,27 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	}
 #endif
 
-	/* If data relocations are enabled, it's safe to use nmi_enter() */
-	if (mfmsr() & MSR_DR) {
+	/*
+	 * If data relocations are enabled, it's safe to use nmi_enter().
+	 * Otherwise avoid using it because the core kernel may touch
+	 * vmalloc (e.g., in per-CPU variables), which is not accessible
+	 * with the MMU off. Linear memory beyond the VRMA limit is also
+	 * a problem for hash guests.
+	 *
+	 * The real-mode machine checks should not use RCU, tracing, lockdep
+	 * locks, and should not printk, access per-CPU variables, among
+	 * many other restrictions.
+	 */
+	if (state->mmu_enabled)
 		nmi_enter();
-		return;
-	}
-
-	/*
-	 * But do not use nmi_enter() for pseries hash guest taking a real-mode
-	 * NMI because not everything it touches is within the RMA limit.
-	 */
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
-	    firmware_has_feature(FW_FEATURE_LPAR) &&
-	    !radix_enabled())
-		return;
-
-	/*
-	 * Likewise, don't use it if we have some form of instrumentation (like
-	 * KASAN shadow) that is not safe to access in real mode (even on radix)
-	 */
-	if (IS_ENABLED(CONFIG_KASAN))
-		return;
-
-	/* Otherwise, it should be safe to call it */
-	nmi_enter();
 }
 
 static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct interrupt_nmi_state *state)
 {
-	if (mfmsr() & MSR_DR) {
-		// nmi_exit if relocations are on
+	WARN_ON_ONCE(state->mmu_enabled != !!(mfmsr() & MSR_DR));
+
+	if (state->mmu_enabled)
 		nmi_exit();
-	} else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
-		   firmware_has_feature(FW_FEATURE_LPAR) &&
-		   !radix_enabled()) {
-		// no nmi_exit for a pseries hash guest taking a real mode exception
-	} else if (IS_ENABLED(CONFIG_KASAN)) {
-		// no nmi_exit for KASAN in real mode
-	} else {
-		nmi_exit();
-	}
 
 	/*
 	 * nmi does not call nap_adjust_return because nmi should not create
