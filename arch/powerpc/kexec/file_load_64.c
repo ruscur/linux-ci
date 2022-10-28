@@ -929,6 +929,46 @@ out:
 }
 
 /**
+ * get_cpu_node_size - Compute the size of a CPU node in the FDT.
+ *                     This should be done only once and the value is stored in
+ *                     a static variable.
+ * Returns the max size of a CPU node in the FDT.
+ */
+static unsigned int cpu_node_size(void)
+{
+	static unsigned int cpu_node_size;
+	struct device_node *dn;
+	struct property *pp;
+
+	/*
+	 * Don't compute it twice, we are assuming that the per CPU node size
+	 * doesn't change during the system's life.
+	 */
+	if (cpu_node_size)
+		return cpu_node_size;
+
+	dn = of_find_node_by_type(NULL, "cpu");
+	if (!dn) {
+		/* Unlikely to happen */
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+
+	/*
+	 * We compute the sub node size for a CPU node, assuming it
+	 * will be the same for all.
+	 */
+	cpu_node_size += strlen(dn->name) + 5;
+	for_each_property_of_node(dn, pp) {
+		cpu_node_size += strlen(pp->name);
+		cpu_node_size += pp->length;
+	}
+
+	of_node_put(dn);
+	return cpu_node_size;
+}
+
+/**
  * kexec_extra_fdt_size_ppc64 - Return the estimated additional size needed to
  *                              setup FDT for kexec/kdump kernel.
  * @image:                      kexec image being loaded.
@@ -937,7 +977,10 @@ out:
  */
 unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 {
+	struct device_node *dn;
 	u64 usm_entries;
+	unsigned int cpu_nodes = 0;
+	unsigned int extra_size;
 
 	if (image->type != KEXEC_TYPE_CRASH)
 		return 0;
@@ -949,7 +992,21 @@ unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 	 */
 	usm_entries = ((memblock_end_of_DRAM() / drmem_lmb_size()) +
 		       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
-	return (unsigned int)(usm_entries * sizeof(u64));
+
+	extra_size = (unsigned int)(usm_entries * sizeof(u64));
+
+	/*
+	 * Get the number of CPU nodes in the current DT. This allows to
+	 * reserve places for CPU nodes added since the boot time.
+	 */
+	for_each_node_by_type(dn, "cpu") {
+		cpu_nodes++;
+	}
+
+	if (cpu_nodes > boot_cpu_node_count)
+		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
+
+	return extra_size;
 }
 
 /**

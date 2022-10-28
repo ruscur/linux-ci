@@ -22,4 +22,6 @@ int add_rtas_mem_range(struct crash_mem **mem_ranges);
 int add_opal_mem_range(struct crash_mem **mem_ranges);
 int add_reserved_mem_ranges(struct crash_mem **mem_ranges);
 
+extern unsigned int boot_cpu_node_count;
+
 #endif /* _ASM_POWERPC_KEXEC_RANGES_H */
