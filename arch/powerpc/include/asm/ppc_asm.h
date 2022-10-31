@@ -57,8 +57,22 @@
 #define SAVE_NVGPRS(base)		SAVE_GPRS(14, 31, base)
 #define REST_NVGPRS(base)		REST_GPRS(14, 31, base)
 #else
-#define SAVE_GPRS(start, end, base)	OP_REGS stw, 4, start, end, base, GPR0
-#define REST_GPRS(start, end, base)	OP_REGS lwz, 4, start, end, base, GPR0
+.macro __SAVE_GPRS start, end, base, offset
+	.if \end == 31
+		stmw	\start,\offset(\base)
+	.else
+		OP_REGS stw, 4, \start, \end, \base, \offset
+	.endif
+.endm
+.macro __REST_GPRS start, end, base, offset
+	.if \end == 31
+		lmw	\start,\offset(\base)
+	.else
+		OP_REGS lwz, 4, \start, \end, \base, \offset
+	.endif
+.endm
+#define SAVE_GPRS(start, end, base)	__SAVE_GPRS start, end, base, GPR0
+#define REST_GPRS(start, end, base)	__REST_GPRS start, end, base, GPR0
 #define SAVE_NVGPRS(base)		SAVE_GPRS(13, 31, base)
 #define REST_NVGPRS(base)		REST_GPRS(13, 31, base)
 #endif
