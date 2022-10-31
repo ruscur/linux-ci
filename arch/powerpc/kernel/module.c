@@ -19,6 +19,23 @@
 
 static LIST_HEAD(module_bug_list);
 
+#ifdef CONFIG_PPC64
+bool module_elf_check_arch(Elf_Ehdr *hdr)
+{
+	unsigned long abi_level = hdr->e_flags & 0x3;
+
+	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2)) {
+		if (abi_level != 2)
+			return false;
+	} else {
+		if (abi_level >= 2)
+			return false;
+	}
+
+	return true;
+}
+#endif
+
 static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 				    const Elf_Shdr *sechdrs,
 				    const char *name)
