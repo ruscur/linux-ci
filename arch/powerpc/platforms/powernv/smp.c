@@ -86,7 +86,7 @@ static int pnv_smp_kick_cpu(int nr)
 	 * first time. OPAL v3 allows us to query OPAL to know if it
 	 * has the CPUs, so we do that
 	 */
-	rc = opal_query_cpu_status(pcpu, &status);
+	rc = opal_query_cpu_status(pcpu, stack_pa(&status));
 	if (rc != OPAL_SUCCESS) {
 		pr_warn("OPAL Error %ld querying CPU %d state\n", rc, nr);
 		return -ENODEV;

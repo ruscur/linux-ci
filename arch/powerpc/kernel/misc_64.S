@@ -384,7 +384,9 @@ _GLOBAL(kexec_sequence)
 	std	r0,16(r1)
 
 	/* switch stacks to newstack -- &kexec_stack.stack */
-	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
+	li	r0,0
+	ori	r0,r0,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	stdux	r1,r3,r0
 	mr	r1,r3
 
 	li	r0,0

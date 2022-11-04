@@ -60,7 +60,7 @@ static int __op_panel_update_display(void)
 		return token;
 	}
 
-	rc = opal_write_oppanel_async(token, oppanel_lines, num_lines);
+	rc = opal_write_oppanel_async(token, stack_pa(oppanel_lines), num_lines);
 	switch (rc) {
 	case OPAL_ASYNC_COMPLETION:
 		rc = opal_async_wait_response(token, &msg);

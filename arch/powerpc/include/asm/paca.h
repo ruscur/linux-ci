@@ -163,6 +163,10 @@ struct paca_struct {
 	 */
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	u64 kstack_vmalloc_base;	/* Base address of stack in the vmalloc mapping */
+	u64 kstack_linear_base;		/* Base address of stack in the linear mapping */
+#endif /* CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64 */
 	u64 saved_r1;			/* r1 save for RTAS calls or PM or EE=0 */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 #ifdef CONFIG_PPC64

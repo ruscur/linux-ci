@@ -234,7 +234,7 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	rc = opal_prd_msg(msg);
+	rc = opal_prd_msg(stack_pa(msg));
 	if (rc) {
 		pr_warn("write: opal_prd_msg returned %d\n", rc);
 		size = -EIO;
@@ -252,7 +252,7 @@ static int opal_prd_release(struct inode *inode, struct file *file)
 	msg.size = cpu_to_be16(sizeof(msg));
 	msg.type = OPAL_PRD_MSG_TYPE_FINI;
 
-	opal_prd_msg((struct opal_prd_msg *)&msg);
+	opal_prd_msg((struct opal_prd_msg *)stack_pa(&msg));
 
 	atomic_xchg(&prd_usage, 0);
 
@@ -281,7 +281,7 @@ static long opal_prd_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		scom.rc = opal_xscom_read(scom.chip, scom.addr,
-				(__be64 *)&scom.data);
+					  (__be64 *)stack_pa(&scom.data));
 		scom.data = be64_to_cpu(scom.data);
 		pr_devel("ioctl SCOM_READ: chip %llx addr %016llx data %016llx rc %lld\n",
 				scom.chip, scom.addr, scom.data, scom.rc);

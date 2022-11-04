@@ -541,7 +541,7 @@ void slb_set_size(u16 size)
 void slb_initialize(void)
 {
 	unsigned long linear_llp, vmalloc_llp, io_llp;
-	unsigned long lflags;
+	unsigned long lflags, kstack_flags;
 	static int slb_encoding_inited;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	unsigned long vmemmap_llp;
@@ -582,11 +582,18 @@ void slb_initialize(void)
 	 * get_paca()->kstack hasn't been initialized yet.
 	 * For secondary cpus, we need to bolt the kernel stack entry now.
 	 */
+
+#ifdef CONFIG_VMAP_STACK
+	kstack_flags = SLB_VSID_KERNEL | vmalloc_llp;
+#else
+	kstack_flags = SLB_VSID_KERNEL | linear_llp;
+#endif
 	slb_shadow_clear(KSTACK_INDEX);
 	if (raw_smp_processor_id() != boot_cpuid &&
 	    (get_paca()->kstack & slb_esid_mask(mmu_kernel_ssize)) > PAGE_OFFSET)
 		create_shadowed_slbe(get_paca()->kstack,
-				     mmu_kernel_ssize, lflags, KSTACK_INDEX);
+				     mmu_kernel_ssize, kstack_flags,
+				     KSTACK_INDEX);
 
 	asm volatile("isync":::"memory");
 }

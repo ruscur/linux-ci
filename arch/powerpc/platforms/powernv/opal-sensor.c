@@ -25,7 +25,7 @@ int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data)
 	if (token < 0)
 		return token;
 
-	ret = opal_sensor_read(sensor_hndl, token, &data);
+	ret = opal_sensor_read(sensor_hndl, token, stack_pa(&data));
 	switch (ret) {
 	case OPAL_ASYNC_COMPLETION:
 		ret = opal_async_wait_response(token, &msg);
@@ -78,7 +78,7 @@ int opal_get_sensor_data_u64(u32 sensor_hndl, u64 *sensor_data)
 	if (token < 0)
 		return token;
 
-	ret = opal_sensor_read_u64(sensor_hndl, token, &data);
+	ret = opal_sensor_read_u64(sensor_hndl, token, stack_pa(&data));
 	switch (ret) {
 	case OPAL_ASYNC_COMPLETION:
 		ret = opal_async_wait_response(token, &msg);

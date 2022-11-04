@@ -43,7 +43,7 @@ time64_t __init opal_get_boot_time(void)
 		return 0;
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
+		rc = opal_rtc_read(stack_pa(&__y_m_d), stack_pa(&__h_m_s_ms));
 		if (rc == OPAL_BUSY_EVENT) {
 			mdelay(OPAL_BUSY_DELAY_MS);
 			opal_poll_events(NULL);

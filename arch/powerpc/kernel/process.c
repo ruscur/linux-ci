@@ -1685,7 +1685,11 @@ static void setup_ksp_vsid(struct task_struct *p, unsigned long sp)
 {
 #ifdef CONFIG_PPC_64S_HASH_MMU
 	unsigned long sp_vsid;
+#ifdef CONFIG_VMAP_STACK
+	unsigned long llp = mmu_psize_defs[mmu_vmalloc_psize].sllp;
+#else /* CONFIG_VMAP_STACK */
 	unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
+#endif /* CONFIG_VMAP_STACK */
 
 	if (radix_enabled())
 		return;
@@ -1782,6 +1786,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	p->thread.ksp_vmalloc_base = sp & ~(THREAD_SIZE - 1);
+	p->thread.ksp_linear_base = (u64)__va(vmalloc_to_pfn((void *)sp) << PAGE_SHIFT);
+#endif /* CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	for (i = 0; i < nr_wp_slots(); i++)
 		p->thread.ptrace_bps[i] = NULL;

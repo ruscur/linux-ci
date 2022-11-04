@@ -450,7 +450,8 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask,
 		return -ENOMEM;
 
 	bdfn = (dev->bus->number << 8) | dev->devfn;
-	rc = opal_npu_spa_setup(phb->opal_id, bdfn, virt_to_phys(spa_mem),
+	rc = opal_npu_spa_setup(phb->opal_id, bdfn,
+				(uint64_t)stack_pa(spa_mem),
 				PE_mask);
 	if (rc) {
 		dev_err(&dev->dev, "Can't setup Shared Process Area: %d\n", rc);

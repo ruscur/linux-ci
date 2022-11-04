@@ -2697,6 +2697,10 @@ static void dump_one_paca(int cpu)
 	DUMP(p, __current, "%-*px");
 	DUMP(p, kstack, "%#-*llx");
 	printf(" %-*s = 0x%016llx\n", 25, "kstack_base", p->kstack & ~(THREAD_SIZE - 1));
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	DUMP(p, kstack_linear_base, "%#-*llx");
+	DUMP(p, kstack_vmalloc_base, "%#-*llx");
+#endif
 #ifdef CONFIG_STACKPROTECTOR
 	DUMP(p, canary, "%#-*lx");
 #endif

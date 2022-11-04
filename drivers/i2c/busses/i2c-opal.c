@@ -49,7 +49,7 @@ static int i2c_opal_send_request(u32 bus_id, struct opal_i2c_request *req)
 		return token;
 	}
 
-	rc = opal_i2c_request(token, bus_id, req);
+	rc = opal_i2c_request(token, bus_id, stack_pa(req));
 	if (rc != OPAL_ASYNC_COMPLETION) {
 		rc = i2c_opal_translate_error(rc);
 		goto exit;

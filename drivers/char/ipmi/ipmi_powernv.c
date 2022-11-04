@@ -91,7 +91,7 @@ static void ipmi_powernv_send(void *send_info, struct ipmi_smi_msg *msg)
 
 	pr_devel("%s: opal_ipmi_send(0x%llx, %p, %ld)\n", __func__,
 			smi->interface_id, opal_msg, size);
-	rc = opal_ipmi_send(smi->interface_id, opal_msg, size);
+	rc = opal_ipmi_send(smi->interface_id, stack_pa(opal_msg), size);
 	pr_devel("%s:  -> %d\n", __func__, rc);
 
 	if (!rc) {
@@ -132,8 +132,8 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 	size = cpu_to_be64(sizeof(*opal_msg) + IPMI_MAX_MSG_LENGTH);
 
 	rc = opal_ipmi_recv(smi->interface_id,
-			opal_msg,
-			&size);
+			    stack_pa(opal_msg),
+			    stack_pa(&size));
 	size = be64_to_cpu(size);
 	pr_devel("%s:   -> %d (size %lld)\n", __func__,
 			rc, rc == 0 ? size : 0);

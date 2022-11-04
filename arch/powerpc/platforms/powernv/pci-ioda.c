@@ -628,7 +628,8 @@ static int pnv_ioda_get_pe_state(struct pnv_phb *phb, int pe_no)
 
 	/* Check the master PE */
 	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no,
-					&state, &pcierr, NULL);
+					stack_pa(&state),
+					stack_pa(&pcierr), NULL);
 	if (rc != OPAL_SUCCESS) {
 		pr_warn("%s: Failure %lld getting "
 			"PHB#%x-PE#%x state\n",
@@ -644,8 +645,8 @@ static int pnv_ioda_get_pe_state(struct pnv_phb *phb, int pe_no)
 	list_for_each_entry(slave, &pe->slaves, list) {
 		rc = opal_pci_eeh_freeze_status(phb->opal_id,
 						slave->pe_number,
-						&fstate,
-						&pcierr,
+						stack_pa(&fstate),
+						stack_pa(&pcierr),
 						NULL);
 		if (rc != OPAL_SUCCESS) {
 			pr_warn("%s: Failure %lld getting "
@@ -2061,7 +2062,7 @@ static int __pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 		__be64 addr64;
 
 		rc = opal_get_msi_64(phb->opal_id, pe->mve_number, xive_num, 1,
-				     &addr64, &data);
+				     stack_pa(&addr64), stack_pa(&data));
 		if (rc) {
 			pr_warn("%s: OPAL error %d getting 64-bit MSI data\n",
 				pci_name(dev), rc);
@@ -2073,7 +2074,7 @@ static int __pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 		__be32 addr32;
 
 		rc = opal_get_msi_32(phb->opal_id, pe->mve_number, xive_num, 1,
-				     &addr32, &data);
+				     stack_pa(&addr32), stack_pa(&data));
 		if (rc) {
 			pr_warn("%s: OPAL error %d getting 32-bit MSI data\n",
 				pci_name(dev), rc);
@@ -2415,7 +2416,8 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 	s64 ret;
 
 	/* Retrieve the diag data from firmware */
-	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
+	ret = opal_pci_get_phb_diag_data2(phb->opal_id,
+					  stack_pa(phb->diag_data),
 					  phb->diag_data_size);
 	if (ret != OPAL_SUCCESS)
 		return -EIO;

@@ -84,7 +84,7 @@ int pnv_pci_get_device_tree(uint32_t phandle, void *buf, uint64_t len)
 	if (!opal_check_token(OPAL_GET_DEVICE_TREE))
 		return -ENXIO;
 
-	rc = opal_get_device_tree(phandle, (uint64_t)buf, len);
+	rc = opal_get_device_tree(phandle, (uint64_t)stack_pa(buf), len);
 	if (rc < OPAL_SUCCESS)
 		return -EIO;
 
@@ -99,7 +99,7 @@ int pnv_pci_get_presence_state(uint64_t id, uint8_t *state)
 	if (!opal_check_token(OPAL_PCI_GET_PRESENCE_STATE))
 		return -ENXIO;
 
-	rc = opal_pci_get_presence_state(id, (uint64_t)state);
+	rc = opal_pci_get_presence_state(id, (uint64_t)stack_pa(state));
 	if (rc != OPAL_SUCCESS)
 		return -EIO;
 
@@ -114,7 +114,7 @@ int pnv_pci_get_power_state(uint64_t id, uint8_t *state)
 	if (!opal_check_token(OPAL_PCI_GET_POWER_STATE))
 		return -ENXIO;
 
-	rc = opal_pci_get_power_state(id, (uint64_t)state);
+	rc = opal_pci_get_power_state(id, (uint64_t)stack_pa(state));
 	if (rc != OPAL_SUCCESS)
 		return -EIO;
 
@@ -135,7 +135,7 @@ int pnv_pci_set_power_state(uint64_t id, uint8_t state, struct opal_msg *msg)
 	if (unlikely(token < 0))
 		return token;
 
-	rc = opal_pci_set_power_state(token, id, (uint64_t)&state);
+	rc = opal_pci_set_power_state(token, id, (uint64_t)stack_pa(&state));
 	if (rc == OPAL_SUCCESS) {
 		ret = 0;
 		goto exit;
@@ -493,7 +493,8 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 	spin_lock_irqsave(&phb->lock, flags);
 
 	/* Fetch PHB diag-data */
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id,
+					 stack_pa(phb->diag_data),
 					 phb->diag_data_size);
 	has_diag = (rc == OPAL_SUCCESS);
 
@@ -554,8 +555,8 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	} else {
 		rc = opal_pci_eeh_freeze_status(phb->opal_id,
 						pe_no,
-						&fstate,
-						&pcierr,
+						stack_pa(&fstate),
+						stack_pa(&pcierr),
 						NULL);
 		if (rc) {
 			pr_warn("%s: Failure %lld getting PHB#%x-PE#%x state\n",
@@ -592,20 +593,22 @@ int pnv_pci_cfg_read(struct pci_dn *pdn,
 	switch (size) {
 	case 1: {
 		u8 v8;
-		rc = opal_pci_config_read_byte(phb->opal_id, bdfn, where, &v8);
+		rc = opal_pci_config_read_byte(phb->opal_id, bdfn, where,
+					       stack_pa(&v8));
 		*val = (rc == OPAL_SUCCESS) ? v8 : 0xff;
 		break;
 	}
 	case 2: {
 		__be16 v16;
 		rc = opal_pci_config_read_half_word(phb->opal_id, bdfn, where,
-						   &v16);
+						    stack_pa(&v16));
 		*val = (rc == OPAL_SUCCESS) ? be16_to_cpu(v16) : 0xffff;
 		break;
 	}
 	case 4: {
 		__be32 v32;
-		rc = opal_pci_config_read_word(phb->opal_id, bdfn, where, &v32);
+		rc = opal_pci_config_read_word(phb->opal_id, bdfn, where,
+					       stack_pa(&v32));
 		*val = (rc == OPAL_SUCCESS) ? be32_to_cpu(v32) : 0xffffffff;
 		break;
 	}
@@ -765,7 +768,7 @@ int pnv_pci_set_tunnel_bar(struct pci_dev *dev, u64 addr, int enable)
 		return -ENXIO;
 
 	mutex_lock(&tunnel_mutex);
-	rc = opal_pci_get_pbcq_tunnel_bar(phb->opal_id, &val);
+	rc = opal_pci_get_pbcq_tunnel_bar(phb->opal_id, stack_pa(&val));
 	if (rc != OPAL_SUCCESS) {
 		rc = -EIO;
 		goto out;

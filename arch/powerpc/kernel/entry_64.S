@@ -238,7 +238,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
 	   because we don't need to leave the 288-byte ABI gap at the
 	   top of the kernel stack. */
-	addi	r7,r7,THREAD_SIZE-SWITCH_FRAME_SIZE
+	li	r9,0
+	ori	r9,r9,THREAD_SIZE-SWITCH_FRAME_SIZE
+	add	r7,r7,r9
 
 	/*
 	 * PMU interrupts in radix may come in here. They will use r1, not
@@ -250,6 +252,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	 */
 	mr	r1,r8		/* start using new stack pointer */
 	std	r7,PACAKSAVE(r13)
+
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	ld	r8,KSP_LINEAR_BASE(r4)
+	std	r8,PACAKSTACK_LINEAR_BASE(r13)
+	ld	r8,KSP_VMALLOC_BASE(r4)
+	std	r8,PACAKSTACK_VMALLOC_BASE(r13)
+#endif /* CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64 */
 
 	ld	r6,_CCR(r1)
 	mtcrf	0xFF,r6

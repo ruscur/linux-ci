@@ -47,7 +47,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	if (!prop)
 		return;
 
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_KERNEL, &addr);
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_KERNEL, stack_pa(&addr));
 	if ((ret != OPAL_SUCCESS) || !addr) {
 		pr_debug("Could not get Kernel metadata (%lld)\n", ret);
 		return;
@@ -63,7 +63,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	if (be16_to_cpu(opal_fdm_active->registered_regions) == 0)
 		return;
 
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_BOOT_MEM, &addr);
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_BOOT_MEM, stack_pa(&addr));
 	if ((ret != OPAL_SUCCESS) || !addr) {
 		pr_err("Failed to get boot memory tag (%lld)\n", ret);
 		return;
@@ -607,7 +607,7 @@ static void opal_fadump_trigger(struct fadump_crash_info_header *fdh,
 	 */
 	fdh->crashing_cpu = (u32)mfspr(SPRN_PIR);
 
-	rc = opal_cec_reboot2(OPAL_REBOOT_MPIPL, msg);
+	rc = opal_cec_reboot2(OPAL_REBOOT_MPIPL, stack_pa(msg));
 	if (rc == OPAL_UNSUPPORTED) {
 		pr_emerg("Reboot type %d not supported.\n",
 			 OPAL_REBOOT_MPIPL);
@@ -690,7 +690,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	if (!prop)
 		return;
 
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_KERNEL, &be_addr);
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_KERNEL, stack_pa(&be_addr));
 	if ((ret != OPAL_SUCCESS) || !be_addr) {
 		pr_err("Failed to get Kernel metadata (%lld)\n", ret);
 		return;
@@ -712,8 +712,8 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 		return;
 	}
 
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_CPU, &be_addr);
-	if (be_addr) {
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_CPU, stack_pa(&be_addr));
+	if (addr) {
 		addr = be64_to_cpu(be_addr);
 		pr_debug("CPU metadata addr: %llx\n", addr);
 		opal_cpu_metadata = __va(addr);

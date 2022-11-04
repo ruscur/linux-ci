@@ -53,7 +53,7 @@ static int opal_get_rtc_time(struct device *dev, struct rtc_time *tm)
 	__be64 __h_m_s_ms;
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
+		rc = opal_rtc_read(stack_pa(&__y_m_d), stack_pa(&__h_m_s_ms));
 		if (rc == OPAL_BUSY_EVENT) {
 			msleep(OPAL_BUSY_DELAY_MS);
 			opal_poll_events(NULL);
@@ -127,7 +127,7 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 		return token;
 	}
 
-	rc = opal_tpo_read(token, &__y_m_d, &__h_m);
+	rc = opal_tpo_read(token, stack_pa(&__y_m_d), stack_pa(&__h_m));
 	if (rc != OPAL_ASYNC_COMPLETION) {
 		rc = -EIO;
 		goto exit;

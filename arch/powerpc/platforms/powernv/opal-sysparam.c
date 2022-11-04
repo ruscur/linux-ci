@@ -41,7 +41,7 @@ static ssize_t opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 		goto out;
 	}
 
-	ret = opal_get_param(token, param_id, (u64)buffer, length);
+	ret = opal_get_param(token, param_id, (u64)stack_pa(buffer), length);
 	if (ret != OPAL_ASYNC_COMPLETION) {
 		ret = opal_error_code(ret);
 		goto out_token;
@@ -76,7 +76,7 @@ static int opal_set_sys_param(u32 param_id, u32 length, void *buffer)
 		goto out;
 	}
 
-	ret = opal_set_param(token, param_id, (u64)buffer, length);
+	ret = opal_set_param(token, param_id, (u64)stack_pa(buffer), length);
 
 	if (ret != OPAL_ASYNC_COMPLETION) {
 		ret = opal_error_code(ret);

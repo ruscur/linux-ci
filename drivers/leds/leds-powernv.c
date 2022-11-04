@@ -99,7 +99,7 @@ static int powernv_led_set(struct powernv_led_data *powernv_led,
 	}
 
 	rc = opal_leds_set_ind(token, powernv_led->loc_code,
-			       led_mask, led_value, &max_type);
+			       led_mask, led_value, stack_pa(&max_type));
 	if (rc != OPAL_ASYNC_COMPLETION) {
 		dev_err(dev, "%s: OPAL set LED call failed for %s [rc=%d]\n",
 			__func__, powernv_led->loc_code, rc);
@@ -142,7 +142,9 @@ static enum led_brightness powernv_led_get(struct powernv_led_data *powernv_led)
 	max_type = powernv_led_common->max_led_type;
 
 	rc = opal_leds_get_ind(powernv_led->loc_code,
-			       &mask, &value, &max_type);
+			       stack_pa(&mask),
+			       stack_pa(&value),
+			       stack_pa(&max_type));
 	if (rc != OPAL_SUCCESS && rc != OPAL_PARTIAL) {
 		dev_err(dev, "%s: OPAL get led call failed [rc=%d]\n",
 			__func__, rc);

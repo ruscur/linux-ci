@@ -475,7 +475,7 @@ static void __init opalcore_config_init(void)
 	}
 
 	/* Get OPAL metadata */
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_OPAL, &addr);
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_OPAL, stack_pa(&addr));
 	if ((ret != OPAL_SUCCESS) || !addr) {
 		pr_err("Failed to get OPAL metadata (%d)\n", ret);
 		goto error_out;
@@ -486,7 +486,7 @@ static void __init opalcore_config_init(void)
 	opalc_metadata = __va(addr);
 
 	/* Get OPAL CPU metadata */
-	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_CPU, &addr);
+	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_CPU, stack_pa(&addr));
 	if ((ret != OPAL_SUCCESS) || !addr) {
 		pr_err("Failed to get OPAL CPU metadata (%d)\n", ret);
 		goto error_out;

@@ -99,6 +99,10 @@ int main(void)
 #endif
 
 	OFFSET(KSP, thread_struct, ksp);
+#ifdef CONFIG_VMAP_STACK
+	OFFSET(KSP_VMALLOC_BASE, thread_struct, ksp_vmalloc_base);
+	OFFSET(KSP_LINEAR_BASE, thread_struct, ksp_linear_base);
+#endif /* CONFIG_VMAP_STACK */
 	OFFSET(PT_REGS, thread_struct, regs);
 #ifdef CONFIG_BOOKE
 	OFFSET(THREAD_NORMSAVES, thread_struct, normsave[0]);
@@ -181,6 +185,10 @@ int main(void)
 	OFFSET(PACAPACAINDEX, paca_struct, paca_index);
 	OFFSET(PACAPROCSTART, paca_struct, cpu_start);
 	OFFSET(PACAKSAVE, paca_struct, kstack);
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	OFFSET(PACAKSTACK_VMALLOC_BASE, paca_struct, kstack_vmalloc_base);
+	OFFSET(PACAKSTACK_LINEAR_BASE, paca_struct, kstack_linear_base);
+#endif /* CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64 */
 	OFFSET(PACACURRENT, paca_struct, __current);
 	DEFINE(PACA_THREAD_INFO, offsetof(struct paca_struct, __current) +
 				 offsetof(struct task_struct, thread_info));

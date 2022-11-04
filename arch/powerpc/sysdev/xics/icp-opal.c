@@ -53,7 +53,7 @@ static unsigned int icp_opal_get_xirr(void)
 		return kvm_xirr;
 
 	/* Then ask OPAL */
-	rc = opal_int_get_xirr(&hw_xirr, false);
+	rc = opal_int_get_xirr(stack_pa(&hw_xirr), false);
 	if (rc < 0)
 		return 0;
 	return be32_to_cpu(hw_xirr);

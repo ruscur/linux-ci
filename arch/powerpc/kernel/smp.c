@@ -60,6 +60,7 @@
 #include <asm/ftrace.h>
 #include <asm/kup.h>
 #include <asm/fadump.h>
+#include <asm/book3s/64/stack.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -1250,6 +1251,12 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	paca_ptrs[cpu]->__current = idle;
 	paca_ptrs[cpu]->kstack = (unsigned long)task_stack_page(idle) +
 				 THREAD_SIZE - STACK_FRAME_OVERHEAD;
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	paca_ptrs[cpu]->kstack_linear_base = is_vmalloc_addr((void *)paca_ptrs[cpu]->kstack) ?
+		vmalloc_to_phys((void *)(paca_ptrs[cpu]->kstack)) :
+		paca_ptrs[cpu]->kstack;
+	paca_ptrs[cpu]->kstack_vmalloc_base = paca_ptrs[cpu]->kstack & (THREAD_SIZE - 1);
+#endif // CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64
 #endif
 	task_thread_info(idle)->cpu = cpu;
 	secondary_current = current_set[cpu] = idle;

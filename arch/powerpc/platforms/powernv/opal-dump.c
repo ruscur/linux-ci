@@ -223,9 +223,9 @@ static int64_t dump_read_info(uint32_t *dump_id, uint32_t *dump_size, uint32_t *
 
 	type = cpu_to_be32(0xffffffff);
 
-	rc = opal_dump_info2(&id, &size, &type);
+	rc = opal_dump_info2(stack_pa(&id), stack_pa(&size), stack_pa(&type));
 	if (rc == OPAL_PARAMETER)
-		rc = opal_dump_info(&id, &size);
+		rc = opal_dump_info(stack_pa(&id), stack_pa(&size));
 
 	if (rc) {
 		pr_warn("%s: Failed to get dump info (%d)\n",
@@ -262,7 +262,7 @@ static int64_t dump_read_data(struct dump_obj *dump)
 	}
 
 	/* First entry address */
-	addr = __pa(list);
+	addr = (uint64_t)stack_pa(list);
 
 	/* Fetch data */
 	rc = OPAL_BUSY_EVENT;

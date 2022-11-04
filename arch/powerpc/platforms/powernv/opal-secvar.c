@@ -64,7 +64,8 @@ static int opal_get_variable(const char *key, uint64_t ksize,
 
 	*dsize = cpu_to_be64(*dsize);
 
-	rc = opal_secvar_get(key, ksize, data, dsize);
+	rc = opal_secvar_get(stack_pa(key), ksize, stack_pa(data),
+			     stack_pa(dsize));
 
 	*dsize = be64_to_cpu(*dsize);
 
@@ -81,7 +82,8 @@ static int opal_get_next_variable(const char *key, uint64_t *keylen,
 
 	*keylen = cpu_to_be64(*keylen);
 
-	rc = opal_secvar_get_next(key, keylen, keybufsize);
+	rc = opal_secvar_get_next(stack_pa(key), stack_pa(keylen),
+				  keybufsize);
 
 	*keylen = be64_to_cpu(*keylen);
 
@@ -96,7 +98,8 @@ static int opal_set_variable(const char *key, uint64_t ksize, u8 *data,
 	if (!key || !data)
 		return -EINVAL;
 
-	rc = opal_secvar_enqueue_update(key, ksize, data, dsize);
+	rc = opal_secvar_enqueue_update(stack_pa(key), ksize, stack_pa(data),
+					dsize);
 
 	return opal_status_to_err(rc);
 }

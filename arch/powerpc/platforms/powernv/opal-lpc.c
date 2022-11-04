@@ -28,7 +28,7 @@ static u8 opal_lpc_inb(unsigned long port)
 
 	if (opal_lpc_chip_id < 0 || port > 0xffff)
 		return 0xff;
-	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 1);
+	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, stack_pa(&data), 1);
 	return rc ? 0xff : be32_to_cpu(data);
 }
 
@@ -41,7 +41,7 @@ static __le16 __opal_lpc_inw(unsigned long port)
 		return 0xffff;
 	if (port & 1)
 		return (__le16)opal_lpc_inb(port) << 8 | opal_lpc_inb(port + 1);
-	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 2);
+	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, stack_pa(&data), 2);
 	return rc ? 0xffff : be32_to_cpu(data);
 }
 static u16 opal_lpc_inw(unsigned long port)
@@ -61,7 +61,7 @@ static __le32 __opal_lpc_inl(unsigned long port)
 		       (__le32)opal_lpc_inb(port + 1) << 16 |
 		       (__le32)opal_lpc_inb(port + 2) <<  8 |
 			       opal_lpc_inb(port + 3);
-	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 4);
+	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, stack_pa(&data), 4);
 	return rc ? 0xffffffff : be32_to_cpu(data);
 }
 
@@ -208,7 +208,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 				len = 2;
 		}
 		rc = opal_lpc_read(opal_lpc_chip_id, lpc->lpc_type, pos,
-				   &data, len);
+				   stack_pa(&data), len);
 		if (rc)
 			return -ENXIO;
 

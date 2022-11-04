@@ -414,7 +414,7 @@ static long kvmppc_read_one_intr(bool *again)
 	xics_phys = local_paca->kvm_hstate.xics_phys;
 	rc = 0;
 	if (!xics_phys)
-		rc = opal_int_get_xirr(&xirr, false);
+		rc = opal_int_get_xirr(stack_pa(&xirr), false);
 	else
 		xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
 	if (rc < 0)

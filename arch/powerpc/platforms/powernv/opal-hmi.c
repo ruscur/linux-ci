@@ -303,7 +303,8 @@ static void hmi_event_handler(struct work_struct *work)
 
 	if (unrecoverable) {
 		/* Pull all HMI events from OPAL before we panic. */
-		while (opal_get_msg(__pa(&msg), sizeof(msg)) == OPAL_SUCCESS) {
+		while (opal_get_msg((uint64_t)stack_pa(&msg),
+				    sizeof(msg)) == OPAL_SUCCESS) {
 			u32 type;
 
 			type = be32_to_cpu(msg.msg_type);

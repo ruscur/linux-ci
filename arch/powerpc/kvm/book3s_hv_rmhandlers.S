@@ -2686,7 +2686,8 @@ kvmppc_bad_host_intr:
 	mr	r9, r1
 	std	r1, PACAR1(r13)
 	ld	r1, PACAEMERGSP(r13)
-	subi	r1, r1, THREAD_SIZE/2 + INT_FRAME_SIZE
+	subi	r1, r1, THREAD_SIZE/2
+	subi	r1, r1, INT_FRAME_SIZE
 	std	r9, 0(r1)
 	std	r0, GPR0(r1)
 	std	r9, GPR1(r1)

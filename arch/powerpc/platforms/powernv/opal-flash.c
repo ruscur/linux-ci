@@ -134,7 +134,8 @@ static inline void opal_flash_validate(void)
 	__be32 size = cpu_to_be32(validate_flash_data.buf_size);
 	__be32 result;
 
-	ret = opal_validate_flash(__pa(buf), &size, &result);
+	ret = opal_validate_flash((uint64_t)stack_pa(buf), stack_pa(&size),
+				  stack_pa(&result));
 
 	validate_flash_data.status = ret;
 	validate_flash_data.buf_size = be32_to_cpu(size);
@@ -290,7 +291,7 @@ static int opal_flash_update(int op)
 		goto invalid_img;
 
 	/* First entry address */
-	addr = __pa(list);
+	addr = (unsigned long)stack_pa(list);
 
 flash:
 	rc = opal_update_flash(addr);

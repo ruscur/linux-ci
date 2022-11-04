@@ -169,7 +169,7 @@ static ssize_t raw_attr_read(struct file *filep, struct kobject *kobj,
 		if (!elog->buffer)
 			return -EIO;
 
-		opal_rc = opal_read_elog(__pa(elog->buffer),
+		opal_rc = opal_read_elog((uint64_t)stack_pa(elog->buffer),
 					 elog->size, elog->id);
 		if (opal_rc != OPAL_SUCCESS) {
 			pr_err_ratelimited("ELOG: log read failed for log-id=%llx\n",
@@ -212,8 +212,8 @@ static void create_elog_obj(uint64_t id, size_t size, uint64_t type)
 	elog->buffer = kzalloc(elog->size, GFP_KERNEL);
 
 	if (elog->buffer) {
-		rc = opal_read_elog(__pa(elog->buffer),
-					 elog->size, elog->id);
+		rc = opal_read_elog((uint64_t)stack_pa(elog->buffer),
+				    elog->size, elog->id);
 		if (rc != OPAL_SUCCESS) {
 			pr_err("ELOG: log read failed for log-id=%llx\n",
 			       elog->id);
@@ -270,7 +270,9 @@ static irqreturn_t elog_event(int irq, void *data)
 	char name[2+16+1];
 	struct kobject *kobj;
 
-	rc = opal_get_elog_size(&id, &size, &type);
+	rc = opal_get_elog_size(stack_pa(&id),
+				stack_pa(&size),
+				stack_pa(&type));
 	if (rc != OPAL_SUCCESS) {
 		pr_err("ELOG: OPAL log info read failed\n");
 		return IRQ_HANDLED;

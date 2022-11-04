@@ -132,6 +132,12 @@ struct debug_reg {
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S_64)
+	// Kernel stack base addresses in vmalloc and linear mappings
+	// Used for swapping to linear map in real mode code
+	unsigned long	ksp_vmalloc_base;
+	unsigned long	ksp_linear_base;
+#endif /* CONFIG_VMAP_STACK && CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC64
 	unsigned long	ksp_vsid;

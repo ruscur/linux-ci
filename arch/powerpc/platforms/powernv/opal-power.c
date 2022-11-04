@@ -31,7 +31,7 @@ static bool detect_epow(void)
 	* to OPAL. OPAL returns EPOW info along with classes present.
 	*/
 	epow_classes = cpu_to_be16(OPAL_SYSEPOW_MAX);
-	rc = opal_get_epow_status(opal_epow_status, &epow_classes);
+	rc = opal_get_epow_status(stack_pa(opal_epow_status), stack_pa(&epow_classes));
 	if (rc != OPAL_SUCCESS) {
 		pr_err("Failed to get EPOW event information\n");
 		return false;
@@ -59,7 +59,7 @@ static bool __init poweroff_pending(void)
 	__be64 opal_dpo_timeout;
 
 	/* Check for DPO event */
-	rc = opal_get_dpo_status(&opal_dpo_timeout);
+	rc = opal_get_dpo_status(stack_pa(&opal_dpo_timeout));
 	if (rc == OPAL_SUCCESS) {
 		pr_info("Existing DPO event detected.\n");
 		return true;
