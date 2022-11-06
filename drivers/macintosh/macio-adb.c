@@ -100,7 +100,7 @@ int macio_init(void)
 	unsigned int irq;
 
 	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
-	if (adbs == 0)
+	if (adbs)
 		return -ENXIO;
 
 	if (of_address_to_resource(adbs, 0, &r)) {
