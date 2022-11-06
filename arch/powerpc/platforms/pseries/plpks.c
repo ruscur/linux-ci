@@ -40,6 +40,10 @@ static u16 ospasswordlength;
 // Retrieved with H_PKS_GET_CONFIG
 static u16 maxpwsize;
 static u16 maxobjsize;
+static s16 maxobjlabelsize;
+static u32 totalsize;
+static u32 usedspace;
+static u8 version;
 
 struct plpks_auth {
 	u8 version;
@@ -87,6 +91,12 @@ static int pseries_status_to_err(int rc)
 		err = -ENOENT;
 		break;
 	case H_BUSY:
+	case H_LONG_BUSY_ORDER_1_MSEC:
+	case H_LONG_BUSY_ORDER_10_MSEC:
+	case H_LONG_BUSY_ORDER_100_MSEC:
+	case H_LONG_BUSY_ORDER_1_SEC:
+	case H_LONG_BUSY_ORDER_10_SEC:
+	case H_LONG_BUSY_ORDER_100_SEC:
 		err = -EBUSY;
 		break;
 	case H_AUTHORITY:
@@ -191,14 +201,17 @@ static struct label *construct_label(char *component, u8 varos, u8 *name,
 				     u16 namelen)
 {
 	struct label *label;
-	size_t slen;
+	size_t slen = 0;
 
 	if (!name || namelen > MAX_NAME_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	slen = strlen(component);
-	if (component && slen > sizeof(label->attr.prefix))
-		return ERR_PTR(-EINVAL);
+	/* Support NULL component for signed updates */
+	if (component) {
+		slen = strlen(component);
+		if (slen > sizeof(label->attr.prefix))
+			return ERR_PTR(-EINVAL);
+	}
 
 	label = kzalloc(sizeof(*label), GFP_KERNEL);
 	if (!label)
@@ -244,8 +257,49 @@ static int _plpks_get_config(void)
 
 	maxpwsize = be16_to_cpu(config.maxpwsize);
 	maxobjsize = be16_to_cpu(config.maxobjsize);
+	maxobjlabelsize = be16_to_cpu(config.maxobjlabelsize) -
+			  MAX_LABEL_ATTR_SIZE;
+	maxobjlabelsize = maxobjlabelsize < 0 ? 0 : maxobjlabelsize;
+	totalsize = be32_to_cpu(config.totalsize);
+	usedspace = be32_to_cpu(config.usedspace);
 
 	return 0;
+}
+
+u8 plpks_get_version(void)
+{
+	return version;
+}
+
+u16 plpks_get_maxobjectsize(void)
+{
+	return maxobjsize;
+}
+
+u16 plpks_get_maxobjectlabelsize(void)
+{
+	return maxobjlabelsize;
+}
+
+u32 plpks_get_totalsize(void)
+{
+	return totalsize;
+}
+
+u32 plpks_get_usedspace(void)
+{
+	return usedspace;
+}
+
+bool plpks_is_available(void)
+{
+	int rc;
+
+	rc = _plpks_get_config();
+	if (rc)
+		return false;
+
+	return true;
 }
 
 static int plpks_confirm_object_flushed(struct label *label,
@@ -280,6 +334,54 @@ static int plpks_confirm_object_flushed(struct label *label,
 
 	return rc;
 }
+
+int plpks_signed_update_var(struct plpks_var var, u64 flags)
+{
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
+	int rc;
+	struct label *label;
+	struct plpks_auth *auth;
+	u64 continuetoken = 0;
+
+	if (!var.data || var.datalen <= 0 || var.namelen > MAX_NAME_SIZE)
+		return -EINVAL;
+
+	if (!(var.policy & SIGNEDUPDATE))
+		return -EINVAL;
+
+	auth = construct_auth(PKS_OS_OWNER);
+	if (IS_ERR(auth))
+		return PTR_ERR(auth);
+
+	label = construct_label(var.component, var.os, var.name, var.namelen);
+	if (IS_ERR(label)) {
+		rc = PTR_ERR(label);
+		goto out;
+	}
+
+	do {
+		rc = plpar_hcall9(H_PKS_SIGNED_UPDATE, retbuf,
+				  virt_to_phys(auth), virt_to_phys(label),
+				  label->size, var.policy, flags,
+				  virt_to_phys(var.data), var.datalen,
+				  continuetoken);
+
+		continuetoken = retbuf[0];
+		rc = pseries_status_to_err(rc);
+	} while (rc == -EBUSY);
+
+	if (!rc) {
+		rc = plpks_confirm_object_flushed(label, auth);
+		rc = pseries_status_to_err(rc);
+	}
+
+	kfree(label);
+out:
+	kfree(auth);
+
+	return rc;
+}
+EXPORT_SYMBOL(plpks_signed_update_var);
 
 int plpks_write_var(struct plpks_var var)
 {
@@ -331,7 +433,7 @@ int plpks_remove_var(char *component, u8 varos, struct plpks_var_name vname)
 	struct label *label;
 	int rc;
 
-	if (!component || vname.namelen > MAX_NAME_SIZE)
+	if (vname.namelen > MAX_NAME_SIZE)
 		return -EINVAL;
 
 	auth = construct_auth(PKS_OS_OWNER);

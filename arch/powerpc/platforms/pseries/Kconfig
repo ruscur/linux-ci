@@ -162,6 +162,26 @@ config PSERIES_PLPKS
 
 	  If unsure, select N.
 
+config PSERIES_FWSECURITYFS_ARCH
+	select FWSECURITYFS
+	bool "Support fwsecurityfs for pseries"
+	help
+	  Enable fwsecurityfs arch specific code. This would initialize
+	  the firmware security filesystem with initial platform specific
+	  structure.
+
+	  If you are unsure how to use it, say N.
+
+config PSERIES_PLPKS_SECVARS
+       depends on PSERIES_PLPKS
+       select PSERIES_FWSECURITYFS_ARCH
+       tristate "Support for secvars"
+       help
+         This interface exposes authenticated variables stored in the LPAR
+         Platform KeyStore using fwsecurityfs interface.
+
+         If you are unsure how to use it, say N.
+
 config PAPR_SCM
 	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
 	tristate "Support for the PAPR Storage Class Memory interface"

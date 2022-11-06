@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/dcache.h>
 
 #define OSSECBOOTAUDIT 0x40000000
 #define OSSECBOOTENFORCE 0x20000000
@@ -41,6 +42,11 @@ struct plpks_var_name_list {
 };
 
 /**
+ * Updates the authenticated variable. It expects NULL as the component.
+ */
+int plpks_signed_update_var(struct plpks_var var, u64 flags);
+
+/**
  * Writes the specified var and its data to PKS.
  * Any caller of PKS driver should present a valid component type for
  * their variable.
@@ -67,5 +73,37 @@ int plpks_read_fw_var(struct plpks_var *var);
  * Returns the data for the specified bootloader variable.
  */
 int plpks_read_bootloader_var(struct plpks_var *var);
+
+/**
+ * Returns if PKS is available on this LPAR.
+ */
+bool plpks_is_available(void);
+
+/**
+ * Returns version of the Platform KeyStore.
+ */
+u8 plpks_get_version(void);
+
+/**
+ * Returns maximum object size supported by Platform KeyStore.
+ */
+u16 plpks_get_maxobjectsize(void);
+
+/**
+ * Returns maximum object label size supported by Platform KeyStore.
+ */
+u16 plpks_get_maxobjectlabelsize(void);
+
+/**
+ * Returns total size of the configured Platform KeyStore.
+ */
+u32 plpks_get_totalsize(void);
+
+/**
+ * Returns used space from the total size of the Platform KeyStore.
+ */
+u32 plpks_get_usedspace(void);
+
+int plpks_secvars_init(struct dentry *parent);
 
 #endif

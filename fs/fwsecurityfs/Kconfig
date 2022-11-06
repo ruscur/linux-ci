@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 IBM Corporation
+# Author: Nayna Jain <nayna@linux.ibm.com>
+#
+
+config FWSECURITYFS
+	bool "Enable the fwsecurityfs filesystem"
+	help
+	  This will build fwsecurityfs filesystem which should be mounted
+	  on /sys/firmware/security. This filesystem can be used by
+	  platform to expose firmware-managed variables.
+
+	  If you are unsure how to answer this question, answer N.
