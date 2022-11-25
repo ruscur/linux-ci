@@ -239,6 +239,7 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 	if (!request_mem_region(addr, size, rname)) {
 		pr_warn("icp_native: Could not reserve ICP MMIO for CPU %d, interrupt server #0x%x\n",
 			cpu, hw_id);
+		kfree(rname);
 		return -EBUSY;
 	}
 
@@ -248,6 +249,7 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 		pr_warn("icp_native: Failed ioremap for CPU %d, interrupt server #0x%x, addr %#lx\n",
 			cpu, hw_id, addr);
 		release_mem_region(addr, size);
+		kfree(rname);
 		return -ENOMEM;
 	}
 	return 0;
