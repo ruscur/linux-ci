@@ -149,8 +149,6 @@ static const struct input_device_id mac_hid_emumouse_ids[] = {
 	{ },
 };
 
-MODULE_DEVICE_TABLE(input, mac_hid_emumouse_ids);
-
 static struct input_handler mac_hid_emumouse_handler = {
 	.filter		= mac_hid_emumouse_filter,
 	.connect	= mac_hid_emumouse_connect,
