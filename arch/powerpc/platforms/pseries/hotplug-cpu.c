@@ -62,12 +62,7 @@ static void pseries_cpu_offline_self(void)
 {
 	unsigned int hwcpu = hard_smp_processor_id();
 
-	local_irq_disable();
 	idle_task_exit();
-	if (xive_enabled())
-		xive_teardown_cpu();
-	else
-		xics_teardown_cpu();
 
 	unregister_slb_shadow(hwcpu);
 	rtas_stop_self();
@@ -95,6 +90,13 @@ static int pseries_cpu_disable(void)
 		xics_migrate_irqs_away();
 
 	cleanup_cpu_mmu_context();
+
+	local_irq_disable();
+
+	if (xive_enabled())
+		xive_teardown_cpu();
+	else
+		xics_teardown_cpu();
 
 	return 0;
 }
