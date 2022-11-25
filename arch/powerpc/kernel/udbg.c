@@ -69,6 +69,9 @@ void __init udbg_early_init(void)
 	udbg_init_debug_opal_hvsi();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_16550)
 	udbg_init_debug_16550();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_LATTEIPC)
+	/* For use on Nintendo Wii U */
+	udbg_init_latteipc();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG

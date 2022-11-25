@@ -69,6 +69,7 @@ properties:
               - ibm,usb-ehci-440epx
               - ibm,usb-ehci-460ex
               - nintendo,hollywood-usb-ehci
+              - nintendo,latte-ehci
               - st,spear600-ehci
           - const: usb-ehci
       - enum:

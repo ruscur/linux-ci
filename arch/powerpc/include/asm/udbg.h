@@ -53,6 +53,7 @@ void __init udbg_init_ps3gelic(void);
 void __init udbg_init_debug_opal_raw(void);
 void __init udbg_init_debug_opal_hvsi(void);
 void __init udbg_init_debug_16550(void);
+void __init udbg_init_latteipc(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_UDBG_H */
