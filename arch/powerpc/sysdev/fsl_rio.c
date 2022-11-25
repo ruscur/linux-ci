@@ -553,6 +553,7 @@ int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto err_pw;
 	}
+	of_node_put(np);
 	range_start = of_read_number(dt_range, aw);
 	dbell->dbell_regs = (struct rio_dbell_regs *)(rmu_regs_win +
 				(u32)range_start);
@@ -581,6 +582,7 @@ int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto err;
 	}
+	of_node_put(np);
 	range_start = of_read_number(dt_range, aw);
 	pw->pw_regs = (struct rio_pw_regs *)(rmu_regs_win + (u32)range_start);
 
@@ -763,6 +765,7 @@ err_pw:
 err_dbell:
 	iounmap(rmu_regs_win);
 	rmu_regs_win = NULL;
+	of_node_put(np);
 err_rmu:
 	kfree(ops);
 err_ops:
