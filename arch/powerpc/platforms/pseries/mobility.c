@@ -636,8 +636,10 @@ retry:
 	}
 	/*
 	 * Execution may have been suspended for several seconds, so
-	 * reset the watchdog.
+	 * reset the watchdogs.
 	 */
+	rcu_cpu_stall_reset();
+	/* touch_nmi_watchdog() also touch the soft lockup watchdog */
 	touch_nmi_watchdog();
 	return ret;
 }
