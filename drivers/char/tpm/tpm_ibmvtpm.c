@@ -649,7 +649,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 			 tpm_ibmvtpm_driver_name, ibmvtpm);
 	if (rc) {
 		dev_err(dev, "Error %d register irq 0x%x\n", rc, vio_dev->irq);
-		goto init_irq_cleanup;
+		goto req_irq_cleanup;
 	}
 
 	rc = vio_enable_interrupts(vio_dev);
@@ -702,6 +702,8 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	return tpm_chip_register(chip);
 init_irq_cleanup:
+	free_irq(vio_dev->irq, ibmvtpm);
+req_irq_cleanup:
 	do {
 		rc1 = plpar_hcall_norets(H_FREE_CRQ, vio_dev->unit_address);
 	} while (rc1 == H_BUSY || H_IS_LONG_BUSY(rc1));
