@@ -191,6 +191,7 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
+	depends on false
 	depends on PPC_E500 && !PPC_E500MC
 	depends on !CONTEXT_TRACKING_USER
 	select KVM
@@ -207,6 +208,7 @@ config KVM_E500V2
 
 config KVM_E500MC
 	bool "KVM support for PowerPC E500MC/E5500/E6500 processors"
+	depends on false
 	depends on PPC_E500MC
 	depends on !CONTEXT_TRACKING_USER
 	select KVM
