@@ -8,6 +8,8 @@
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <link.h>
 #include <sched.h>
 #include <stdio.h>
@@ -26,34 +28,263 @@
 
 static char auxv[4096];
 
-int read_auxv(char *buf, ssize_t buf_size)
+int read_file(const char *path, char *buf, size_t count, size_t *len)
 {
-	ssize_t num;
-	int rc, fd;
+	ssize_t rc;
+	int fd;
+	int err;
+	char eof;
 
-	fd = open("/proc/self/auxv", O_RDONLY);
-	if (fd == -1) {
-		perror("open");
-		return -errno;
-	}
+	if ((fd = open(path, O_RDONLY)) < 0)
+		return errno;
 
-	num = read(fd, buf, buf_size);
-	if (num < 0) {
-		perror("read");
-		rc = -EIO;
+	if ((rc = read(fd, buf, count)) < 0) {
+		err = errno;
 		goto out;
 	}
 
-	if (num > buf_size) {
-		printf("overflowed auxv buffer\n");
-		rc = -EOVERFLOW;
+	if (len)
+		*len = rc;
+
+	/* Overflow if there are still more bytes after filling the buffer */
+	if (rc == count && (rc = read(fd, &eof, 1)) != 0) {
+		err = EOVERFLOW;
 		goto out;
 	}
 
-	rc = 0;
+	err = 0;
+
 out:
 	close(fd);
-	return rc;
+	return err;
+}
+
+int read_file_alloc(const char *path, char **buf, size_t *len)
+{
+	ssize_t rc;
+	char *buffer;
+	size_t read_offset;
+	size_t length;
+	int fd;
+	int err;
+
+
+	if ((fd = open(path, O_RDONLY)) < 0)
+		return -errno;
+
+	/*
+	 * We don't use stat & preallocate st_size because some non-files
+	 * report 0 file size. Instead just dynamically grow the buffer
+	 * as needed.
+	 */
+	length = 4096;
+	buffer = malloc(length);
+	read_offset = 0;
+
+	if (!buffer) {
+		err = errno;
+		goto out;
+	}
+
+	while (1) {
+		if ((rc = read(fd, buffer + read_offset, length - read_offset)) < 0) {
+			err = errno;
+			goto out;
+		}
+
+		if (rc == 0)
+			break;
+
+		read_offset += rc;
+
+		if (read_offset > length / 2) {
+			char *next_buffer;
+
+			length *= 2;
+			next_buffer = realloc(buffer, length);
+			if (!next_buffer) {
+				err = errno;
+				free(buffer);
+				goto out;
+			}
+			buffer = next_buffer;
+		}
+	}
+
+	*buf = buffer;
+	if (len)
+		*len = read_offset;
+
+	err = 0;
+
+out:
+	close(fd);
+	return err;
+}
+
+int write_file(const char *path, const char *buf, size_t count)
+{
+	int fd;
+	int err;
+	ssize_t rc;
+
+	if ((fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+		return errno;
+
+	if ((rc = write(fd, buf, count)) < 0) {
+		err = errno;
+		goto out;
+	}
+
+	if (rc != count) {
+		err = EOVERFLOW;
+		goto out;
+	}
+
+	err = 0;
+
+out:
+	close(fd);
+	return err;
+}
+
+int read_auxv(char *buf, ssize_t buf_size)
+{
+	int err;
+
+	if ((err = read_file("/proc/self/auxv", buf, buf_size, NULL))) {
+		fprintf(stderr, "Error reading auxv: %s\n", strerror(err));
+		return err;
+	}
+
+	return 0;
+}
+
+int read_debugfs_file(const char *subpath, char *buf, size_t count)
+{
+	char path[PATH_MAX] = "/sys/kernel/debug/";
+
+	strncat(path, subpath, sizeof(path) - strlen(path) - 1);
+
+	return read_file(path, buf, count, NULL);
+}
+
+int write_debugfs_file(const char *subpath, const char *buf, size_t count)
+{
+	char path[PATH_MAX] = "/sys/kernel/debug/";
+
+	strncat(path, subpath, sizeof(path) - strlen(path) - 1);
+
+	return write_file(path, buf, count);
+}
+
+#define TYPE_MIN(x)				\
+	_Generic((x),				\
+		int:		INT_MIN,	\
+		long:		LONG_MIN,	\
+		unsigned int:	0,		\
+		unsigned long:	0)
+
+#define TYPE_MAX(x)				\
+	_Generic((x),				\
+		int:		INT_MAX,	\
+		long:		LONG_MAX,	\
+		unsigned int:	INT_MAX,	\
+		unsigned long:	LONG_MAX)
+
+#define define_parse_number(fn, type, super_type)				\
+	int fn(const char *buffer, size_t count, type *result, int base)	\
+	{									\
+		char *end;							\
+		super_type parsed;						\
+										\
+		errno = 0;							\
+		parsed = _Generic(parsed,					\
+				  intmax_t:	strtoimax,			\
+				  uintmax_t:	strtoumax)(buffer, &end, base);	\
+										\
+		if (errno == ERANGE ||						\
+		    parsed < TYPE_MIN(*result) || parsed > TYPE_MAX(*result))	\
+			return ERANGE;						\
+										\
+		/* Require at least one digit */				\
+		if (end == buffer)						\
+			return EINVAL;						\
+										\
+		/* Require all remaining characters be whitespace-ish */	\
+		for (; end < buffer + count; end++)				\
+			if (!(*end == ' ' || *end == '\n' || *end == '\0'))	\
+				return EINVAL;					\
+										\
+		*result = parsed;						\
+		return 0;							\
+	}
+
+define_parse_number(parse_int, int, intmax_t);
+define_parse_number(parse_long, long, intmax_t);
+define_parse_number(parse_uint, unsigned int, uintmax_t);
+define_parse_number(parse_ulong, unsigned long, uintmax_t);
+
+int read_long(const char *path, long *result, int base)
+{
+	int err;
+	char buffer[32] = {0};
+
+	if ((err = read_file(path, buffer, sizeof(buffer) - 1, NULL)))
+		return err;
+
+	return parse_long(buffer, sizeof(buffer), result, base);
+}
+
+int read_ulong(const char *path, unsigned long *result, int base)
+{
+	int err;
+	char buffer[32] = {0};
+
+	if ((err = read_file(path, buffer, sizeof(buffer) - 1, NULL)))
+		return err;
+
+	return parse_ulong(buffer, sizeof(buffer), result, base);
+}
+
+int write_long(const char *path, long result, int base)
+{
+	int len;
+	char buffer[32];
+
+	/* Decimal only; we don't have a format specifier for signed hex values */
+	if (base != 10)
+		return EINVAL;
+
+	len = snprintf(buffer, sizeof(buffer), "%ld", result);
+	if (len < 0 || len >= sizeof(buffer))
+		return EOVERFLOW;
+
+	return write_file(path, buffer, len);
+}
+
+int write_ulong(const char *path, unsigned long result, int base)
+{
+	int len;
+	char buffer[32];
+	char *fmt;
+
+	switch (base) {
+	case 10:
+		fmt = "%lu";
+		break;
+	case 16:
+		fmt = "%lx";
+		break;
+	default:
+		return EINVAL;
+	}
+
+	len = snprintf(buffer, sizeof(buffer), fmt, result);
+	if (len < 0 || len >= sizeof(buffer))
+		return -1;
+
+	return write_file(path, buffer, len);
 }
 
 void *find_auxv_entry(int type, char *auxv)
@@ -142,65 +373,30 @@ bool is_ppc64le(void)
 int read_sysfs_file(char *fpath, char *result, size_t result_size)
 {
 	char path[PATH_MAX] = "/sys/";
-	int rc = -1, fd;
 
 	strncat(path, fpath, PATH_MAX - strlen(path) - 1);
 
-	if ((fd = open(path, O_RDONLY)) < 0)
-		return rc;
-
-	rc = read(fd, result, result_size);
-
-	close(fd);
-
-	if (rc < 0)
-		return rc;
-
-	return 0;
+	return read_file(path, result, result_size, NULL);
 }
 
-int read_debugfs_file(char *debugfs_file, int *result)
+int read_debugfs_int(const char *debugfs_file, int *result)
 {
-	int rc = -1, fd;
-	char path[PATH_MAX];
-	char value[16];
+	int err;
+	char value[16] = {0};
 
-	strcpy(path, "/sys/kernel/debug/");
-	strncat(path, debugfs_file, PATH_MAX - strlen(path) - 1);
+	if ((err = read_debugfs_file(debugfs_file, value, sizeof(value) - 1)))
+		return err;
 
-	if ((fd = open(path, O_RDONLY)) < 0)
-		return rc;
-
-	if ((rc = read(fd, value, sizeof(value))) < 0)
-		return rc;
-
-	value[15] = 0;
-	*result = atoi(value);
-	close(fd);
-
-	return 0;
+	return parse_int(value, sizeof(value), result, 10);
 }
 
-int write_debugfs_file(char *debugfs_file, int result)
+int write_debugfs_int(const char *debugfs_file, int result)
 {
-	int rc = -1, fd;
-	char path[PATH_MAX];
 	char value[16];
-
-	strcpy(path, "/sys/kernel/debug/");
-	strncat(path, debugfs_file, PATH_MAX - strlen(path) - 1);
-
-	if ((fd = open(path, O_WRONLY)) < 0)
-		return rc;
 
 	snprintf(value, 16, "%d", result);
 
-	if ((rc = write(fd, value, strlen(value))) < 0)
-		return rc;
-
-	close(fd);
-
-	return 0;
+	return write_debugfs_file(debugfs_file, value, strlen(value));
 }
 
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
