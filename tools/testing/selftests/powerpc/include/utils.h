@@ -9,11 +9,18 @@
 #define __cacheline_aligned __attribute__((aligned(128)))
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 #include <linux/auxvec.h>
 #include <linux/perf_event.h>
 #include <asm/cputable.h>
 #include "reg.h"
+
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
 typedef unsigned long long u64;
@@ -97,11 +104,31 @@ do {								\
 	}							\
 } while (0)
 
+#define FAIL_IF_MSG(x, msg)					\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[FAIL] Test FAILED on line %d: %s\n", 		\
+		__LINE__, msg);					\
+		return 1;					\
+	}							\
+} while (0)
+
 #define FAIL_IF_EXIT(x)						\
 do {								\
 	if ((x)) {						\
 		fprintf(stderr,					\
 		"[FAIL] Test FAILED on line %d\n", __LINE__);	\
+		_exit(1);					\
+	}							\
+} while (0)
+
+#define FAIL_IF_EXIT_MSG(x, msg)				\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[FAIL] Test FAILED on line %d: %s\n", 		\
+		__LINE__, msg);					\
 		_exit(1);					\
 	}							\
 } while (0)
@@ -134,6 +161,23 @@ do {								\
 #define sigsafe_err(msg)	({ \
 		ssize_t nbytes __attribute__((unused)); \
 		nbytes = write(STDERR_FILENO, msg, strlen(msg)); })
+
+#define SIGSAFE_FAIL_IF_EXIT(x)							\
+do {										\
+	if ((x)) {								\
+		sigsafe_err("[FAIL] Test FAILED on line " str(__LINE__) "\n");	\
+		_exit(1);							\
+	}									\
+} while (0)
+
+#define SIGSAFE_FAIL_IF_EXIT_MSG(x, msg)					\
+do {										\
+	if ((x)) {								\
+		sigsafe_err("[FAIL] Test FAILED on line " 			\
+			    str(__LINE__) ": " msg "\n");			\
+		_exit(1);							\
+	}									\
+} while (0)
 
 /* POWER9 feature */
 #ifndef PPC_FEATURE2_ARCH_3_00

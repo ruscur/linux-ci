@@ -1516,6 +1516,12 @@ static void do_program_check(struct pt_regs *regs)
 				return;
 			}
 		}
+
+		if (user_mode(regs) && is_hashchk_trap(regs)) {
+			_exception(SIGILL, regs, ILL_ILLOPN, regs->nip);
+			return;
+		}
+
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 		return;
 	}

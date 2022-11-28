@@ -264,6 +264,10 @@ struct thread_struct {
 	unsigned long   mmcr3;
 	unsigned long   sier2;
 	unsigned long   sier3;
+	unsigned long	hashkeyr;
+	unsigned int	dexcr_override;
+	unsigned int	dexcr_mask;
+	unsigned int	dexcr_forced;
 
 #endif
 };
@@ -336,6 +340,16 @@ extern int set_endian(struct task_struct *tsk, unsigned int val);
 
 extern int get_unalign_ctl(struct task_struct *tsk, unsigned long adr);
 extern int set_unalign_ctl(struct task_struct *tsk, unsigned int val);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+
+#define PPC_GET_DEXCR_ASPECT(tsk, asp) dexcr_prctl_get((tsk), (asp))
+#define PPC_SET_DEXCR_ASPECT(tsk, asp, val) dexcr_prctl_set((tsk), (asp), (val))
+
+int dexcr_prctl_get(struct task_struct *tsk, unsigned long asp);
+int dexcr_prctl_set(struct task_struct *tsk, unsigned long asp, unsigned long val);
+
+#endif
 
 extern void load_fp_state(struct thread_fp_state *fp);
 extern void store_fp_state(struct thread_fp_state *fp);
@@ -445,6 +459,25 @@ int enter_vmx_usercopy(void);
 int exit_vmx_usercopy(void);
 int enter_vmx_ops(void);
 void *exit_vmx_ops(void *dest);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+
+bool is_hashchk_trap(struct pt_regs const *regs);
+unsigned long get_thread_dexcr(struct thread_struct const *t);
+
+#else
+
+static inline bool is_hashchk_trap(struct pt_regs const *regs)
+{
+	return false;
+}
+
+static inline unsigned long get_thread_dexcr(struct thread_struct const *t)
+{
+	return 0;
+}
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */

@@ -661,6 +661,10 @@ static struct dt_cpu_feature_match __initdata
 	{"prefix-instructions", feat_enable, 0},
 	{"matrix-multiply-assist", feat_enable_mma, 0},
 	{"debug-facilities-v31", feat_enable, CPU_FTR_DAWR1},
+	{"dexcr-speculative-branch-hint-enable", feat_enable, CPU_FTR_DEXCR_SBHE},
+	{"dexcr-indirect-branch-recurrent-target-prediction-disable", feat_enable, CPU_FTR_DEXCR_IBRTPD},
+	{"dexcr-subroutine-return-address-prediction-disable", feat_enable, CPU_FTR_DEXCR_SRAPD},
+	{"dexcr-non-privileged-hash-instruction-enable", feat_enable, CPU_FTR_DEXCR_NPHIE},
 };
 
 static bool __initdata using_dt_cpu_ftrs;

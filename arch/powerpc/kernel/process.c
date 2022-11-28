@@ -1228,6 +1228,16 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_P9_TIDR) &&
 	    old_thread->tidr != new_thread->tidr)
 		mtspr(SPRN_TIDR, new_thread->tidr);
+
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
+		mtspr(SPRN_HASHKEYR, new_thread->hashkeyr);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		unsigned long new_dexcr = get_thread_dexcr(new_thread);
+
+		if (new_dexcr != get_thread_dexcr(old_thread))
+			mtspr(SPRN_DEXCR, new_dexcr);
+	}
 #endif
 
 }
@@ -1799,7 +1809,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	setup_ksp_vsid(p, sp);
 
-#ifdef CONFIG_PPC64 
+#ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		p->thread.dscr_inherit = current->thread.dscr_inherit;
 		p->thread.dscr = mfspr(SPRN_DSCR);
@@ -1808,6 +1818,16 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		childregs->ppr = DEFAULT_PPR;
 
 	p->thread.tidr = 0;
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
+		p->thread.hashkeyr = current->thread.hashkeyr;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		p->thread.dexcr_override = current->thread.dexcr_override;
+		p->thread.dexcr_mask = current->thread.dexcr_mask;
+		p->thread.dexcr_forced = current->thread.dexcr_forced;
+	}
 #endif
 	/*
 	 * Run with the current AMR value of the kernel
@@ -1936,6 +1956,15 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE)) {
+		current->thread.hashkeyr = get_random_long();
+		mtspr(SPRN_HASHKEYR, current->thread.hashkeyr);
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		mtspr(SPRN_DEXCR, get_thread_dexcr(&current->thread));
+#endif /* CONFIG_PPC_BOOK3S_64 */
 }
 EXPORT_SYMBOL(start_thread);
 
