@@ -25,7 +25,6 @@ jobs:
     env:
       ARCH: powerpc
       TARGET: kernel
-      CCACHE: 1
       SUBARCH: ${{ matrix.subarch }}
       IMAGE: ${{ matrix.image }}
       DEFCONFIG: ${{ matrix.defconfig }}
@@ -46,10 +45,11 @@ jobs:
         path: ~/.ccache
         key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
 
-    - name: Build
+    - name: build
       run: |
         mkdir -p ~/.ccache
-        ./arch/powerpc/tools/ci-build.sh
+        ls -l ~/.ccache
+        CCACHE=1 ./arch/powerpc/tools/ci-build.sh
 
     - name: Archive artifacts
       uses: actions/upload-artifact@v2
