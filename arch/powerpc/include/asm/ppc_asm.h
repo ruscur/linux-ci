@@ -74,6 +74,23 @@
 #define SAVE_GPR(n, base)		SAVE_GPRS(n, n, base)
 #define REST_GPR(n, base)		REST_GPRS(n, n, base)
 
+/* macros for handling user register sanitisation */
+#ifdef CONFIG_INTERRUPT_SANITIZE_REGISTERS
+#define SANITIZE_ZEROIZE_SYSCALL_GPRS()		ZEROIZE_GPR(0);		\
+						ZEROIZE_GPRS(5, 12);	\
+						ZEROIZE_NVGPRS()
+#define SANITIZE_ZEROIZE_INTERRUPT_NVGPRS()	ZEROIZE_NVGPRS()
+#define SANITIZE_ZEROIZE_NVGPRS()		ZEROIZE_NVGPRS()
+#define SANITIZE_RESTORE_NVGPRS()		REST_NVGPRS(r1)
+#define HANDLER_RESTORE_NVGPRS()
+#else
+#define SANITIZE_ZEROIZE_INTERRUPT_NVGPRS()
+#define SANITIZE_ZEROIZE_SYSCALL_GPRS()
+#define SANITIZE_ZEROIZE_NVGPRS()
+#define SANITIZE_RESTORE_NVGPRS()
+#define HANDLER_RESTORE_NVGPRS()		REST_NVGPRS(r1)
+#endif /* CONFIG_INTERRUPT_SANITIZE_REGISTERS */
+
 #define SAVE_FPR(n, base)	stfd	n,8*TS_FPRWIDTH*(n)(base)
 #define SAVE_2FPRS(n, base)	SAVE_FPR(n, base); SAVE_FPR(n+1, base)
 #define SAVE_4FPRS(n, base)	SAVE_2FPRS(n, base); SAVE_2FPRS(n+2, base)
