@@ -159,11 +159,13 @@ int par_io_of_config(struct device_node *np)
 	pio_map = of_get_property(pio, "pio-map", &pio_map_len);
 	if (pio_map == NULL) {
 		printk(KERN_ERR "pio-map is not set!\n");
+		of_node_put(pio);
 		return -1;
 	}
 	pio_map_len /= sizeof(unsigned int);
 	if ((pio_map_len % 6) != 0) {
 		printk(KERN_ERR "pio-map format wrong!\n");
+		of_node_put(pio);
 		return -1;
 	}
 
