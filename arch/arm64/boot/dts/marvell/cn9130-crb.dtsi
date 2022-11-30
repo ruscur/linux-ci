@@ -282,7 +282,6 @@
 
 			port@a {
 				reg = <10>;
-				label = "cpu";
 				ethernet = <&cp0_eth0>;
 			};
 

@@ -137,7 +137,6 @@
 
 		port@5 {
 			reg = <5>;
-			label = "cpu";
 			ethernet = <&gmac0>;
 		};
 	};

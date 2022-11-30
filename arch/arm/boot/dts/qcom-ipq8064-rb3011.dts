@@ -55,7 +55,6 @@
 
 				switch0cpu: port@0 {
 					reg = <0>;
-					label = "cpu";
 					ethernet = <&gmac0>;
 					phy-mode = "rgmii-id";
 					fixed-link {
@@ -122,7 +121,6 @@
 
 				switch1cpu: port@0 {
 					reg = <0>;
-					label = "cpu";
 					ethernet = <&gmac3>;
 					phy-mode = "sgmii";
 					fixed-link {

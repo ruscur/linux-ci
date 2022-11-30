@@ -181,7 +181,6 @@
 
 				port@0 {
 					reg = <0>;
-					label = "cpu";
 					ethernet = <&fec>;
 
 					fixed-link {

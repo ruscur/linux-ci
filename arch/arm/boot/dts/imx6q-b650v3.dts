@@ -138,7 +138,6 @@
 
 	port@4 {
 		reg = <4>;
-		label = "cpu";
 		ethernet = <&switch_nic>;
 		phy-handle = <&switchphy4>;
 	};

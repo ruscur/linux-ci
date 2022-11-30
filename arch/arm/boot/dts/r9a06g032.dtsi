@@ -401,7 +401,6 @@
 				switch_port4: port@4 {
 					reg = <4>;
 					ethernet = <&gmac2>;
-					label = "cpu";
 					phy-mode = "internal";
 					status = "disabled";
 					fixed-link {

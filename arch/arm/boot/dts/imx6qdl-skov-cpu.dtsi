@@ -87,7 +87,6 @@
 
 				ports@2 {
 					reg = <2>;
-					label = "cpu";
 					ethernet = <&fec>;
 					phy-mode = "rmii";
 

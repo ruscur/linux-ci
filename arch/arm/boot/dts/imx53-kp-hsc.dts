@@ -34,7 +34,6 @@
 
 			port@0 { /* RMII fixed link to master */
 				reg = <0>;
-				label = "cpu";
 				ethernet = <&fec>;
 			};
 

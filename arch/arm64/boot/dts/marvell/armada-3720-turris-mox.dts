@@ -400,7 +400,6 @@
 
 			port@9 {
 				reg = <0x9>;
-				label = "cpu";
 				ethernet = <&eth1>;
 				phy-mode = "2500base-x";
 				managed = "in-band-status";
@@ -485,7 +484,6 @@
 
 			port@5 {
 				reg = <0x5>;
-				label = "cpu";
 				phy-mode = "2500base-x";
 				managed = "in-band-status";
 				ethernet = <&eth1>;

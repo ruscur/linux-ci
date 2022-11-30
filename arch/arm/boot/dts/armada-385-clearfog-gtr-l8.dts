@@ -68,7 +68,6 @@
 
 			port@10 {
 				reg = <10>;
-				label = "cpu";
 				ethernet = <&eth1>;
 			};
 

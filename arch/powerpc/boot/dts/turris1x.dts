@@ -147,7 +147,6 @@
 
 					port@0 {
 						reg = <0>;
-						label = "cpu";
 						ethernet = <&enet1>;
 						phy-mode = "rgmii-id";
 
@@ -184,7 +183,6 @@
 
 					port@6 {
 						reg = <6>;
-						label = "cpu";
 						ethernet = <&enet0>;
 						phy-mode = "rgmii-id";
 

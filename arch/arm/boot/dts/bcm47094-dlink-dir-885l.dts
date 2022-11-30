@@ -150,7 +150,6 @@
 
 		port@8 {
 			reg = <8>;
-			label = "cpu";
 			ethernet = <&gmac2>;
 
 			fixed-link {

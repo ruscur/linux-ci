@@ -123,7 +123,6 @@
 				};
 				vsc: port@6 {
 					reg = <6>;
-					label = "cpu";
 					ethernet = <&gmac1>;
 					phy-mode = "rgmii";
 					fixed-link {

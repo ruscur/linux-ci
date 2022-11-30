@@ -169,7 +169,6 @@
 
 				port8: port@8 {
 					reg = <8>;
-					label = "cpu";
 					ethernet = <&gmac>;
 					phy-mode = "rgmii-txid";
 					fixed-link {

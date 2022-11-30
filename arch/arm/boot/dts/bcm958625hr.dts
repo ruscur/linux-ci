@@ -231,7 +231,6 @@
 
 		port@8 {
 			ethernet = <&amac2>;
-			label = "cpu";
 			reg = <8>;
 			fixed-link {
 				speed = <1000>;

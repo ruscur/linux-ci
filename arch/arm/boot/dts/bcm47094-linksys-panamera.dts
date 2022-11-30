@@ -180,7 +180,6 @@
 					sw1_p8: port@8 {
 						reg = <8>;
 						ethernet = <&sw0_p0>;
-						label = "cpu";
 
 						fixed-link {
 							speed = <1000>;
@@ -230,7 +229,6 @@
 		port@5 {
 			reg = <5>;
 			ethernet = <&gmac0>;
-			label = "cpu";
 			status = "disabled";
 
 			fixed-link {
@@ -242,7 +240,6 @@
 		port@7 {
 			reg = <7>;
 			ethernet = <&gmac1>;
-			label = "cpu";
 			status = "disabled";
 
 			fixed-link {
@@ -254,7 +251,6 @@
 		port@8 {
 			reg = <8>;
 			ethernet = <&gmac2>;
-			label = "cpu";
 
 			fixed-link {
 				speed = <1000>;

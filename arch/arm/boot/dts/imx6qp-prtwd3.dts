@@ -175,7 +175,6 @@
 
 			port@4 {
 				reg = <4>;
-				label = "cpu";
 				ethernet = <&fec>;
 				phy-mode = "rgmii-id";
 				rx-internal-delay-ps = <2000>;

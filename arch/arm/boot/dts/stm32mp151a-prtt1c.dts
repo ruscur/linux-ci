@@ -290,7 +290,6 @@
 
 			port@4 {
 				reg = <4>;
-				label = "cpu";
 				ethernet = <&ethernet0>;
 				phy-mode = "rmii";
 

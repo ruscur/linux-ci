@@ -171,7 +171,6 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
 				ethernet = <&eth1>;
 				fixed-link {
 					speed = <1000>;

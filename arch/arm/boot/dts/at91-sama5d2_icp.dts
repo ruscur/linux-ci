@@ -137,7 +137,6 @@
 
 				port@2 {
 					reg = <2>;
-					label = "cpu";
 					ethernet = <&macb0>;
 					phy-mode = "mii";
 					fixed-link {
