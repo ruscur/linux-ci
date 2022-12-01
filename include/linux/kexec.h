@@ -423,8 +423,7 @@ extern int kexec_load_disabled;
 #define KEXEC_FILE_FLAGS	(KEXEC_FILE_UNLOAD | KEXEC_FILE_ON_CRASH | \
 				 KEXEC_FILE_NO_INITRAMFS)
 
-/* flag to track if kexec reboot is in progress */
-extern bool kexec_in_progress;
+bool kexec_in_progress(void);
 
 int crash_shrink_memory(unsigned long new_size);
 ssize_t crash_get_memory_size(void);
@@ -507,7 +506,7 @@ static inline void __crash_kexec(struct pt_regs *regs) { }
 static inline void crash_kexec(struct pt_regs *regs) { }
 static inline int kexec_should_crash(struct task_struct *p) { return 0; }
 static inline int kexec_crash_loaded(void) { return 0; }
-#define kexec_in_progress false
+static inline bool kexec_in_progress(void) { return false; }
 #endif /* CONFIG_KEXEC_CORE */
 
 #ifdef CONFIG_KEXEC_SIG

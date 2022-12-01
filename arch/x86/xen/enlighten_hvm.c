@@ -145,7 +145,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_xen_hvm_callback)
 static void xen_hvm_shutdown(void)
 {
 	native_machine_shutdown();
-	if (kexec_in_progress)
+	if (kexec_in_progress())
 		xen_reboot(SHUTDOWN_soft_reset);
 }
 

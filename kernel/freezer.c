@@ -20,7 +20,6 @@ EXPORT_SYMBOL(freezer_active);
  * indicate whether PM freezing is in effect, protected by
  * system_transition_mutex
  */
-bool pm_freezing;
 bool pm_nosig_freezing;
 
 /* protects freezing and frozen transitions */
@@ -46,7 +45,7 @@ bool freezing_slow_path(struct task_struct *p)
 	if (pm_nosig_freezing || cgroup_freezing(p))
 		return true;
 
-	if (pm_freezing && !(p->flags & PF_KTHREAD))
+	if (pm_freezing() && !(p->flags & PF_KTHREAD))
 		return true;
 
 	return false;

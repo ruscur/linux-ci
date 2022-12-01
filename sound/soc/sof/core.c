@@ -9,6 +9,8 @@
 //
 
 #include <linux/firmware.h>
+#include <linux/kexec.h>
+#include <linux/freezer.h>
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
@@ -484,9 +486,10 @@ int snd_sof_device_shutdown(struct device *dev)
 	 * make sure clients and machine driver(s) are unregistered to force
 	 * all userspace devices to be closed prior to the DSP shutdown sequence
 	 */
-	sof_unregister_clients(sdev);
-
-	snd_sof_machine_unregister(sdev, pdata);
+	if (!(kexec_in_progress() && pm_freezing())) {
+		sof_unregister_clients(sdev);
+		snd_sof_machine_unregister(sdev, pdata);
+	}
 
 	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
 		return snd_sof_shutdown(sdev);

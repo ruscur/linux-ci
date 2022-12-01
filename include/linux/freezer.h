@@ -13,7 +13,7 @@
 #ifdef CONFIG_FREEZER
 DECLARE_STATIC_KEY_FALSE(freezer_active);
 
-extern bool pm_freezing;		/* PM freezing in effect */
+bool pm_freezing(void);
 extern bool pm_nosig_freezing;		/* PM nosig freezing in effect */
 
 /*
@@ -80,6 +80,7 @@ static inline int freeze_processes(void) { return -ENOSYS; }
 static inline int freeze_kernel_threads(void) { return -ENOSYS; }
 static inline void thaw_processes(void) {}
 static inline void thaw_kernel_threads(void) {}
+static inline bool pm_freezing(void) { return false; }
 
 static inline bool try_to_freeze(void) { return false; }
 

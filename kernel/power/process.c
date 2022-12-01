@@ -108,6 +108,22 @@ static int try_to_freeze_tasks(bool user_only)
 	return todo ? -EBUSY : 0;
 }
 
+/*
+ * Indicate whether PM freezing is in effect, protected by
+ * system_transition_mutex.
+ */
+static bool pm_freezing_internal;
+
+/**
+ * pm_freezing - indicate whether PM freezing is in effect.
+ *
+ */
+bool pm_freezing(void)
+{
+	return pm_freezing_internal;
+}
+EXPORT_SYMBOL(pm_freezing);
+
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
  * The current thread will not be frozen.  The same process that calls
@@ -126,12 +142,12 @@ int freeze_processes(void)
 	/* Make sure this task doesn't get frozen */
 	current->flags |= PF_SUSPEND_TASK;
 
-	if (!pm_freezing)
+	if (!pm_freezing())
 		static_branch_inc(&freezer_active);
 
 	pm_wakeup_clear(0);
 	pr_info("Freezing user space processes ... ");
-	pm_freezing = true;
+	pm_freezing_internal = true;
 	error = try_to_freeze_tasks(true);
 	if (!error) {
 		__usermodehelper_set_disable_depth(UMH_DISABLED);
@@ -187,9 +203,9 @@ void thaw_processes(void)
 	struct task_struct *curr = current;
 
 	trace_suspend_resume(TPS("thaw_processes"), 0, true);
-	if (pm_freezing)
+	if (pm_freezing())
 		static_branch_dec(&freezer_active);
-	pm_freezing = false;
+	pm_freezing_internal = false;
 	pm_nosig_freezing = false;
 
 	oom_killer_enable();

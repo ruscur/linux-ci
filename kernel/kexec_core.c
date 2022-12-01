@@ -52,8 +52,16 @@ atomic_t __kexec_lock = ATOMIC_INIT(0);
 note_buf_t __percpu *crash_notes;
 
 /* Flag to indicate we are going to kexec a new kernel */
-bool kexec_in_progress = false;
+static bool kexec_in_progress_internal;
 
+/**
+ * kexec_in_progress - Check if the system is going to kexec
+ */
+bool kexec_in_progress(void)
+{
+	return kexec_in_progress_internal;
+}
+EXPORT_SYMBOL(kexec_in_progress);
 
 /* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
@@ -1175,7 +1183,7 @@ int kernel_kexec(void)
 	} else
 #endif
 	{
-		kexec_in_progress = true;
+		kexec_in_progress_internal = true;
 		kernel_restart_prepare("kexec reboot");
 		migrate_to_reboot_cpu();
 

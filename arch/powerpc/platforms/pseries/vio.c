@@ -1289,7 +1289,7 @@ static void vio_bus_shutdown(struct device *dev)
 		viodrv = to_vio_driver(dev->driver);
 		if (viodrv->shutdown)
 			viodrv->shutdown(viodev);
-		else if (kexec_in_progress)
+		else if (kexec_in_progress())
 			vio_bus_remove(dev);
 	}
 }

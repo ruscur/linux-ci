@@ -122,21 +122,21 @@ void hv_remove_crash_handler(void)
 #ifdef CONFIG_KEXEC_CORE
 static void hv_machine_shutdown(void)
 {
-	if (kexec_in_progress && hv_kexec_handler)
+	if (kexec_in_progress() && hv_kexec_handler)
 		hv_kexec_handler();
 
 	/*
 	 * Call hv_cpu_die() on all the CPUs, otherwise later the hypervisor
 	 * corrupts the old VP Assist Pages and can crash the kexec kernel.
 	 */
-	if (kexec_in_progress && hyperv_init_cpuhp > 0)
+	if (kexec_in_progress() && hyperv_init_cpuhp > 0)
 		cpuhp_remove_state(hyperv_init_cpuhp);
 
 	/* The function calls stop_other_cpus(). */
 	native_machine_shutdown();
 
 	/* Disable the hypercall page when there is only 1 active CPU. */
-	if (kexec_in_progress)
+	if (kexec_in_progress())
 		hyperv_cleanup();
 }
 

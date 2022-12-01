@@ -1040,7 +1040,7 @@ static int update_efi_random_seed(struct notifier_block *nb,
 	struct linux_efi_random_seed *seed;
 	u32 size = 0;
 
-	if (!kexec_in_progress)
+	if (!kexec_in_progress())
 		return NOTIFY_DONE;
 
 	seed = memremap(efi_rng_seed, sizeof(*seed), MEMREMAP_WB);
