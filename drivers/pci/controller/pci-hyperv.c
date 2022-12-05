@@ -3816,7 +3816,7 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
  *
  * Return: 0 on success, -errno on failure
  */
-static int hv_pci_remove(struct hv_device *hdev)
+static void hv_pci_remove(struct hv_device *hdev)
 {
 	struct hv_pcibus_device *hbus;
 	int ret;
@@ -3855,7 +3855,6 @@ static int hv_pci_remove(struct hv_device *hdev)
 	hv_put_dom_num(hbus->bridge->domain_nr);
 
 	kfree(hbus);
-	return ret;
 }
 
 static int hv_pci_suspend(struct hv_device *hdev)

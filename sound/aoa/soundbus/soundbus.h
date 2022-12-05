@@ -184,10 +184,10 @@ struct soundbus_driver {
 
 	/* we don't implement any matching at all */
 
-	int	(*probe)(struct soundbus_dev* dev);
-	int	(*remove)(struct soundbus_dev* dev);
+	int	(*probe)(struct soundbus_dev *dev);
+	void	(*remove)(struct soundbus_dev *dev);
 
-	int	(*shutdown)(struct soundbus_dev* dev);
+	int	(*shutdown)(struct soundbus_dev *dev);
 
 	struct device_driver driver;
 };

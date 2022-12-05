@@ -62,9 +62,9 @@ struct ac97_codec_device {
  */
 struct ac97_codec_driver {
 	struct device_driver	driver;
-	int			(*probe)(struct ac97_codec_device *);
-	int			(*remove)(struct ac97_codec_device *);
-	void			(*shutdown)(struct ac97_codec_device *);
+	int			(*probe)(struct ac97_codec_device *dev);
+	void			(*remove)(struct ac97_codec_device *dev);
+	void			(*shutdown)(struct ac97_codec_device *dev);
 	const struct ac97_id	*id_table;
 };
 

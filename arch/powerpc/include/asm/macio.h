@@ -124,15 +124,15 @@ static inline struct pci_dev *macio_get_pci_dev(struct macio_dev *mdev)
  */
 struct macio_driver
 {
-	int	(*probe)(struct macio_dev* dev, const struct of_device_id *match);
-	int	(*remove)(struct macio_dev* dev);
+	int	(*probe)(struct macio_dev *dev, const struct of_device_id *match);
+	void	(*remove)(struct macio_dev *dev);
 
-	int	(*suspend)(struct macio_dev* dev, pm_message_t state);
-	int	(*resume)(struct macio_dev* dev);
-	int	(*shutdown)(struct macio_dev* dev);
+	int	(*suspend)(struct macio_dev *dev, pm_message_t state);
+	int	(*resume)(struct macio_dev *dev);
+	int	(*shutdown)(struct macio_dev *dev);
 
 #ifdef CONFIG_PMAC_MEDIABAY
-	void	(*mediabay_event)(struct macio_dev* dev, int mb_state);
+	void	(*mediabay_event)(struct macio_dev *dev, int mb_state);
 #endif
 	struct device_driver	driver;
 };

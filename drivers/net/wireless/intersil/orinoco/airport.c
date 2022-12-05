@@ -85,7 +85,7 @@ airport_resume(struct macio_dev *mdev)
 	return err;
 }
 
-static int
+static void
 airport_detach(struct macio_dev *mdev)
 {
 	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
@@ -111,8 +111,6 @@ airport_detach(struct macio_dev *mdev)
 
 	macio_set_drvdata(mdev, NULL);
 	free_orinocodev(priv);
-
-	return 0;
 }
 
 static int airport_hard_reset(struct orinoco_private *priv)
