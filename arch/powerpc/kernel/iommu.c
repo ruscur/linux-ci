@@ -953,7 +953,6 @@ void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 		size = PAGE_ALIGN(size);
 		nio_pages = size >> tbl->it_page_shift;
 		iommu_free(tbl, dma_handle, nio_pages);
-		size = PAGE_ALIGN(size);
 		free_pages((unsigned long)vaddr, get_order(size));
 	}
 }
