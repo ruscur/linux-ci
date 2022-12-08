@@ -211,6 +211,7 @@ static int init_cpu_associativity(void)
 
 	if (!vcpu_associativity || !pcpu_associativity) {
 		pr_err("error allocating memory for associativity information\n");
+		kfree(vcpu_associativity);
 		return -ENOMEM;
 	}
 
