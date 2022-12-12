@@ -43,6 +43,9 @@ static inline int is_ksym_addr(unsigned long addr)
 	if (IS_ENABLED(CONFIG_KALLSYMS_ALL))
 		return is_kernel(addr);
 
+	if (IS_ENABLED(CONFIG_HAVE_FUNCTION_DESCRIPTORS))
+		return is_kernel_text(addr) || is_kernel_inittext(addr) || is_kernel_opd(addr);
+
 	return is_kernel_text(addr) || is_kernel_inittext(addr);
 }
 
