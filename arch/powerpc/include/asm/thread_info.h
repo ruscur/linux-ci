@@ -186,6 +186,44 @@ static inline bool test_thread_local_flags(unsigned int flags)
 #define is_elf2_task() (0)
 #endif
 
+#ifdef CONFIG_PPC64
+
+#ifdef CONFIG_PPC64_ELF_ABI_V1
+#define PARAMETER_SAVE_OFFSET 48
+#else
+#define PARAMETER_SAVE_OFFSET 32
+#endif
+
+/*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *	GOOD_FRAME	if within a frame
+ *	BAD_STACK	if placed across a frame boundary (or outside stack)
+ */
+static inline int arch_within_stack_frames(const void * const stack,
+					   const void * const stackend,
+					   const void *obj, unsigned long len)
+{
+	const void *frame;
+	const void *oldframe;
+
+	oldframe = (const void *)current_stack_pointer;
+	frame = *(const void * const *)oldframe;
+
+	while (stack <= frame && frame < stackend) {
+		if (obj + len <= frame)
+			return obj >= oldframe + PARAMETER_SAVE_OFFSET ?
+				GOOD_FRAME : BAD_STACK;
+		oldframe = frame;
+		frame = *(const void * const *)oldframe;
+	}
+
+	return BAD_STACK;
+}
+#endif /* CONFIG_PPC64 */
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
