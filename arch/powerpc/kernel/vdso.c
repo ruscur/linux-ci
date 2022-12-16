@@ -123,7 +123,7 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 		unsigned long size = vma->vm_end - vma->vm_start;
 
 		if (vma_is_special_mapping(vma, &vvar_spec))
-			zap_page_range(vma, vma->vm_start, size);
+			zap_vma_page_range(vma, vma->vm_start, size);
 	}
 	mmap_read_unlock(mm);
 

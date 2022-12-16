@@ -63,7 +63,7 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 
 		if (!vma_is_special_mapping(vma, &vvar_mapping))
 			continue;
-		zap_page_range(vma, vma->vm_start, size);
+		zap_vma_page_range(vma, vma->vm_start, size);
 		break;
 	}
 	mmap_read_unlock(mm);
