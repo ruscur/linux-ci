@@ -1243,7 +1243,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 free_dev:
 	free_netdev(dev);
 undo_uhdlc_init:
-	iounmap(utdm->siram);
+	if (utdm != NULL) {
+		iounmap(utdm->siram);
+	}
 unmap_si_regs:
 	iounmap(utdm->si_regs);
 free_utdm:
