@@ -18,8 +18,10 @@ FTR_SECTION_ELSE
 #endif
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
-BEGIN_FTR_SECTION
+	/* prefixed instructions cause label difference to be non-constant
+	 * so can't go in FTR sections */
 	LOAD_REG_ADDR(r10, ppc64_caches)
+BEGIN_FTR_SECTION
 	lwz	r11,DCACHEL1LOGBLOCKSIZE(r10)	/* log2 of cache block size */
 	lwz     r12,DCACHEL1BLOCKSIZE(r10)	/* get cache block size */
 	li	r9,0

@@ -107,6 +107,7 @@ LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) += -z notext
 LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 ifdef CONFIG_PPC64
+ifndef CONFIG_PPC_KERNEL_PCREL
 ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# -mcmodel=medium breaks modules because it uses 32bit offsets from
 	# the TOC pointer to create pointers where possible. Pointers into the
@@ -119,6 +120,7 @@ ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	KBUILD_CFLAGS_MODULE += -mcmodel=large
 else
 	export NO_MINIMAL_TOC := -mno-minimal-toc
+endif
 endif
 endif
 
@@ -193,8 +195,16 @@ ifdef CONFIG_476FPE_ERR46
 endif
 
 # No prefix or pcrel
+ifdef CONFIG_PPC_KERNEL_PREFIXED
+KBUILD_CFLAGS += $(call cc-option,-mprefixed)
+else
 KBUILD_CFLAGS += $(call cc-option,-mno-prefixed)
+endif
+ifdef CONFIG_PPC_KERNEL_PCREL
+KBUILD_CFLAGS += $(call cc-option,-mpcrel)
+else
 KBUILD_CFLAGS += $(call cc-option,-mno-pcrel)
+endif
 
 # No AltiVec or VSX or MMA instructions when building kernel
 KBUILD_CFLAGS += $(call cc-option,-mno-altivec)
