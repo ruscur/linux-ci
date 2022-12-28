@@ -38,6 +38,39 @@ MODULE_LICENSE("GPL");
 #define LPBFIFO_REG_FIFO_CONTROL	(0x48)
 #define LPBFIFO_REG_FIFO_ALARM		(0x4C)
 
+#define MPC52XX_LPBFIFO_FLAG_WRITE		(1<<0)
+#define MPC52XX_LPBFIFO_FLAG_NO_DMA		(1<<2)
+#define MPC52XX_LPBFIFO_FLAG_POLL_DMA		(1<<3)
+
+struct mpc52xx_lpbfifo_request {
+	struct list_head list;
+
+	/* localplus bus address */
+	unsigned int cs;
+	size_t offset;
+
+	/* Memory address */
+	void *data;
+	phys_addr_t data_phys;
+
+	/* Details of transfer */
+	size_t size;
+	size_t pos;	/* current position of transfer */
+	int flags;
+	int defer_xfer_start;
+
+	/* What to do when finished */
+	void (*callback)(struct mpc52xx_lpbfifo_request *);
+
+	void *priv;		/* Driver private data */
+
+	/* statistics */
+	int irq_count;
+	int irq_ticks;
+	u8 last_byte;
+	int buffer_not_done_cnt;
+};
+
 struct mpc52xx_lpbfifo {
 	struct device *dev;
 	phys_addr_t regs_phys;
@@ -380,107 +413,6 @@ static irqreturn_t mpc52xx_lpbfifo_bcom_irq(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
-/**
- * mpc52xx_lpbfifo_poll - Poll for DMA completion
- */
-void mpc52xx_lpbfifo_poll(void)
-{
-	struct mpc52xx_lpbfifo_request *req = lpbfifo.req;
-	int dma = !(req->flags & MPC52XX_LPBFIFO_FLAG_NO_DMA);
-	int write = req->flags & MPC52XX_LPBFIFO_FLAG_WRITE;
-
-	/*
-	 * For more information, see comments on the "Fat Lady" 
-	 */
-	if (dma && write)
-		mpc52xx_lpbfifo_irq(0, NULL);
-	else 
-		mpc52xx_lpbfifo_bcom_irq(0, NULL);
-}
-EXPORT_SYMBOL(mpc52xx_lpbfifo_poll);
-
-/**
- * mpc52xx_lpbfifo_submit - Submit an LPB FIFO transfer request.
- * @req: Pointer to request structure
- *
- * Return: %0 on success, -errno code on error
- */
-int mpc52xx_lpbfifo_submit(struct mpc52xx_lpbfifo_request *req)
-{
-	unsigned long flags;
-
-	if (!lpbfifo.regs)
-		return -ENODEV;
-
-	spin_lock_irqsave(&lpbfifo.lock, flags);
-
-	/* If the req pointer is already set, then a transfer is in progress */
-	if (lpbfifo.req) {
-		spin_unlock_irqrestore(&lpbfifo.lock, flags);
-		return -EBUSY;
-	}
-
-	/* Setup the transfer */
-	lpbfifo.req = req;
-	req->irq_count = 0;
-	req->irq_ticks = 0;
-	req->buffer_not_done_cnt = 0;
-	req->pos = 0;
-
-	mpc52xx_lpbfifo_kick(req);
-	spin_unlock_irqrestore(&lpbfifo.lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(mpc52xx_lpbfifo_submit);
-
-int mpc52xx_lpbfifo_start_xfer(struct mpc52xx_lpbfifo_request *req)
-{
-	unsigned long flags;
-
-	if (!lpbfifo.regs)
-		return -ENODEV;
-
-	spin_lock_irqsave(&lpbfifo.lock, flags);
-
-	/*
-	 * If the req pointer is already set and a transfer was
-	 * started on submit, then this transfer is in progress
-	 */
-	if (lpbfifo.req && !lpbfifo.req->defer_xfer_start) {
-		spin_unlock_irqrestore(&lpbfifo.lock, flags);
-		return -EBUSY;
-	}
-
-	/*
-	 * If the req was previously submitted but not
-	 * started, start it now
-	 */
-	if (lpbfifo.req && lpbfifo.req == req &&
-	    lpbfifo.req->defer_xfer_start) {
-		out_8(lpbfifo.regs + LPBFIFO_REG_PACKET_SIZE, 0x01);
-	}
-
-	spin_unlock_irqrestore(&lpbfifo.lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(mpc52xx_lpbfifo_start_xfer);
-
-void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&lpbfifo.lock, flags);
-	if (lpbfifo.req == req) {
-		/* Put it into reset and clear the state */
-		bcom_gen_bd_rx_reset(lpbfifo.bcom_rx_task);
-		bcom_gen_bd_tx_reset(lpbfifo.bcom_tx_task);
-		out_be32(lpbfifo.regs + LPBFIFO_REG_ENABLE, 0x01010000);
-		lpbfifo.req = NULL;
-	}
-	spin_unlock_irqrestore(&lpbfifo.lock, flags);
-}
-EXPORT_SYMBOL(mpc52xx_lpbfifo_abort);
 
 static int mpc52xx_lpbfifo_probe(struct platform_device *op)
 {
