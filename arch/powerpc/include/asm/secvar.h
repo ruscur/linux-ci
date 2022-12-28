@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/sysfs.h>
 
 extern const struct secvar_operations *secvar_ops;
 
@@ -20,15 +21,19 @@ struct secvar_operations {
 			uint64_t keybufsize);
 	int (*set)(const char *key, uint64_t key_len, u8 *data,
 		   uint64_t data_size);
+	ssize_t (*format)(char *buf);
+	int (*max_size)(uint64_t *max_size);
 };
 
 #ifdef CONFIG_PPC_SECURE_BOOT
 
 extern void set_secvar_ops(const struct secvar_operations *ops);
+extern void set_secvar_config_attrs(const struct attribute **attrs);
 
 #else
 
 static inline void set_secvar_ops(const struct secvar_operations *ops) { }
+static inline void set_secvar_config_attrs(const struct attribute **attrs) { }
 
 #endif
 

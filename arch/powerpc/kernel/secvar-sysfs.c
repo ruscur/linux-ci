@@ -15,32 +15,21 @@
 
 #define NAME_MAX_SIZE	   1024
 
+const struct attribute **secvar_config_attrs __ro_after_init = NULL;
+
 static struct kobject *secvar_kobj;
 static struct kset *secvar_kset;
+
+void set_secvar_config_attrs(const struct attribute **attrs)
+{
+	WARN_ON_ONCE(secvar_config_attrs);
+	secvar_config_attrs = attrs;
+}
 
 static ssize_t format_show(struct kobject *kobj, struct kobj_attribute *attr,
 			   char *buf)
 {
-	ssize_t rc = 0;
-	struct device_node *node;
-	const char *format;
-
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node)) {
-		rc = -ENODEV;
-		goto out;
-	}
-
-	rc = of_property_read_string(node, "format", &format);
-	if (rc)
-		goto out;
-
-	rc = sprintf(buf, "%s\n", format);
-
-out:
-	of_node_put(node);
-
-	return rc;
+	return secvar_ops->format(buf);
 }
 
 
@@ -141,27 +130,26 @@ static struct kobj_type secvar_ktype = {
 static int update_kobj_size(void)
 {
 
-	struct device_node *node;
 	u64 varsize;
-	int rc = 0;
+	int rc = secvar_ops->max_size(&varsize);
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node)) {
-		rc = -ENODEV;
-		goto out;
-	}
-
-	rc = of_property_read_u64(node, "max-var-size", &varsize);
 	if (rc)
-		goto out;
+		return rc;
 
 	data_attr.size = varsize;
 	update_attr.size = varsize;
 
-out:
-	of_node_put(node);
+	return 0;
+}
 
-	return rc;
+static int secvar_sysfs_config(struct kobject *kobj)
+{
+	struct attribute_group config_group = {
+		.name = "config",
+		.attrs = (struct attribute **)secvar_config_attrs,
+	};
+
+	return sysfs_create_group(kobj, &config_group);
 }
 
 static int secvar_sysfs_load(void)
@@ -226,26 +214,38 @@ static int secvar_sysfs_init(void)
 
 	rc = sysfs_create_file(secvar_kobj, &format_attr.attr);
 	if (rc) {
-		kobject_put(secvar_kobj);
-		return -ENOMEM;
+		pr_err("secvar: Failed to create format object\n");
+		rc = -ENOMEM;
+		goto err;
 	}
 
 	secvar_kset = kset_create_and_add("vars", NULL, secvar_kobj);
 	if (!secvar_kset) {
 		pr_err("secvar: sysfs kobject registration failed.\n");
-		kobject_put(secvar_kobj);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err;
 	}
 
 	rc = update_kobj_size();
 	if (rc) {
 		pr_err("Cannot read the size of the attribute\n");
-		return rc;
+		goto err;
+	}
+
+	if (secvar_config_attrs) {
+		rc = secvar_sysfs_config(secvar_kobj);
+		if (rc) {
+			pr_err("secvar: Failed to create config directory\n");
+			goto err;
+		}
 	}
 
 	secvar_sysfs_load();
 
 	return 0;
+err:
+	kobject_put(secvar_kobj);
+	return rc;
 }
 
 late_initcall(secvar_sysfs_init);
