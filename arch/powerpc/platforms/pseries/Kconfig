@@ -162,6 +162,19 @@ config PSERIES_PLPKS
 
 	  If unsure, select N.
 
+config PSERIES_PLPKS_SECVAR
+	depends on PSERIES_PLPKS
+	depends on PPC_SECURE_BOOT
+	bool "Support for the PLPKS secvar interface"
+	help
+	  PowerVM can support dynamic secure boot with user-defined keys
+	  through the PLPKS. Keystore objects used in dynamic secure boot
+	  can be exposed to the kernel and userspace through the powerpc
+	  secvar infrastructure. Select this to enable the PLPKS backend
+	  for secvars for use in pseries dynamic secure boot.
+
+	  If unsure, select N.
+
 config PAPR_SCM
 	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
 	tristate "Support for the PAPR Storage Class Memory interface"
