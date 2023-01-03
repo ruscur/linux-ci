@@ -210,6 +210,10 @@ ld_version()
 	gsub(".*version ", "");
 	gsub("-.*", "");
 	split($1,a, ".");
+	if( length(a[3]) == "8" )
+		# a[3] is probably a date of format yyyymmdd. An 8 digit number will break
+		# the function so just keep the "mm" part as an approximation
+		a[3] = substr(a[3],5,2);
 	print a[1]*100000000 + a[2]*1000000 + a[3]*10000;
 	exit
     }'
