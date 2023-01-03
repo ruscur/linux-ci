@@ -2536,6 +2536,9 @@ void pci_ims_free_irq(struct pci_dev *pdev, struct msi_map map);
 #define pci_info_ratelimited(pdev, fmt, arg...) \
 	dev_info_ratelimited(&(pdev)->dev, fmt, ##arg)
 
+#define pci_warn_ratelimited(pdev, fmt, arg...) \
+	dev_warn_ratelimited(&(pdev)->dev, fmt, ##arg)
+
 #define pci_WARN(pdev, condition, fmt, arg...) \
 	WARN(condition, "%s %s: " fmt, \
 	     dev_driver_string(&(pdev)->dev), pci_name(pdev), ##arg)
