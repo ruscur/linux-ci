@@ -25,7 +25,6 @@ jobs:
     env:
       ARCH: powerpc
       TARGET: kernel
-      CCACHE: 1
       SUBARCH: ${{ matrix.subarch }}
       IMAGE: ${{ matrix.image }}
       DEFCONFIG: ${{ matrix.defconfig }}
@@ -33,7 +32,7 @@ jobs:
       KBUILD_EXTRA_WARN: 1
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
 
     - name: Register problem matchers
       run: |
@@ -41,18 +40,19 @@ jobs:
         echo "::add-matcher::.github/problem-matchers/compiler-non-source.json"
 
     - name: Load ccache
-      uses: actions/cache@v3
+      uses: actions/cache@v2
       with:
         path: ~/.ccache
         key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
 
-    - name: Build
+    - name: build
       run: |
         mkdir -p ~/.ccache
-        ./arch/powerpc/tools/ci-build.sh
+        ls -l ~/.ccache
+        CCACHE=1 ./arch/powerpc/tools/ci-build.sh
 
     - name: Archive artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.defconfig }}-${{ matrix.image }}
         path: |
