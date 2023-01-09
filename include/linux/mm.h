@@ -250,6 +250,7 @@ void setup_initial_init_mm(void *start_code, void *end_code,
 struct vm_area_struct *vm_area_alloc(struct mm_struct *);
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *);
 void vm_area_free(struct vm_area_struct *);
+void drain_free_vmas(struct mm_struct *mm);
 
 #ifndef CONFIG_MMU
 extern struct rb_root nommu_region_tree;
@@ -416,8 +417,8 @@ extern unsigned int kobjsize(const void *objp);
 /* This mask defines which mm->def_flags a process can inherit its parent */
 #define VM_INIT_DEF_MASK	VM_NOHUGEPAGE
 
-/* This mask is used to clear all the VMA flags used by mlock */
-#define VM_LOCKED_CLEAR_MASK	(~(VM_LOCKED | VM_LOCKONFAULT))
+/* This mask represents all the VMA flag bits used by mlock */
+#define VM_LOCKED_MASK	(VM_LOCKED | VM_LOCKONFAULT)
 
 /* Arch-specific flags to clear when updating VM flags on protection change */
 #ifndef VM_ARCH_CLEAR
@@ -467,7 +468,8 @@ static inline bool fault_flag_allow_retry_first(enum fault_flag flags)
 	{ FAULT_FLAG_USER,		"USER" }, \
 	{ FAULT_FLAG_REMOTE,		"REMOTE" }, \
 	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }, \
-	{ FAULT_FLAG_INTERRUPTIBLE,	"INTERRUPTIBLE" }
+	{ FAULT_FLAG_INTERRUPTIBLE,	"INTERRUPTIBLE" }, \
+	{ FAULT_FLAG_VMA_LOCK,		"VMA_LOCK" }
 
 /*
  * vm_fault is filled by the pagefault handler and passed to the vma's
@@ -612,6 +614,107 @@ struct vm_operations_struct {
 					  unsigned long addr);
 };
 
+#ifdef CONFIG_PER_VMA_LOCK
+
+static inline void vma_write_lock(struct vm_area_struct *vma)
+{
+	int mm_lock_seq;
+
+	mmap_assert_write_locked(vma->vm_mm);
+
+	/*
+	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
+	 * mm->mm_lock_seq can't be concurrently modified.
+	 */
+	mm_lock_seq = READ_ONCE(vma->vm_mm->mm_lock_seq);
+	if (vma->vm_lock->lock_seq == mm_lock_seq)
+		return;
+
+	if (atomic_cmpxchg(&vma->vm_lock->count, 0, -1))
+		wait_event(vma->vm_mm->vma_writer_wait,
+			   atomic_cmpxchg(&vma->vm_lock->count, 0, -1) == 0);
+	vma->vm_lock->lock_seq = mm_lock_seq;
+	/* Write barrier to ensure lock_seq change is visible before count */
+	smp_wmb();
+	atomic_set(&vma->vm_lock->count, 0);
+}
+
+/*
+ * Try to read-lock a vma. The function is allowed to occasionally yield false
+ * locked result to avoid performance overhead, in which case we fall back to
+ * using mmap_lock. The function should never yield false unlocked result.
+ */
+static inline bool vma_read_trylock(struct vm_area_struct *vma)
+{
+	/* Check before locking. A race might cause false locked result. */
+	if (vma->vm_lock->lock_seq == READ_ONCE(vma->vm_mm->mm_lock_seq))
+		return false;
+
+	if (unlikely(!atomic_inc_unless_negative(&vma->vm_lock->count)))
+		return false;
+
+	/* If atomic_t overflows, restore and fail to lock. */
+	if (unlikely(atomic_read(&vma->vm_lock->count) < 0)) {
+		if (atomic_dec_and_test(&vma->vm_lock->count))
+			wake_up(&vma->vm_mm->vma_writer_wait);
+		return false;
+	}
+
+	/*
+	 * Overflow might produce false locked result.
+	 * False unlocked result is impossible because we modify and check
+	 * vma->vm_lock_seq under vma->vm_lock protection and mm->mm_lock_seq
+	 * modification invalidates all existing locks.
+	 */
+	if (unlikely(vma->vm_lock->lock_seq == READ_ONCE(vma->vm_mm->mm_lock_seq))) {
+		if (atomic_dec_and_test(&vma->vm_lock->count))
+			wake_up(&vma->vm_mm->vma_writer_wait);
+		return false;
+	}
+	return true;
+}
+
+static inline void vma_read_unlock(struct vm_area_struct *vma)
+{
+	if (atomic_dec_and_test(&vma->vm_lock->count))
+		wake_up(&vma->vm_mm->vma_writer_wait);
+}
+
+static inline void vma_assert_write_locked(struct vm_area_struct *vma)
+{
+	mmap_assert_write_locked(vma->vm_mm);
+	/*
+	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
+	 * mm->mm_lock_seq can't be concurrently modified.
+	 */
+	VM_BUG_ON_VMA(vma->vm_lock->lock_seq != READ_ONCE(vma->vm_mm->mm_lock_seq), vma);
+}
+
+static inline void vma_assert_no_reader(struct vm_area_struct *vma)
+{
+	VM_BUG_ON_VMA(atomic_read(&vma->vm_lock->count) > 0 &&
+		      vma->vm_lock->lock_seq != READ_ONCE(vma->vm_mm->mm_lock_seq),
+		      vma);
+}
+
+struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
+					  unsigned long address);
+
+#else /* CONFIG_PER_VMA_LOCK */
+
+static inline void vma_write_lock(struct vm_area_struct *vma) {}
+static inline bool vma_read_trylock(struct vm_area_struct *vma)
+		{ return false; }
+static inline void vma_read_unlock(struct vm_area_struct *vma) {}
+static inline void vma_assert_write_locked(struct vm_area_struct *vma) {}
+static inline void vma_assert_no_reader(struct vm_area_struct *vma) {}
+
+#endif /* CONFIG_PER_VMA_LOCK */
+
+/*
+ * WARNING: vma_init does not initialize vma->vm_lock.
+ * Use vm_area_alloc()/vm_area_free() if vma needs locking.
+ */
 static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
 {
 	static const struct vm_operations_struct dummy_vm_ops = {};
@@ -620,6 +723,52 @@ static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
 	vma->vm_mm = mm;
 	vma->vm_ops = &dummy_vm_ops;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
+}
+
+/* Use when VMA is not part of the VMA tree and needs no locking */
+static inline
+void init_vm_flags(struct vm_area_struct *vma, unsigned long flags)
+{
+	WRITE_ONCE(vma->vm_flags, flags);
+}
+
+/* Use when VMA is part of the VMA tree and needs appropriate locking */
+static inline
+void reset_vm_flags(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma_write_lock(vma);
+	init_vm_flags(vma, flags);
+}
+
+static inline
+void set_vm_flags(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma_write_lock(vma);
+	vma->vm_flags |= flags;
+}
+
+static inline
+void clear_vm_flags(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma_write_lock(vma);
+	vma->vm_flags &= ~flags;
+}
+
+static inline
+void mod_vm_flags_nolock(struct vm_area_struct *vma,
+		  unsigned long set, unsigned long clear)
+{
+	vma->vm_flags |= set;
+	vma->vm_flags &= ~clear;
+}
+
+static inline
+void mod_vm_flags(struct vm_area_struct *vma,
+		  unsigned long set, unsigned long clear)
+{
+	vma_write_lock(vma);
+	vma->vm_flags |= set;
+	vma->vm_flags &= ~clear;
 }
 
 static inline void vma_set_anonymous(struct vm_area_struct *vma)
@@ -1997,7 +2146,7 @@ void zap_page_range_single(struct vm_area_struct *vma, unsigned long address,
 			   unsigned long size, struct zap_details *details);
 void unmap_vmas(struct mmu_gather *tlb, struct maple_tree *mt,
 		struct vm_area_struct *start_vma, unsigned long start,
-		unsigned long end);
+		unsigned long end, bool lock_vma);
 
 struct mmu_notifier_range;
 
@@ -3638,7 +3787,7 @@ static inline int seal_check_future_write(int seals, struct vm_area_struct *vma)
 		 * VM_MAYWRITE as we still want them to be COW-writable.
 		 */
 		if (vma->vm_flags & VM_SHARED)
-			vma->vm_flags &= ~(VM_MAYWRITE);
+			clear_vm_flags(vma, VM_MAYWRITE);
 	}
 
 	return 0;
