@@ -14,6 +14,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hrtimer.h>
 #include <linux/mmu_context.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/nospec.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
@@ -2484,14 +2485,11 @@ static int register_io_adapter(struct kvm_device *dev,
 
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked)
 {
-	int ret;
 	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
 
 	if (!adapter || !adapter->maskable)
 		return -EINVAL;
-	ret = adapter->masked;
-	adapter->masked = masked;
-	return ret;
+	return __xchg(&adapter->masked, masked);
 }
 
 void kvm_s390_destroy_adapters(struct kvm *kvm)

@@ -12,6 +12,7 @@
 #include <linux/ethtool.h>
 #include <linux/usb.h>
 #include <linux/uaccess.h>
+#include <linux/non-atomic/xchg.h>
 
 /* Version Information */
 #define DRIVER_VERSION "v0.6.2 (2004/08/27)"
@@ -354,15 +355,11 @@ static void unlink_all_urbs(rtl8150_t * dev)
 
 static inline struct sk_buff *pull_skb(rtl8150_t *dev)
 {
-	struct sk_buff *skb;
 	int i;
 
 	for (i = 0; i < RX_SKB_POOL_SIZE; i++) {
-		if (dev->rx_skb_pool[i]) {
-			skb = dev->rx_skb_pool[i];
-			dev->rx_skb_pool[i] = NULL;
-			return skb;
-		}
+		if (dev->rx_skb_pool[i])
+			return __xchg(&dev->rx_skb_pool[i], NULL);
 	}
 	return NULL;
 }

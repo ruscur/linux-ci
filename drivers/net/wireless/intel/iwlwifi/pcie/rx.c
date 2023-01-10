@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/gfp.h>
+#include <linux/non-atomic/xchg.h>
 
 #include "iwl-prph.h"
 #include "iwl-io.h"
@@ -1430,11 +1431,8 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 	BUILD_BUG_ON(sizeof(struct iwl_rx_completion_desc) != 32);
 	BUILD_BUG_ON(sizeof(struct iwl_rx_completion_desc_bz) != 4);
 
-	if (!trans->trans_cfg->mq_rx_supported) {
-		rxb = rxq->queue[i];
-		rxq->queue[i] = NULL;
-		return rxb;
-	}
+	if (!trans->trans_cfg->mq_rx_supported)
+		return __xchg(&rxq->queue[i], NULL);
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		struct iwl_rx_completion_desc_bz *cd = rxq->used_bd;

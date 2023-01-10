@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/if.h>
@@ -564,7 +565,6 @@ static inline struct sk_buff *get_skb_by_index(struct sk_buff **skb_array,
 					       struct ehea_cqe *cqe)
 {
 	int skb_index = EHEA_BMASK_GET(EHEA_WR_ID_INDEX, cqe->wr_id);
-	struct sk_buff *skb;
 	void *pref;
 	int x;
 
@@ -583,15 +583,12 @@ static inline struct sk_buff *get_skb_by_index(struct sk_buff **skb_array,
 		prefetch(pref + EHEA_CACHE_LINE * 3);
 	}
 
-	skb = skb_array[skb_index];
-	skb_array[skb_index] = NULL;
-	return skb;
+	return __xchg(&skb_array[skb_index], NULL);
 }
 
 static inline struct sk_buff *get_skb_by_index_ll(struct sk_buff **skb_array,
 						  int arr_len, int wqe_index)
 {
-	struct sk_buff *skb;
 	void *pref;
 	int x;
 
@@ -608,9 +605,7 @@ static inline struct sk_buff *get_skb_by_index_ll(struct sk_buff **skb_array,
 		prefetchw(pref + EHEA_CACHE_LINE);
 	}
 
-	skb = skb_array[wqe_index];
-	skb_array[wqe_index] = NULL;
-	return skb;
+	return __xchg(&skb_array[wqe_index], NULL);
 }
 
 static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,

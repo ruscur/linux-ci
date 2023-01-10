@@ -37,6 +37,7 @@
 #include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -901,10 +902,7 @@ static inline struct page *cache_deq(struct gnttab_page_cache *cache)
 {
 	struct page *page;
 
-	page = cache->pages;
-	cache->pages = page->zone_device_data;
-
-	return page;
+	return __xchg(&cache->pages, page->zone_device_data);
 }
 
 static inline void cache_enq(struct gnttab_page_cache *cache, struct page *page)

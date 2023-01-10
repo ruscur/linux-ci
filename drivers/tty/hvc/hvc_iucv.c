@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/mempool.h>
 #include <linux/moduleparam.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/tty.h>
 #include <linux/wait.h>
 #include <net/iucv/iucv.h>
@@ -388,7 +389,7 @@ static int hvc_iucv_queue(struct hvc_iucv_private *priv, const char *buf,
 static int hvc_iucv_send(struct hvc_iucv_private *priv)
 {
 	struct iucv_tty_buffer *sb;
-	int rc, len;
+	int rc;
 
 	if (priv->iucv_state == IUCV_SEVERED)
 		return -EPIPE;
@@ -419,10 +420,7 @@ static int hvc_iucv_send(struct hvc_iucv_private *priv)
 		list_del(&sb->list);
 		destroy_tty_buffer(sb);
 	}
-	len = priv->sndbuf_len;
-	priv->sndbuf_len = 0;
-
-	return len;
+	return __xchg(&priv->sndbuf_len, 0);
 }
 
 /**

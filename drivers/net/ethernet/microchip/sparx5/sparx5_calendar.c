@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/non-atomic/xchg.h>
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
@@ -265,14 +266,11 @@ static u32 sparx5_dsm_cal_len(u32 *cal)
 
 static u32 sparx5_dsm_cp_cal(u32 *sched)
 {
-	u32 idx = 0, tmp;
+	u32 idx = 0;
 
 	while (idx < SPX5_DSM_CAL_LEN) {
-		if (sched[idx] != SPX5_DSM_CAL_EMPTY) {
-			tmp = sched[idx];
-			sched[idx] = SPX5_DSM_CAL_EMPTY;
-			return tmp;
-		}
+		if (sched[idx] != SPX5_DSM_CAL_EMPTY)
+			return __xchg(&sched[idx], SPX5_DSM_CAL_EMPTY);
 		idx++;
 	}
 	return SPX5_DSM_CAL_EMPTY;

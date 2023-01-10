@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/non-atomic/xchg.h>
 #include <asm/errno.h>
 #endif
 
@@ -560,7 +561,6 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
 					   void (*destroy)(void *))
 {
 	int producer = 0;
-	void **old;
 	void *ptr;
 
 	while ((ptr = __ptr_ring_consume(r)))
@@ -575,10 +575,7 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
 	r->producer = producer;
 	r->consumer_head = 0;
 	r->consumer_tail = 0;
-	old = r->queue;
-	r->queue = queue;
-
-	return old;
+	return __xchg(&r->queue, queue);
 }
 
 /*

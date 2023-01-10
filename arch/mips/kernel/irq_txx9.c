@@ -15,6 +15,7 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/types.h>
 #include <linux/irq.h>
 #include <asm/txx9irq.h>
@@ -159,13 +160,9 @@ void __init txx9_irq_init(unsigned long baseaddr)
 
 int __init txx9_irq_set_pri(int irc_irq, int new_pri)
 {
-	int old_pri;
-
 	if ((unsigned int)irc_irq >= TXx9_MAX_IR)
 		return 0;
-	old_pri = txx9irq[irc_irq].level;
-	txx9irq[irc_irq].level = new_pri;
-	return old_pri;
+	return __xchg(&txx9irq[irc_irq].level, new_pri);
 }
 
 int txx9_irq(void)

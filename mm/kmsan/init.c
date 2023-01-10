@@ -12,6 +12,7 @@
 #include <asm/sections.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
+#include <linux/non-atomic/xchg.h>
 
 #include "../internal.h"
 
@@ -154,13 +155,9 @@ static void smallstack_push(struct smallstack *stack, struct page *pages)
 
 static struct page *smallstack_pop(struct smallstack *stack)
 {
-	struct page *ret;
-
 	KMSAN_WARN_ON(stack->index == 0);
 	stack->index--;
-	ret = stack->items[stack->index];
-	stack->items[stack->index] = NULL;
-	return ret;
+	return __xchg(&stack->items[stack->index], NULL);
 }
 
 static void do_collection(void)

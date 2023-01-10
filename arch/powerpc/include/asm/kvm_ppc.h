@@ -13,6 +13,7 @@
  * dependencies. */
 
 #include <linux/mutex.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
@@ -434,11 +435,7 @@ static inline void kvmppc_set_xive_tima(int cpu,
 
 static inline u32 kvmppc_get_xics_latch(void)
 {
-	u32 xirr;
-
-	xirr = get_paca()->kvm_hstate.saved_xirr;
-	get_paca()->kvm_hstate.saved_xirr = 0;
-	return xirr;
+	return __xchg(&get_paca()->kvm_hstate.saved_xirr, 0);
 }
 
 /*

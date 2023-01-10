@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/lockdep.h>
+#include <linux/non-atomic/xchg.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -943,11 +944,7 @@ __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 struct lpfc_sglq *
 __lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 {
-	struct lpfc_sglq *sglq;
-
-	sglq = phba->sli4_hba.lpfc_sglq_active_list[xritag];
-	phba->sli4_hba.lpfc_sglq_active_list[xritag] = NULL;
-	return sglq;
+	return __xchg(&phba->sli4_hba.lpfc_sglq_active_list[xritag], NULL);
 }
 
 /**

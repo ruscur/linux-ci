@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/swap.h>
 #include <linux/stddef.h>
 #include <linux/vmalloc.h>
@@ -138,14 +139,10 @@ static int num_freed;
 
 static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 {
-	struct vmemmap_backing *vmem_back;
 	/* get from freed entries first */
 	if (num_freed) {
 		num_freed--;
-		vmem_back = next;
-		next = next->list;
-
-		return vmem_back;
+		return __xchg(&next, next->list);
 	}
 
 	/* allocate a page when required and hand out chunks */

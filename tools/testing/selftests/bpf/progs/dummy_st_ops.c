@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2021. Huawei Technologies Co., Ltd */
 #include <linux/bpf.h>
+#include <linux/non-atomic/xchg.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -19,14 +20,10 @@ char _license[] SEC("license") = "GPL";
 SEC("struct_ops/test_1")
 int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
 {
-	int ret;
-
 	if (!state)
 		return 0xf2f3f4f5;
 
-	ret = state->val;
-	state->val = 0x5a;
-	return ret;
+	return __xchg(&state->val, 0x5a);
 }
 
 __u64 test_2_args[5];

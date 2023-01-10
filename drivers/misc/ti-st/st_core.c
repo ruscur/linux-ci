@@ -9,6 +9,7 @@
 #define pr_fmt(fmt)	"(stc): " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/tty.h>
 
 #include <linux/seq_file.h>
@@ -397,14 +398,9 @@ done:
  */
 static struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
-	struct sk_buff *returning_skb;
-
 	pr_debug("%s", __func__);
-	if (st_gdata->tx_skb != NULL) {
-		returning_skb = st_gdata->tx_skb;
-		st_gdata->tx_skb = NULL;
-		return returning_skb;
-	}
+	if (st_gdata->tx_skb != NULL)
+		return __xchg(&st_gdata->tx_skb, NULL);
 	return skb_dequeue(&st_gdata->txq);
 }
 

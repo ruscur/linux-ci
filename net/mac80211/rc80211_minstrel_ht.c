@@ -11,6 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
 #include <linux/minmax.h>
+#include <linux/non-atomic/xchg.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "sta_info.h"
@@ -702,16 +703,13 @@ __minstrel_ht_get_sample_rate(struct minstrel_ht_sta *mi,
 			      enum minstrel_sample_type type)
 {
 	u16 *rates = mi->sample[type].sample_rates;
-	u16 cur;
 	int i;
 
 	for (i = 0; i < MINSTREL_SAMPLE_RATES; i++) {
 		if (!rates[i])
 			continue;
 
-		cur = rates[i];
-		rates[i] = 0;
-		return cur;
+		return __xchg(&rates[i], 0);
 	}
 
 	return 0;

@@ -12,6 +12,7 @@
 #include <linux/unistd.h>
 #include <linux/proc_fs.h>
 #include <linux/jiffies.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -172,11 +173,7 @@ static u_char lastind;
 
 static unsigned char get_index(struct spk_synth *synth)
 {
-	u_char rv;
-
-	rv = lastind;
-	lastind = 0;
-	return rv;
+	return __xchg(&lastind, 0);
 }
 
 static void read_buff_add(u_char c)

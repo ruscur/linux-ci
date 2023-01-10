@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/capability.h>
 #include <linux/mnt_namespace.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/user_namespace.h>
 #include <linux/namei.h>
 #include <linux/security.h>
@@ -990,15 +991,12 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
  */
 static struct mountpoint *unhash_mnt(struct mount *mnt)
 {
-	struct mountpoint *mp;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
 	hlist_del_init_rcu(&mnt->mnt_hash);
 	hlist_del_init(&mnt->mnt_mp_list);
-	mp = mnt->mnt_mp;
-	mnt->mnt_mp = NULL;
-	return mp;
+	return __xchg(&mnt->mnt_mp, NULL);
 }
 
 /*

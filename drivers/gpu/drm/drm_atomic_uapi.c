@@ -36,6 +36,7 @@
 #include <drm/drm_vblank.h>
 
 #include <linux/dma-fence.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/uaccess.h>
 #include <linux/sync_file.h>
 #include <linux/file.h>
@@ -325,12 +326,7 @@ static void set_out_fence_for_crtc(struct drm_atomic_state *state,
 static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
 					  struct drm_crtc *crtc)
 {
-	s32 __user *fence_ptr;
-
-	fence_ptr = state->crtcs[drm_crtc_index(crtc)].out_fence_ptr;
-	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = NULL;
-
-	return fence_ptr;
+	return __xchg(&state->crtcs[drm_crtc_index(crtc)].out_fence_ptr, NULL);
 }
 
 static int set_out_fence_for_connector(struct drm_atomic_state *state,
@@ -354,12 +350,8 @@ static s32 __user *get_out_fence_for_connector(struct drm_atomic_state *state,
 					       struct drm_connector *connector)
 {
 	unsigned int index = drm_connector_index(connector);
-	s32 __user *fence_ptr;
 
-	fence_ptr = state->connectors[index].out_fence_ptr;
-	state->connectors[index].out_fence_ptr = NULL;
-
-	return fence_ptr;
+	return __xchg(&state->connectors[index].out_fence_ptr, NULL);
 }
 
 static int

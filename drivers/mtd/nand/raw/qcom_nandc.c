@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/delay.h>
@@ -2507,13 +2508,9 @@ static uint8_t qcom_nandc_read_byte(struct nand_chip *chip)
 	u8 *buf = nandc->data_buffer;
 	u8 ret = 0x0;
 
-	if (host->last_command == NAND_CMD_STATUS) {
-		ret = host->status;
-
-		host->status = NAND_STATUS_READY | NAND_STATUS_WP;
-
-		return ret;
-	}
+	if (host->last_command == NAND_CMD_STATUS)
+		return __xchg(&host->status,
+			      NAND_STATUS_READY | NAND_STATUS_WP);
 
 	if (nandc->buf_start < nandc->buf_count)
 		ret = buf[nandc->buf_start++];

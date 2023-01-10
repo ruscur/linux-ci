@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/screen_info.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
@@ -3261,10 +3262,7 @@ sisfb_poh_new_node(struct SIS_HEAP *memheap)
 		memheap->poh_freelist = &poha->aoh[0];
 	}
 
-	poh = memheap->poh_freelist;
-	memheap->poh_freelist = poh->poh_next;
-
-	return poh;
+	return __xchg(&memheap->poh_freelist, poh->poh_next);
 }
 
 static struct SIS_OH *

@@ -7,6 +7,7 @@
 
 #include <linux/iova.h>
 #include <linux/module.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
@@ -692,7 +693,6 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 				       unsigned long limit_pfn)
 {
 	int i;
-	unsigned long pfn;
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
 	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
@@ -700,10 +700,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 			return 0;
 
 	/* Swap it to pop it */
-	pfn = mag->pfns[i];
-	mag->pfns[i] = mag->pfns[--mag->size];
-
-	return pfn;
+	return __xchg(&mag->pfns[i], mag->pfns[--mag->size]);
 }
 
 static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)

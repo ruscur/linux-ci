@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
@@ -493,8 +494,6 @@ static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 			       u8 *dst)
 {
-	u16 seqnum = 0;
-
 	if (is_multicast_ether_addr(dst))
 		return 0;
 	if (IsQoSDataFrame(skb->data)) {
@@ -503,9 +502,7 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 			   skb->priority, TX_DIR, true))
 			return 0;
-		seqnum = pTS->TxCurSeq;
-		pTS->TxCurSeq = (pTS->TxCurSeq + 1) % 4096;
-		return seqnum;
+		return __xchg(&pTS->TxCurSeq, (pTS->TxCurSeq + 1) % 4096);
 	}
 	return 0;
 }

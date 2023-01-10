@@ -27,6 +27,7 @@
 
 #include <linux/page_counter.h>
 #include <linux/memcontrol.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/cgroup.h>
 #include <linux/pagewalk.h>
 #include <linux/sched/mm.h>
@@ -5968,16 +5969,11 @@ static const struct mm_walk_ops precharge_walk_ops = {
 
 static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 {
-	unsigned long precharge;
-
 	mmap_read_lock(mm);
 	walk_page_range(mm, 0, ULONG_MAX, &precharge_walk_ops, NULL);
 	mmap_read_unlock(mm);
 
-	precharge = mc.precharge;
-	mc.precharge = 0;
-
-	return precharge;
+	return __xchg(&mc.precharge, 0);
 }
 
 static int mem_cgroup_precharge_mc(struct mm_struct *mm)

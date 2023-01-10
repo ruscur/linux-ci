@@ -12,6 +12,7 @@
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
 #include <linux/init.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/io.h>
@@ -752,11 +753,8 @@ void per_cpu_trap_init(void)
 void *set_exception_table_vec(unsigned int vec, void *handler)
 {
 	extern void *exception_handling_table[];
-	void *old_handler;
 
-	old_handler = exception_handling_table[vec];
-	exception_handling_table[vec] = handler;
-	return old_handler;
+	return __xchg(&exception_handling_table[vec], handler);
 }
 
 void __init trap_init(void)

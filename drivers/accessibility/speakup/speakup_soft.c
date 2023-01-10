@@ -11,6 +11,7 @@
 
 #include <linux/unistd.h>
 #include <linux/miscdevice.h>	/* for misc_register, and MISC_DYNAMIC_MINOR */
+#include <linux/non-atomic/xchg.h>
 #include <linux/poll.h>		/* for poll_wait() */
 
 /* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
@@ -366,11 +367,7 @@ static __poll_t softsynth_poll(struct file *fp, struct poll_table_struct *wait)
 
 static unsigned char get_index(struct spk_synth *synth)
 {
-	int rv;
-
-	rv = last_index;
-	last_index = 0;
-	return rv;
+	return __xchg(&last_index, 0);
 }
 
 static const struct file_operations softsynth_fops = {

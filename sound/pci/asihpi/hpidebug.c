@@ -9,6 +9,8 @@ Debug macro translation.
 
 ************************************************************************/
 
+#include <linux/non-atomic/xchg.h>
+
 #include "hpi_internal.h"
 #include "hpidebug.h"
 
@@ -22,11 +24,7 @@ void hpi_debug_init(void)
 
 int hpi_debug_level_set(int level)
 {
-	int old_level;
-
-	old_level = hpi_debug_level;
-	hpi_debug_level = level;
-	return old_level;
+	return __xchg(&hpi_debug_level, level);
 }
 
 int hpi_debug_level_get(void)

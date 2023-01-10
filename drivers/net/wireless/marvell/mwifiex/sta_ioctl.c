@@ -5,6 +5,8 @@
  * Copyright 2011-2020 NXP
  */
 
+#include <linux/non-atomic/xchg.h>
+
 #include "decl.h"
 #include "ioctl.h"
 #include "util.h"
@@ -60,10 +62,7 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
 		return status;
 	}
 
-	status = adapter->cmd_wait_q.status;
-	adapter->cmd_wait_q.status = 0;
-
-	return status;
+	return __xchg(&adapter->cmd_wait_q.status, 0);
 }
 
 /*

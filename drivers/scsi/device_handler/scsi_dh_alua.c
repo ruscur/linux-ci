@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/non-atomic/xchg.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_proto.h>
@@ -821,7 +822,7 @@ static struct scsi_device * __must_check
 alua_rtpg_select_sdev(struct alua_port_group *pg)
 {
 	struct alua_dh_data *h;
-	struct scsi_device *sdev = NULL, *prev_sdev;
+	struct scsi_device *sdev = NULL;
 
 	lockdep_assert_held(&pg->lock);
 	if (WARN_ON(!pg->rtpg_sdev))
@@ -857,10 +858,7 @@ alua_rtpg_select_sdev(struct alua_port_group *pg)
 
 	sdev_printk(KERN_INFO, sdev, "rtpg retry on different device\n");
 
-	prev_sdev = pg->rtpg_sdev;
-	pg->rtpg_sdev = sdev;
-
-	return prev_sdev;
+	return __xchg(&pg->rtpg_sdev, sdev);
 }
 
 static void alua_rtpg_work(struct work_struct *work)

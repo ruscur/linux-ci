@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/slab.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/sched/signal.h>
@@ -99,9 +100,7 @@ static struct page *page_chain_del(struct page **head, int n)
 	/* add end of list marker for the returned list */
 	set_page_private(page, 0);
 	/* actual return value, and adjustment of head */
-	page = *head;
-	*head = tmp;
-	return page;
+	return __xchg(head, tmp);
 }
 
 /* may be used outside of locks to find the tail of a (usually short)

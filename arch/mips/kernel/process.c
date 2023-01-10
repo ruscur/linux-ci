@@ -15,6 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/nmi.h>
+#include <linux/non-atomic/xchg.h>
 #include <linux/personality.h>
 #include <linux/prctl.h>
 #include <linux/random.h>
@@ -599,11 +600,8 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 	/*
 	 * Return ra if an exception occurred at the first instruction
 	 */
-	if (unlikely(ofs == 0)) {
-		pc = *ra;
-		*ra = 0;
-		return pc;
-	}
+	if (unlikely(ofs == 0))
+		return __xchg(ra, 0);
 
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
