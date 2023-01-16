@@ -1521,7 +1521,7 @@ static int init_nest_pmu_ref(void)
 	int nid, i, cpu;
 
 	nest_imc_refc = kcalloc(num_possible_nodes(), sizeof(*nest_imc_refc),
-								GFP_KERNEL);
+								GFP_ATOMIC);
 
 	if (!nest_imc_refc)
 		return -ENOMEM;
