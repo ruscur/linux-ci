@@ -358,8 +358,8 @@ static int axon_msi_probe(struct platform_device *device)
 		goto out_free_msic;
 	}
 
-	msic->fifo_virt = dma_alloc_coherent(&device->dev, MSIC_FIFO_SIZE_BYTES,
-					     &msic->fifo_phys, GFP_KERNEL);
+	msic->fifo_virt = dma_zalloc_coherent(&device->dev, MSIC_FIFO_SIZE_BYTES,
+					      &msic->fifo_phys, GFP_KERNEL);
 	if (!msic->fifo_virt) {
 		printk(KERN_ERR "axon_msi: couldn't allocate fifo for %pOF\n",
 		       dn);
@@ -372,7 +372,6 @@ static int axon_msi_probe(struct platform_device *device)
 		       dn);
 		goto out_free_fifo;
 	}
-	memset(msic->fifo_virt, 0xff, MSIC_FIFO_SIZE_BYTES);
 
 	/* We rely on being able to stash a virq in a u16, so limit irqs to < 65536 */
 	msic->irq_domain = irq_domain_add_nomap(dn, 65536, &msic_host_ops, msic);
