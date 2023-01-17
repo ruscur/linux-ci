@@ -525,6 +525,7 @@ static int __init of_platform_default_populate_init(void)
 	if (IS_ENABLED(CONFIG_PPC)) {
 		struct device_node *boot_display = NULL;
 		struct platform_device *dev;
+		int display_number = 1;
 		int ret;
 
 		/* Check if we have a MacOS display without a node spec */
@@ -561,10 +562,15 @@ static int __init of_platform_default_populate_init(void)
 			boot_display = node;
 			break;
 		}
+
 		for_each_node_by_type(node, "display") {
+			char *buf[14];
 			if (!of_get_property(node, "linux,opened", NULL) || node == boot_display)
 				continue;
-			of_platform_device_create(node, "of-display", NULL);
+			ret = snprintf(buf, "of-display-%d", display_number++);
+			if (ret >= sizeof(buf))
+				continue;
+			of_platform_device_create(node, buf, NULL);
 		}
 
 	} else {
