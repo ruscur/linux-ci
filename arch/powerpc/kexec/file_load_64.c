@@ -27,6 +27,7 @@
 #include <asm/kexec_ranges.h>
 #include <asm/crashdump-ppc64.h>
 #include <asm/prom.h>
+#include <asm/plpks.h>
 
 struct umem_info {
 	u64 *buf;		/* data buffer for usable-memory property */
@@ -1155,7 +1156,7 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			unsigned long initrd_len, const char *cmdline)
 {
 	struct crash_mem *umem = NULL, *rmem = NULL;
-	int i, nr_ranges, ret;
+	int i, nr_ranges, ret, chosen_node;
 
 	/*
 	 * Restrict memory usage for kdump kernel by setting up
@@ -1229,6 +1230,20 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			goto out;
 		}
 	}
+
+#ifdef CONFIG_PSERIES_PLPKS
+	// If we have PLPKS active, we need to provide the password
+	if (plpks_is_available()) {
+		chosen_node = fdt_path_offset(fdt, "/chosen");
+		if (!chosen_node) {
+			pr_err("Can't find chosen node: %s\n",
+			       fdt_strerror(chosen_node));
+			goto out;
+		}
+		ret = fdt_setprop(fdt, chosen_node, "ibm,plpks-pw",
+				  plpks_get_password(), plpks_get_passwordlen());
+	}
+#endif // CONFIG_PSERIES_PLPKS
 
 out:
 	kfree(rmem);
