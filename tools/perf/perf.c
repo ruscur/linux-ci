@@ -80,8 +80,10 @@ static struct cmd_struct commands[] = {
 #ifdef HAVE_LIBTRACEEVENT
 	{ "sched",	cmd_sched,	0 },
 #endif
+#ifdef HAVE_LIBTRACEEVENT
 #ifdef HAVE_LIBELF_SUPPORT
 	{ "probe",	cmd_probe,	0 },
+#endif
 #endif
 #ifdef HAVE_LIBTRACEEVENT
 	{ "kmem",	cmd_kmem,	0 },
