@@ -180,6 +180,9 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline void arch_local_irq_disable(void)
 {
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE((irq_soft_mask_return() != IRQS_ENABLED) &&
+			     (irq_soft_mask_return() != IRQS_DISABLED));
 	irq_soft_mask_set(IRQS_DISABLED);
 }
 
@@ -192,7 +195,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	return irq_soft_mask_set_return(IRQS_DISABLED);
+	return irq_soft_mask_or_return(IRQS_DISABLED);
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
