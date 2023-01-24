@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_BOOK3S_32_TLBFLUSH_H
 #define _ASM_POWERPC_BOOK3S_32_TLBFLUSH_H
 
-#include <linux/build_bug.h>
+#include <linux/bug.h>
 
 #define MMU_NO_CONTEXT      (0)
 /*
@@ -80,7 +80,7 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
 					      unsigned long vmaddr, int psize)
 {
-	BUILD_BUG();
+	WARN(1, "Unimplemented local TLB flush with psize");
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
