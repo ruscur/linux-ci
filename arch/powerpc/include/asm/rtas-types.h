@@ -44,7 +44,7 @@ struct rtas_error_log {
 	 */
 	u8		byte3;			/* General event or error*/
 	__be32		extended_log_length;	/* length in bytes */
-	unsigned char	buffer[1];		/* Start of extended log */
+	unsigned char	buffer[];		/* Start of extended log */
 						/* Variable length.      */
 };
 
@@ -85,7 +85,7 @@ struct rtas_ext_event_log_v6 {
 					/* that defines the format for	*/
 					/* the vendor specific log type	*/
 	/* Byte 16-end of log */
-	u8 vendor_log[1];		/* Start of vendor specific log	*/
+	u8 vendor_log[];		/* Start of vendor specific log	*/
 					/* Variable length.		*/
 };
 
