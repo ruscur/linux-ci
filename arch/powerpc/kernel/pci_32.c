@@ -64,6 +64,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixu
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
 
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP_FILL
+
 static u8* pci_to_OF_bus_map;
 static int pci_bus_count;
 
@@ -223,6 +225,32 @@ pci_create_OF_bus_map(void)
 }
 #endif
 
+#else /* CONFIG_PPC_PCI_OF_BUS_MAP_FILL */
+
+/*
+ * Returns the PCI device matching a given OF node without pci_to_OF_bus_map
+ */
+int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
+{
+	const __be32 *reg;
+	int size;
+
+	/* Check if it might have a chance to be a PCI device */
+	if (!pci_find_hose_for_OF_device(node))
+		return -ENODEV;
+
+	reg = of_get_property(node, "reg", &size);
+	if (!reg || size < 5 * sizeof(u32))
+		return -ENODEV;
+
+	*bus = (be32_to_cpup(&reg[0]) >> 16) & 0xff;
+	*devfn = (be32_to_cpup(&reg[0]) >> 8) & 0xff;
+
+	return 0;
+}
+
+#endif /* CONFIG_PPC_PCI_OF_BUS_MAP_FILL */
+
 #endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP) */
 
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
@@ -273,6 +301,7 @@ static int __init pcibios_init(void)
 	}
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP_FILL
 	pci_bus_count = next_busno;
 
 	/* OpenFirmware based machines need a map of OF bus
@@ -281,6 +310,7 @@ static int __init pcibios_init(void)
 	 */
 	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
+#endif
 #endif
 
 	/* Call common code to handle resource allocation */

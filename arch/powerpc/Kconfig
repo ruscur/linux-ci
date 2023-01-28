@@ -388,10 +388,21 @@ config PPC_DCR
 	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
 	default y
 
+config PPC_PCI_OF_BUS_MAP_FILL
+	bool "Fill pci-OF-bus-map property in the device-tree"
+	depends on PPC32
+	depends on PPC_PMAC || PPC_CHRP
+	default y
+	help
+	  This option creates and fills pci-OF-bus-map property in the
+	  device-tree which is deprecated and is needed only for old
+	  platforms.
+
 config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	depends on PPC32
-	depends on !PPC_PMAC && !PPC_CHRP
+	depends on !PPC_PCI_OF_BUS_MAP_FILL
 	bool "Assign PCI bus numbers from zero individually for each PCI domain"
+	default y
 	help
 	  By default on PPC32 were PCI bus numbers unique across all PCI domains.
 	  So system could have only 256 PCI buses independently of available
