@@ -97,7 +97,7 @@ static inline bool irq_happened_test_and_clear(u8 irq)
 	return false;
 }
 
-void replay_soft_interrupts(void)
+__no_kcsan void replay_soft_interrupts(void)
 {
 	struct pt_regs regs;
 
@@ -185,7 +185,7 @@ again:
 }
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_KUAP)
-static inline void replay_soft_interrupts_irqrestore(void)
+__no_kcsan static inline void replay_soft_interrupts_irqrestore(void)
 {
 	unsigned long kuap_state = get_kuap();
 
@@ -209,7 +209,7 @@ static inline void replay_soft_interrupts_irqrestore(void)
 #define replay_soft_interrupts_irqrestore() replay_soft_interrupts()
 #endif
 
-notrace void arch_local_irq_restore(unsigned long mask)
+notrace __no_kcsan void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 
