@@ -77,6 +77,7 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 	}
 
 	of_detach_node(np);
+	of_node_put(np);
 	of_node_put(parent);
 	return 0;
 }
