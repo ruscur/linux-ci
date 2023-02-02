@@ -23,6 +23,13 @@ for m in $(perf list --raw-dump metrics); do
   then
     continue
   fi
+  # Failed again, possibly the event is uncore pmu event which will need
+  # system wide monitoring with workload, so retry with -a option
+  result=$(perf stat -M "$m" -a perf bench internals synthesize 2>&1)
+  if [[ "$result" =~ "${m:0:50}" ]]
+  then
+    continue
+  fi
   echo "Metric '$m' not printed in:"
   echo "$result"
   if [[ "$err" != "1" ]]
