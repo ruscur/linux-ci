@@ -229,10 +229,27 @@ int pcie_aer_is_native(struct pci_dev *dev)
 
 int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
+	int pos_cap_err;
+	u32 reg;
 	int rc;
 
 	if (!pcie_aer_is_native(dev))
 		return -EIO;
+
+	pos_cap_err = dev->aer_cap;
+
+	/* Unmask correctable and uncorrectable (non-fatal) internal errors */
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_COR_MASK, &reg);
+	reg &= ~PCI_ERR_COR_INTERNAL;
+	pci_write_config_dword(dev, pos_cap_err + PCI_ERR_COR_MASK, reg);
+
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, &reg);
+	reg &= ~PCI_ERR_UNC_INTN;
+	pci_write_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, reg);
+
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_MASK, &reg);
+	reg &= ~PCI_ERR_UNC_INTN;
+	pci_write_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_MASK, reg);
 
 	rc = pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_AER_FLAGS);
 	return pcibios_err_to_errno(rc);
