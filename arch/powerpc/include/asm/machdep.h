@@ -220,11 +220,13 @@ extern struct machdep_calls *machine_id;
 	EXPORT_SYMBOL(mach_##name);				\
 	struct machdep_calls mach_##name __machine_desc =
 
-#define machine_is(name) \
-	({ \
-		extern struct machdep_calls mach_##name \
-			__attribute__((weak));		 \
-		machine_id == &mach_##name; \
+#define machine_is(name)                                            \
+	({                                                          \
+		extern struct machdep_calls mach_##name             \
+			__attribute__((weak));                      \
+		WARN(!machine_id,                                   \
+		     "machine_is() called before probe_machine()"); \
+		machine_id == &mach_##name;                         \
 	})
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
