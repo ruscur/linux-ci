@@ -382,7 +382,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 {
 	int rc = 0;
 	unsigned int cpu;
-	int len, nthreads, i;
+	int len, nthreads, i, smt;
 	const __be32 *intserv;
 	u32 thread;
 
@@ -392,6 +392,17 @@ static int dlpar_online_cpu(struct device_node *dn)
 
 	nthreads = len / sizeof(u32);
 
+	/*
+	 * Compute the number of active threads for the current CPU, assuming
+	 * the system is homogeus, we don't want to active more threads than the
+	 * current SMT setting.
+	 */
+	for (cpu = cpu_first_thread_sibling(raw_smp_processor_id()), smt = 0;
+	     cpu <= cpu_last_thread_sibling(raw_smp_processor_id()); cpu++) {
+		if (cpu_online(cpu))
+			smt++;
+	}
+
 	cpu_maps_update_begin();
 	for (i = 0; i < nthreads; i++) {
 		thread = be32_to_cpu(intserv[i]);
@@ -400,10 +411,13 @@ static int dlpar_online_cpu(struct device_node *dn)
 				continue;
 			cpu_maps_update_done();
 			find_and_update_cpu_nid(cpu);
-			rc = device_online(get_cpu_device(cpu));
-			if (rc) {
-				dlpar_offline_cpu(dn);
-				goto out;
+			/* Don't active CPU over the current SMT setting */
+			if (smt-- > 0) {
+				rc = device_online(get_cpu_device(cpu));
+				if (rc) {
+					dlpar_offline_cpu(dn);
+					goto out;
+				}
 			}
 			cpu_maps_update_begin();
 
