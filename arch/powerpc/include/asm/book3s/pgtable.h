@@ -12,8 +12,8 @@
 /* Insert a PTE, top-level function is out of line. It uses an inline
  * low level function in the respective pgtable-* files
  */
-extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-		       pte_t pte);
+extern void set_pte(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+		    pte_t pte);
 
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
