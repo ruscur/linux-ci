@@ -111,7 +111,7 @@ int __ref map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 		}
 		ptep = pte_offset_kernel(pmdp, ea);
 	}
-	set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, prot));
+	set_pte(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, prot));
 
 	smp_wmb();
 	return 0;
