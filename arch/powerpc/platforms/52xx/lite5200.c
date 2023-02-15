@@ -146,8 +146,7 @@ static void lite5200_resume_finish(void __iomem *mbar)
 
 static void __init lite5200_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("lite5200_setup_arch()", 0);
+	ppc_md_progress("lite5200_setup_arch()", 0);
 
 	/* Map important registers from the internal memory map */
 	mpc52xx_map_common_devices();
@@ -189,5 +188,4 @@ define_machine(lite5200) {
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

@@ -54,8 +54,7 @@ static void __init tqm85xx_pic_init(void)
  */
 static void __init tqm85xx_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("tqm85xx_setup_arch()", 0);
+	ppc_md_progress("tqm85xx_setup_arch()", 0);
 
 #ifdef CONFIG_CPM2
 	cpm2_reset();
@@ -127,6 +126,5 @@ define_machine(tqm85xx) {
 	.init_IRQ		= tqm85xx_pic_init,
 	.show_cpuinfo		= tqm85xx_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

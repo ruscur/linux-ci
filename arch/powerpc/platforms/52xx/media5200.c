@@ -196,8 +196,7 @@ static void __init media5200_setup_arch(void)
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	if (ppc_md.progress)
-		ppc_md.progress("media5200_setup_arch()", 0);
+	ppc_md_progress("media5200_setup_arch()", 0);
 
 	/* Map important registers from the internal memory map */
 	mpc52xx_map_common_devices();
@@ -227,28 +226,13 @@ static void __init media5200_setup_arch(void)
 
 }
 
-/* list of the supported boards */
-static const char * const board[] __initconst = {
-	"fsl,media5200",
-	NULL
-};
-
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init media5200_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(media5200_platform) {
 	.name		= "media5200-platform",
-	.probe		= media5200_probe,
+	.compatible	= "fsl,media5200",
 	.setup_arch	= media5200_setup_arch,
 	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ	= media5200_init_irq,
 	.get_irq	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

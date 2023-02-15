@@ -40,8 +40,7 @@ void __init mpc8536_ds_pic_init(void)
  */
 static void __init mpc8536_ds_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc8536_ds_setup_arch()", 0);
+	ppc_md_progress("mpc8536_ds_setup_arch()", 0);
 
 	fsl_pci_assign_primary();
 
@@ -52,17 +51,9 @@ static void __init mpc8536_ds_setup_arch(void)
 
 machine_arch_initcall(mpc8536_ds, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc8536_ds_probe(void)
-{
-	return of_machine_is_compatible("fsl,mpc8536ds");
-}
-
 define_machine(mpc8536_ds) {
 	.name			= "MPC8536 DS",
-	.probe			= mpc8536_ds_probe,
+	.compatible		= "fsl,mpc8536ds",
 	.setup_arch		= mpc8536_ds_setup_arch,
 	.init_IRQ		= mpc8536_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -70,6 +61,5 @@ define_machine(mpc8536_ds) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

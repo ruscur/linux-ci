@@ -471,8 +471,7 @@ early_param("video", early_video_setup);
  */
 static void __init p1022_ds_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("p1022_ds_setup_arch()", 0);
+	ppc_md_progress("p1022_ds_setup_arch()", 0);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
@@ -549,17 +548,9 @@ static void __init p1022_ds_setup_arch(void)
 
 machine_arch_initcall(p1022_ds, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init p1022_ds_probe(void)
-{
-	return of_machine_is_compatible("fsl,p1022ds");
-}
-
 define_machine(p1022_ds) {
 	.name			= "P1022 DS",
-	.probe			= p1022_ds_probe,
+	.compatible		= "fsl,p1022ds",
 	.setup_arch		= p1022_ds_setup_arch,
 	.init_IRQ		= p1022_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -567,6 +558,5 @@ define_machine(p1022_ds) {
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

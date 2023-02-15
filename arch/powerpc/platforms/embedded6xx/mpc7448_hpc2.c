@@ -62,16 +62,15 @@ static void __init mpc7448_hpc2_setup_pci(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
-	if (ppc_md.progress)
-		ppc_md.progress("mpc7448_hpc2_setup_pci():set_bridge", 0);
+
+	ppc_md_progress("mpc7448_hpc2_setup_pci():set_bridge", 0);
 
 	/* setup PCI host bridge */
 	for_each_compatible_node(np, "pci", "tsi108-pci")
 		tsi108_setup_pci(np, MPC7448HPC2_PCI_CFG_PHYS, 0);
 
 	ppc_md.pci_exclude_device = mpc7448_hpc2_exclude_device;
-	if (ppc_md.progress)
-		ppc_md.progress("tsi108: resources set", 0x100);
+	ppc_md_progress("tsi108: resources set", 0x100);
 #endif
 }
 
@@ -159,16 +158,6 @@ static void __noreturn mpc7448_hpc2_restart(char *cmd)
 	for (;;) ;		/* Spin until reset happens */
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc7448_hpc2_probe(void)
-{
-	if (!of_machine_is_compatible("mpc74xx"))
-		return 0;
-	return 1;
-}
-
 static int mpc7448_machine_check_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -185,14 +174,13 @@ static int mpc7448_machine_check_exception(struct pt_regs *regs)
 
 define_machine(mpc7448_hpc2){
 	.name 			= "MPC7448 HPC2",
-	.probe 			= mpc7448_hpc2_probe,
+	.compatible		= "mpc74xx",
 	.setup_arch 		= mpc7448_hpc2_setup_arch,
 	.discover_phbs		= mpc7448_hpc2_setup_pci,
 	.init_IRQ 		= mpc7448_hpc2_init_IRQ,
 	.show_cpuinfo 		= mpc7448_hpc2_show_cpuinfo,
 	.get_irq 		= mpic_get_irq,
 	.restart 		= mpc7448_hpc2_restart,
-	.calibrate_decr 	= generic_calibrate_decr,
 	.machine_check_exception= mpc7448_machine_check_exception,
 	.progress 		= udbg_progress,
 };
