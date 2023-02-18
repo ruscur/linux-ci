@@ -117,8 +117,7 @@ static void __init pq2fads_setup_arch(void)
 	struct device_node *np;
 	__be32 __iomem *bcsr;
 
-	if (ppc_md.progress)
-		ppc_md.progress("pq2fads_setup_arch()", 0);
+	ppc_md_progress("pq2fads_setup_arch()", 0);
 
 	cpm2_reset();
 
@@ -150,16 +149,7 @@ static void __init pq2fads_setup_arch(void)
 	/* Enable external IRQs */
 	clrbits32(&cpm2_immr->im_siu_conf.siu_82xx.sc_siumcr, 0x0c000000);
 
-	if (ppc_md.progress)
-		ppc_md.progress("pq2fads_setup_arch(), finish", 0);
-}
-
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init pq2fads_probe(void)
-{
-	return of_machine_is_compatible("fsl,pq2fads");
+	ppc_md_progress("pq2fads_setup_arch(), finish", 0);
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {
@@ -180,12 +170,11 @@ machine_device_initcall(pq2fads, declare_of_platform_devices);
 define_machine(pq2fads)
 {
 	.name = "Freescale PQ2FADS",
-	.probe = pq2fads_probe,
+	.compatible = "fsl,pq2fads",
 	.setup_arch = pq2fads_setup_arch,
 	.discover_phbs = pq2_init_pci,
 	.init_IRQ = pq2fads_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

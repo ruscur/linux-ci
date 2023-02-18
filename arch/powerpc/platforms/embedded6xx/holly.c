@@ -113,8 +113,7 @@ static void __init holly_init_pci(void)
 {
 	struct device_node *np;
 
-	if (ppc_md.progress)
-		ppc_md.progress("holly_setup_arch():set_bridge", 0);
+	ppc_md_progress("holly_setup_arch():set_bridge", 0);
 
 	/* setup PCI host bridge */
 	holly_remap_bridge();
@@ -126,8 +125,7 @@ static void __init holly_init_pci(void)
 	of_node_put(np);
 
 	ppc_md.pci_exclude_device = holly_exclude_device;
-	if (ppc_md.progress)
-		ppc_md.progress("tsi108: resources set", 0x100);
+	ppc_md_progress("tsi108: resources set", 0x100);
 }
 
 static void __init holly_setup_arch(void)
@@ -241,16 +239,6 @@ static void __noreturn holly_restart(char *cmd)
 	for (;;) ;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init holly_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,holly"))
-		return 0;
-	return 1;
-}
-
 static int ppc750_machine_check_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -267,14 +255,13 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 
 define_machine(holly){
 	.name                   	= "PPC750 GX/CL TSI",
-	.probe                  	= holly_probe,
+	.compatible			= "ibm,holly",
 	.setup_arch             	= holly_setup_arch,
 	.discover_phbs			= holly_init_pci,
 	.init_IRQ               	= holly_init_IRQ,
 	.show_cpuinfo           	= holly_show_cpuinfo,
 	.get_irq                	= mpic_get_irq,
 	.restart                	= holly_restart,
-	.calibrate_decr         	= generic_calibrate_decr,
 	.machine_check_exception	= ppc750_machine_check_exception,
 	.progress               	= udbg_progress,
 };

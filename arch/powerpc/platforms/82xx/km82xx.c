@@ -159,8 +159,7 @@ static void __init init_ioports(void)
 
 static void __init km82xx_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("km82xx_setup_arch()", 0);
+	ppc_md_progress("km82xx_setup_arch()", 0);
 
 	cpm2_reset();
 
@@ -171,8 +170,7 @@ static void __init km82xx_setup_arch(void)
 
 	init_ioports();
 
-	if (ppc_md.progress)
-		ppc_md.progress("km82xx_setup_arch(), finish", 0);
+	ppc_md_progress("km82xx_setup_arch(), finish", 0);
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {
@@ -188,22 +186,13 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(km82xx, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init km82xx_probe(void)
-{
-	return of_machine_is_compatible("keymile,km82xx");
-}
-
 define_machine(km82xx)
 {
 	.name = "Keymile km82xx",
-	.probe = km82xx_probe,
+	.compatible = "keymile,km82xx",
 	.setup_arch = km82xx_setup_arch,
 	.init_IRQ = km82xx_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

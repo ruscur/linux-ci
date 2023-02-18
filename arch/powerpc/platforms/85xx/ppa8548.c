@@ -37,8 +37,7 @@ static void __init ppa8548_pic_init(void)
  */
 static void __init ppa8548_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("ppa8548_setup_arch()", 0);
+	ppc_md_progress("ppa8548_setup_arch()", 0);
 }
 
 static void ppa8548_show_cpuinfo(struct seq_file *m)
@@ -72,21 +71,12 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(ppa8548, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init ppa8548_probe(void)
-{
-	return of_machine_is_compatible("ppa8548");
-}
-
 define_machine(ppa8548) {
 	.name		= "ppa8548",
-	.probe		= ppa8548_probe,
+	.compatible	= "ppa8548",
 	.setup_arch	= ppa8548_setup_arch,
 	.init_IRQ	= ppa8548_pic_init,
 	.show_cpuinfo	= ppa8548_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

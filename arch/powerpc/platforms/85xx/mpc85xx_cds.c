@@ -318,9 +318,9 @@ static void __init mpc85xx_cds_setup_arch(void)
 {
 	struct device_node *np;
 	int cds_pci_slot;
+	char buf[40];
 
-	if (ppc_md.progress)
-		ppc_md.progress("mpc85xx_cds_setup_arch()", 0);
+	ppc_md_progress("mpc85xx_cds_setup_arch()", 0);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8548cds-fpga");
 	if (!np) {
@@ -335,13 +335,9 @@ static void __init mpc85xx_cds_setup_arch(void)
 		return;
 	}
 
-	if (ppc_md.progress) {
-		char buf[40];
-		cds_pci_slot = ((in_8(&cadmus->cm_csr) >> 6) & 0x3) + 1;
-		snprintf(buf, 40, "CDS Version = 0x%x in slot %d\n",
-				in_8(&cadmus->cm_ver), cds_pci_slot);
-		ppc_md.progress(buf, 0);
-	}
+	cds_pci_slot = ((in_8(&cadmus->cm_csr) >> 6) & 0x3) + 1;
+	snprintf(buf, 40, "CDS Version = 0x%x in slot %d\n", in_8(&cadmus->cm_ver), cds_pci_slot);
+	ppc_md_progress(buf, 0);
 
 #ifdef CONFIG_PCI
 	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
@@ -370,20 +366,11 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc85xx_cds_probe(void)
-{
-	return of_machine_is_compatible("MPC85xxCDS");
-}
-
 machine_arch_initcall(mpc85xx_cds, mpc85xx_common_publish_devices);
 
 define_machine(mpc85xx_cds) {
 	.name		= "MPC85xx CDS",
-	.probe		= mpc85xx_cds_probe,
+	.compatible	= "MPC85xxCDS",
 	.setup_arch	= mpc85xx_cds_setup_arch,
 	.init_IRQ	= mpc85xx_cds_pic_init,
 	.show_cpuinfo	= mpc85xx_cds_show_cpuinfo,
@@ -392,6 +379,5 @@ define_machine(mpc85xx_cds) {
 	.pcibios_fixup_bus	= mpc85xx_cds_fixup_bus,
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
-	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

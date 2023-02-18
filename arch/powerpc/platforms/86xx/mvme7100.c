@@ -43,8 +43,7 @@ static void __init mvme7100_setup_arch(void)
 	void __iomem *mvme7100_regs = NULL;
 	u8 reg;
 
-	if (ppc_md.progress)
-		ppc_md.progress("mvme7100_setup_arch()", 0);
+	ppc_md_progress("mvme7100_setup_arch()", 0);
 
 #ifdef CONFIG_SMP
 	mpc86xx_smp_init();
@@ -108,7 +107,6 @@ define_machine(mvme7100) {
 	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,
 	.time_init		= mpc86xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,

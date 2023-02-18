@@ -20,7 +20,8 @@ struct kimage;
 struct pci_host_bridge;
 
 struct machdep_calls {
-	char		*name;
+	const char	*name;
+	const char	*compatible;
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PM
 	void		(*iommu_restore)(void);
@@ -237,6 +238,12 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {
 	if (ppc_md.log_error)
 		ppc_md.log_error(buf, err_type, fatal);
+}
+
+static inline void ppc_md_progress(char *s, unsigned short hex)
+{
+	if (ppc_md.progress)
+		ppc_md.progress(s, hex);
 }
 
 #define __define_machine_initcall(mach, fn, id) \

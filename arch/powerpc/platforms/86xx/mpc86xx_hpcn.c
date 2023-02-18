@@ -56,8 +56,7 @@ static int mpc86xx_exclude_device(struct pci_controller *hose,
 static void __init
 mpc86xx_hpcn_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc86xx_hpcn_setup_arch()", 0);
+	ppc_md_progress("mpc86xx_hpcn_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
 	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
@@ -85,18 +84,6 @@ mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
 }
 
-
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc86xx_hpcn_probe(void)
-{
-	if (of_machine_is_compatible("fsl,mpc8641hpcn"))
-		return 1;	/* Looks good */
-
-	return 0;
-}
-
 static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "fsl,srio", },
 	{},
@@ -113,13 +100,12 @@ machine_arch_initcall(mpc86xx_hpcn, declare_of_platform_devices);
 
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",
-	.probe			= mpc86xx_hpcn_probe,
+	.compatible		= "fsl,MPC8610HPCD",
 	.setup_arch		= mpc86xx_hpcn_setup_arch,
 	.init_IRQ		= mpc86xx_init_irq,
 	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.time_init		= mpc86xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,

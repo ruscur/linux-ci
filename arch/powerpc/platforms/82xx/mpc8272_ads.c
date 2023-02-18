@@ -134,8 +134,7 @@ static void __init mpc8272_ads_setup_arch(void)
 	struct device_node *np;
 	__be32 __iomem *bcsr;
 
-	if (ppc_md.progress)
-		ppc_md.progress("mpc8272_ads_setup_arch()", 0);
+	ppc_md_progress("mpc8272_ads_setup_arch()", 0);
 
 	cpm2_reset();
 
@@ -172,8 +171,7 @@ static void __init mpc8272_ads_setup_arch(void)
 
 	init_ioports();
 
-	if (ppc_md.progress)
-		ppc_md.progress("mpc8272_ads_setup_arch(), finish", 0);
+	ppc_md_progress("mpc8272_ads_setup_arch(), finish", 0);
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {
@@ -191,23 +189,14 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(mpc8272_ads, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc8272_ads_probe(void)
-{
-	return of_machine_is_compatible("fsl,mpc8272ads");
-}
-
 define_machine(mpc8272_ads)
 {
 	.name = "Freescale MPC8272 ADS",
-	.probe = mpc8272_ads_probe,
+	.compatible = "fsl,mpc8272ads",
 	.setup_arch = mpc8272_ads_setup_arch,
 	.discover_phbs = pq2_init_pci,
 	.init_IRQ = mpc8272_ads_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

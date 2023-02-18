@@ -39,26 +39,18 @@ void __init qemu_e500_pic_init(void)
 
 static void __init qemu_e500_setup_arch(void)
 {
-	ppc_md.progress("qemu_e500_setup_arch()", 0);
+	ppc_md_progress("qemu_e500_setup_arch()", 0);
 
 	fsl_pci_assign_primary();
 	swiotlb_detect_4g();
 	mpc85xx_smp_init();
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init qemu_e500_probe(void)
-{
-	return !!of_machine_is_compatible("fsl,qemu-e500");
-}
-
 machine_arch_initcall(qemu_e500, mpc85xx_common_publish_devices);
 
 define_machine(qemu_e500) {
 	.name			= "QEMU e500",
-	.probe			= qemu_e500_probe,
+	.compatible		= "fsl,qemu-e500",
 	.setup_arch		= qemu_e500_setup_arch,
 	.init_IRQ		= qemu_e500_pic_init,
 #ifdef CONFIG_PCI
@@ -66,7 +58,6 @@ define_machine(qemu_e500) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_coreint_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 	.power_save		= e500_idle,
 };
