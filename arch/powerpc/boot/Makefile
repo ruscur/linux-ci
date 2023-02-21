@@ -341,11 +341,6 @@ image-$(CONFIG_MPC836x_MDS)		+= cuImage.mpc836x_mds
 image-$(CONFIG_ASP834x)			+= dtbImage.asp834x-redboot
 
 # Board ports in arch/powerpc/platform/85xx/Kconfig
-image-$(CONFIG_MPC8540_ADS)		+= cuImage.mpc8540ads
-image-$(CONFIG_MPC8560_ADS)		+= cuImage.mpc8560ads
-image-$(CONFIG_MPC85xx_CDS)		+= cuImage.mpc8541cds \
-					   cuImage.mpc8548cds_32b \
-					   cuImage.mpc8555cds
 image-$(CONFIG_MPC85xx_MDS)		+= cuImage.mpc8568mds
 image-$(CONFIG_MPC85xx_DS)		+= cuImage.mpc8544ds \
 					   cuImage.mpc8572ds
