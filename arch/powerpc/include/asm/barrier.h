@@ -41,11 +41,17 @@
 
 /* The sub-arch has lwsync */
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
-#    define SMPWMB      LWSYNC
+#undef rmb
+#undef wmb
+/* Redefine rmb() to lwsync. */
+#define rmb()	({__asm__ __volatile__ ("lwsync" : : : "memory"); })
+/* Redefine wmb() to lwsync. */
+#define wmb()	({__asm__ __volatile__ ("lwsync" : : : "memory"); })
+#define SMPWMB      LWSYNC
 #elif defined(CONFIG_BOOKE)
-#    define SMPWMB      mbar
+#define SMPWMB      mbar
 #else
-#    define SMPWMB      eieio
+#define SMPWMB      eieio
 #endif
 
 /* clang defines this macro for a builtin, which will not work with runtime patching */
