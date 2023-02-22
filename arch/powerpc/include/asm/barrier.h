@@ -36,8 +36,15 @@
  * heavy-weight sync, so smp_wmb() can be a lighter-weight eieio.
  */
 #define __mb()   __asm__ __volatile__ ("sync" : : : "memory")
+
+/* The sub-arch has lwsync. */
+#if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
+#define __rmb() __asm__ __volatile__ ("lwsync" : : : "memory")
+#define __wmb() __asm__ __volatile__ ("lwsync" : : : "memory")
+#else
 #define __rmb()  __asm__ __volatile__ ("sync" : : : "memory")
 #define __wmb()  __asm__ __volatile__ ("sync" : : : "memory")
+#endif
 
 /* The sub-arch has lwsync */
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
