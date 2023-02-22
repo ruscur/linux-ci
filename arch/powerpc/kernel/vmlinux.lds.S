@@ -125,6 +125,7 @@ SECTIONS
 		 * included with the main text sections, so put it by itself.
 		 */
 		*(.sfpr);
+		*(.text.asan.* .text.tsan.*)
 		MEM_KEEP(init.text)
 		MEM_KEEP(exit.text)
 	} :text
