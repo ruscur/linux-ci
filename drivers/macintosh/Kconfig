@@ -88,8 +88,7 @@ config ADB_PMU_LED_DISK
 	bool "Use front LED as DISK LED by default"
 	depends on ADB_PMU_LED
 	depends on LEDS_CLASS
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_DISK
+	depends on LEDS_TRIGGER_DISK
 	help
 	  This option makes the front LED default to the disk trigger
 	  so that it blinks on disk activity.
