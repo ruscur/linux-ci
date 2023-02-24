@@ -79,6 +79,10 @@ static int get_exclude_memory_ranges(struct crash_mem **mem_ranges)
 	if (ret)
 		goto out;
 
+	ret = add_sml_mem_range(mem_ranges);
+	if (ret)
+		goto out;
+
 	ret = add_opal_mem_range(mem_ranges);
 	if (ret)
 		goto out;
@@ -119,6 +123,10 @@ static int get_usable_memory_ranges(struct crash_mem **mem_ranges)
 		goto out;
 
 	ret = add_rtas_mem_range(mem_ranges);
+	if (ret)
+		goto out;
+
+	ret = add_sml_mem_range(mem_ranges);
 	if (ret)
 		goto out;
 
@@ -222,6 +230,10 @@ static int get_reserved_memory_ranges(struct crash_mem **mem_ranges)
 	int ret;
 
 	ret = add_rtas_mem_range(mem_ranges);
+	if (ret)
+		goto out;
+
+	ret = add_sml_mem_range(mem_ranges);
 	if (ret)
 		goto out;
 

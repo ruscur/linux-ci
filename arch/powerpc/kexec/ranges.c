@@ -350,6 +350,26 @@ int add_rtas_mem_range(struct crash_mem **mem_ranges)
 	return ret;
 }
 
+int add_sml_mem_range(struct crash_mem **mem_ranges)
+{
+	struct device_node *dn;
+	int ret = 0;
+	u64 base;
+	u32 size;
+
+	// Matches the device type in tpm_ibmvtpm.c
+	for_each_node_by_type(dn, "IBM,vtpm") {
+		if (of_property_read_u64(dn, "linux,sml-base", &base) == 0 &&
+		    of_property_read_u32(dn, "linux,sml-size", &size) == 0) {
+			ret = add_mem_range(mem_ranges, base, size);
+			if (ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
 /**
  * add_opal_mem_range - Adds OPAL region to the given memory ranges list.
  * @mem_ranges:         Range list to add the memory range to.
