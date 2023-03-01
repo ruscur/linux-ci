@@ -11,7 +11,6 @@
 #include <sys/prctl.h>
 
 #include "event.h"
-#include "utils.h"
 #include "lib.h"
 
 extern void thirty_two_instruction_loop(u64 loops);

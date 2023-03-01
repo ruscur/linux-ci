@@ -8,7 +8,6 @@
 
 #include "../event.h"
 #include "misc.h"
-#include "utils.h"
 
 /* All successful D-side store dispatches for this thread */
 #define EventCode 0x010000046080

@@ -8,7 +8,6 @@
 
 #include "../event.h"
 #include "misc.h"
-#include "utils.h"
 
 extern void thirty_two_instruction_loop(int loops);
 

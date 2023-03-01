@@ -8,7 +8,6 @@
 
 #include "../event.h"
 #include "misc.h"
-#include "utils.h"
 
 extern void thirty_two_instruction_loop_with_ll_sc(u64 loops, u64 *ll_sc_target);
 

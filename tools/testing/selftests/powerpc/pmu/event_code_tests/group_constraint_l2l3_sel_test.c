@@ -7,7 +7,6 @@
 #include <stdlib.h>
 
 #include "../event.h"
-#include "utils.h"
 #include "../sampling_tests/misc.h"
 
 /* All successful D-side store dispatches for this thread */

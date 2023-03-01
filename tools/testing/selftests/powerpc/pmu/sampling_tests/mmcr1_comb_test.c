@@ -8,7 +8,6 @@
 
 #include "../event.h"
 #include "misc.h"
-#include "utils.h"
 
 /* All successful D-side store dispatches for this thread that were L2 Miss */
 #define EventCode 0x46880

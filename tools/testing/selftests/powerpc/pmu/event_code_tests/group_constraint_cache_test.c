@@ -7,7 +7,6 @@
 #include <stdlib.h>
 
 #include "../event.h"
-#include "utils.h"
 #include "../sampling_tests/misc.h"
 
 /* All L1 D cache load references counted at finish, gated by reject */

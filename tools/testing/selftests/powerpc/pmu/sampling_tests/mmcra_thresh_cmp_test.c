@@ -8,7 +8,6 @@
 
 #include "../event.h"
 #include "misc.h"
-#include "utils.h"
 
 /*
  * Primary PMU event used here is PM_MRK_INST_CMPL (0x401e0)

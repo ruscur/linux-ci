@@ -7,7 +7,6 @@
 #include <stdlib.h>
 
 #include "event.h"
-#include "utils.h"
 
 #define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be enough .. */
 
