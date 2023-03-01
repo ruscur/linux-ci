@@ -112,6 +112,8 @@ MODULE_ALIAS("aoa-device-id-14");
 MODULE_ALIAS("aoa-device-id-22");
 MODULE_ALIAS("aoa-device-id-31");
 MODULE_ALIAS("aoa-device-id-35");
+MODULE_ALIAS("aoa-device-id-38");
+MODULE_ALIAS("aoa-device-id-40");
 MODULE_ALIAS("aoa-device-id-44");
 
 /* onyx with all but microphone connected */
@@ -368,7 +370,20 @@ static struct layout layouts[] = {
 		.connections = tas_connections_nolineout,
 	  },
 	},
+	/* PowerBook6,4 */
+	{ .device_id = 40,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
+	  },
+	},
 	/* PowerBook6,5 */
+	{ .device_id = 38,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
+	  },
+	},
 	{ .device_id = 44,
 	  .codecs[0] = {
 		.name = "tas",
