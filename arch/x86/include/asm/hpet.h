@@ -72,7 +72,10 @@ extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
 extern void hpet_disable(void);
 extern unsigned int hpet_readl(unsigned int a);
+extern void hpet_writel(unsigned int d, unsigned int a);
 extern void force_hpet_resume(void);
+extern void hpet_set_comparator_periodic(int channel, unsigned int cmp,
+					 unsigned int period);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 
@@ -100,4 +103,50 @@ static inline int is_hpet_enabled(void) { return 0; }
 #define default_setup_hpet_msi	NULL
 
 #endif
+
+#ifdef CONFIG_X86_HARDLOCKUP_DETECTOR_HPET
+#include <linux/cpumask.h>
+
+/**
+ * struct hpet_hld_data - Data needed to operate the detector
+ * @has_periodic:		The HPET channel supports periodic mode
+ * @channel:			HPET channel assigned to the detector
+ * @channe_priv:		Private data of the assigned channel
+ * @ticks_per_second:		Frequency of the HPET timer
+ * @tsc_next:			Estimated value of the TSC at the next
+ *				HPET timer interrupt
+ * @irq:			IRQ number assigned to the HPET channel
+ * @handling_cpu:		CPU handling the HPET interrupt
+ * @monitored_cpumask:		CPUs monitored by the hardlockup detector
+ * @inspect_cpumask:		CPUs that will be inspected at a given time.
+ *				Each CPU clears itself upon inspection.
+ */
+struct hpet_hld_data {
+	bool			has_periodic;
+	u32			channel;
+	struct hpet_channel	*channel_priv;
+	u64			ticks_per_second;
+	u64			tsc_next;
+	int			irq;
+	u32			handling_cpu;
+	cpumask_var_t		monitored_cpumask;
+	cpumask_var_t		inspect_cpumask;
+};
+
+extern struct hpet_hld_data *hpet_hld_get_timer(void);
+extern void hpet_hld_free_timer(struct hpet_hld_data *hdata);
+int hardlockup_detector_hpet_init(void);
+void hardlockup_detector_hpet_start(void);
+void hardlockup_detector_hpet_stop(void);
+void hardlockup_detector_hpet_enable(unsigned int cpu);
+void hardlockup_detector_hpet_disable(unsigned int cpu);
+#else
+static inline int hardlockup_detector_hpet_init(void)
+{ return -ENODEV; }
+static inline void hardlockup_detector_hpet_start(void) {}
+static inline void hardlockup_detector_hpet_stop(void) {}
+static inline void hardlockup_detector_hpet_enable(unsigned int cpu) {}
+static inline void hardlockup_detector_hpet_disable(unsigned int cpu) {}
+#endif /* CONFIG_X86_HARDLOCKUP_DETECTOR_HPET */
+
 #endif /* _ASM_X86_HPET_H */

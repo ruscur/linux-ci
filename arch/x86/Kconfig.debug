@@ -3,6 +3,9 @@
 config EARLY_PRINTK_USB
 	bool
 
+config X86_HARDLOCKUP_DETECTOR
+	def_bool y if HARDLOCKUP_DETECTOR_CORE
+
 config X86_VERBOSE_BOOTUP
 	bool "Enable verbose x86 bootup info messages"
 	default y
@@ -109,6 +112,14 @@ config IOMMU_LEAK
 
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y
+
+config X86_HARDLOCKUP_DETECTOR_HPET
+	bool "HPET-based hardlockup detector"
+	select HARDLOCKUP_DETECTOR_CORE
+	depends on HARDLOCKUP_DETECTOR && HPET_TIMER && GENERIC_MSI_IRQ
+	help
+	  Say y to drive the hardlockup detector using the High-Precision Event
+	  Timer instead of performance counters.
 
 config X86_DECODER_SELFTEST
 	bool "x86 instruction decoder selftest"
