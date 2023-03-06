@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-xtensa/setup.h
  *
@@ -11,5 +11,7 @@
 
 #ifndef _XTENSA_SETUP_H
 #define _XTENSA_SETUP_H
+
+#define COMMAND_LINE_SIZE	256
 
 #endif
