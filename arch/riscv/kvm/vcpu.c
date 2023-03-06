@@ -25,14 +25,14 @@
 
 const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	KVM_GENERIC_VCPU_STATS(),
-	STATS_DESC_COUNTER(VCPU, ecall_exit_stat),
-	STATS_DESC_COUNTER(VCPU, wfi_exit_stat),
-	STATS_DESC_COUNTER(VCPU, mmio_exit_user),
-	STATS_DESC_COUNTER(VCPU, mmio_exit_kernel),
-	STATS_DESC_COUNTER(VCPU, csr_exit_user),
-	STATS_DESC_COUNTER(VCPU, csr_exit_kernel),
-	STATS_DESC_COUNTER(VCPU, signal_exits),
-	STATS_DESC_COUNTER(VCPU, exits)
+	KVM_STAT(VCPU, CUMULATIVE, NONE, ecall_exit_stat),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, wfi_exit_stat),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, mmio_exit_user),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, mmio_exit_kernel),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, csr_exit_user),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, csr_exit_kernel),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, signal_exits),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, exits)
 };
 
 const struct kvm_stats_header kvm_vcpu_stats_header = {

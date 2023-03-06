@@ -44,13 +44,13 @@ const struct kvm_stats_header kvm_vm_stats_header = {
 
 const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	KVM_GENERIC_VCPU_STATS(),
-	STATS_DESC_COUNTER(VCPU, hvc_exit_stat),
-	STATS_DESC_COUNTER(VCPU, wfe_exit_stat),
-	STATS_DESC_COUNTER(VCPU, wfi_exit_stat),
-	STATS_DESC_COUNTER(VCPU, mmio_exit_user),
-	STATS_DESC_COUNTER(VCPU, mmio_exit_kernel),
-	STATS_DESC_COUNTER(VCPU, signal_exits),
-	STATS_DESC_COUNTER(VCPU, exits)
+	KVM_STAT(VCPU, CUMULATIVE, NONE, hvc_exit_stat),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, wfe_exit_stat),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, wfi_exit_stat),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, mmio_exit_user),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, mmio_exit_kernel),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, signal_exits),
+	KVM_STAT(VCPU, CUMULATIVE, NONE, exits)
 };
 
 const struct kvm_stats_header kvm_vcpu_stats_header = {

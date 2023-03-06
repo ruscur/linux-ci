@@ -40,8 +40,8 @@
 
 const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
 	KVM_GENERIC_VM_STATS(),
-	STATS_DESC_ICOUNTER(VM, num_2M_pages),
-	STATS_DESC_ICOUNTER(VM, num_1G_pages)
+	KVM_STAT(VM, INSTANT, NONE, num_2M_pages),
+	KVM_STAT(VM, INSTANT, NONE, num_1G_pages)
 };
 
 const struct kvm_stats_header kvm_vm_stats_header = {
@@ -55,35 +55,35 @@ const struct kvm_stats_header kvm_vm_stats_header = {
 
 const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	KVM_GENERIC_VCPU_STATS(),
-	STATS_DESC_COUNTER(VCPU, sum_exits),
-	STATS_DESC_COUNTER(VCPU, mmio_exits),
-	STATS_DESC_COUNTER(VCPU, signal_exits),
-	STATS_DESC_COUNTER(VCPU, light_exits),
-	STATS_DESC_COUNTER(VCPU, itlb_real_miss_exits),
-	STATS_DESC_COUNTER(VCPU, itlb_virt_miss_exits),
-	STATS_DESC_COUNTER(VCPU, dtlb_real_miss_exits),
-	STATS_DESC_COUNTER(VCPU, dtlb_virt_miss_exits),
-	STATS_DESC_COUNTER(VCPU, syscall_exits),
-	STATS_DESC_COUNTER(VCPU, isi_exits),
-	STATS_DESC_COUNTER(VCPU, dsi_exits),
-	STATS_DESC_COUNTER(VCPU, emulated_inst_exits),
-	STATS_DESC_COUNTER(VCPU, dec_exits),
-	STATS_DESC_COUNTER(VCPU, ext_intr_exits),
-	STATS_DESC_COUNTER(VCPU, halt_successful_wait),
-	STATS_DESC_COUNTER(VCPU, dbell_exits),
-	STATS_DESC_COUNTER(VCPU, gdbell_exits),
-	STATS_DESC_COUNTER(VCPU, ld),
-	STATS_DESC_COUNTER(VCPU, st),
-	STATS_DESC_COUNTER(VCPU, pf_storage),
-	STATS_DESC_COUNTER(VCPU, pf_instruc),
-	STATS_DESC_COUNTER(VCPU, sp_storage),
-	STATS_DESC_COUNTER(VCPU, sp_instruc),
-	STATS_DESC_COUNTER(VCPU, queue_intr),
-	STATS_DESC_COUNTER(VCPU, ld_slow),
-	STATS_DESC_COUNTER(VCPU, st_slow),
-	STATS_DESC_COUNTER(VCPU, pthru_all),
-	STATS_DESC_COUNTER(VCPU, pthru_host),
-	STATS_DESC_COUNTER(VCPU, pthru_bad_aff)
+	KVM_STAT(VM, CUMULATIVE, NONE, sum_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, mmio_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, signal_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, light_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, itlb_real_miss_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, itlb_virt_miss_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, dtlb_real_miss_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, dtlb_virt_miss_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, syscall_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, isi_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, dsi_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, emulated_inst_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, dec_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, ext_intr_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, halt_successful_wait),
+	KVM_STAT(VM, CUMULATIVE, NONE, dbell_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, gdbell_exits),
+	KVM_STAT(VM, CUMULATIVE, NONE, ld),
+	KVM_STAT(VM, CUMULATIVE, NONE, st),
+	KVM_STAT(VM, CUMULATIVE, NONE, pf_storage),
+	KVM_STAT(VM, CUMULATIVE, NONE, pf_instruc),
+	KVM_STAT(VM, CUMULATIVE, NONE, sp_storage),
+	KVM_STAT(VM, CUMULATIVE, NONE, sp_instruc),
+	KVM_STAT(VM, CUMULATIVE, NONE, queue_intr),
+	KVM_STAT(VM, CUMULATIVE, NONE, ld_slow),
+	KVM_STAT(VM, CUMULATIVE, NONE, st_slow),
+	KVM_STAT(VM, CUMULATIVE, NONE, pthru_all),
+	KVM_STAT(VM, CUMULATIVE, NONE, pthru_host),
+	KVM_STAT(VM, CUMULATIVE, NONE, pthru_bad_aff)
 };
 
 const struct kvm_stats_header kvm_vcpu_stats_header = {
