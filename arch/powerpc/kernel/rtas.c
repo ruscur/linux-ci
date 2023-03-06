@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
+#include <linux/lockdep.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -68,7 +69,7 @@ struct rtas_filter {
  *                            functions are believed to have no users on
  *                            ppc64le, and we want to keep it that way. It does
  *                            not make sense for this to be set when @filter
- *                            is false.
+ *                            is NULL.
  */
 struct rtas_function {
 	s32 token;
@@ -453,6 +454,16 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 	},
 };
 
+/*
+ * Nearly all RTAS calls need to be serialized. All uses of the
+ * default rtas_args block must hold rtas_lock.
+ *
+ * Exceptions to the RTAS serialization requirement (e.g. stop-self)
+ * must use a separate rtas_args structure.
+ */
+static DEFINE_RAW_SPINLOCK(rtas_lock);
+static struct rtas_args rtas_args;
+
 /**
  * rtas_function_token() - RTAS function token lookup.
  * @handle: Function handle, e.g. RTAS_FN_EVENT_SCAN.
@@ -560,6 +571,9 @@ static void __do_enter_rtas(struct rtas_args *args)
 static void __do_enter_rtas_trace(struct rtas_args *args)
 {
 	const char *name = NULL;
+
+	if (args == &rtas_args)
+		lockdep_assert_held(&rtas_lock);
 	/*
 	 * If the tracepoints that consume the function name aren't
 	 * active, avoid the lookup.
@@ -618,16 +632,6 @@ static void do_enter_rtas(struct rtas_args *args)
 }
 
 struct rtas_t rtas;
-
-/*
- * Nearly all RTAS calls need to be serialized. All uses of the
- * default rtas_args block must hold rtas_lock.
- *
- * Exceptions to the RTAS serialization requirement (e.g. stop-self)
- * must use a separate rtas_args structure.
- */
-static DEFINE_RAW_SPINLOCK(rtas_lock);
-static struct rtas_args rtas_args;
 
 DEFINE_SPINLOCK(rtas_data_buf_lock);
 EXPORT_SYMBOL_GPL(rtas_data_buf_lock);
@@ -951,6 +955,8 @@ static char *__fetch_rtas_last_error(char *altbuf)
 	u32 bufsz;
 	char *buf = NULL;
 
+	lockdep_assert_held(&rtas_lock);
+
 	if (token == -1)
 		return NULL;
 
@@ -981,7 +987,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 				buf = kmalloc(RTAS_ERROR_LOG_MAX, GFP_ATOMIC);
 		}
 		if (buf)
-			memcpy(buf, rtas_err_buf, RTAS_ERROR_LOG_MAX);
+			memmove(buf, rtas_err_buf, RTAS_ERROR_LOG_MAX);
 	}
 
 	return buf;
@@ -996,9 +1002,8 @@ static void __init init_error_log_max(void) {}
 #endif
 
 
-static void
-va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
-		      va_list list)
+static void va_rtas_call(struct rtas_args *args, int token, int nargs, int nret,
+			 va_list list)
 {
 	int i;
 
@@ -1016,12 +1021,36 @@ va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
 	do_enter_rtas(args);
 }
 
+/**
+ * rtas_call_unlocked() - Invoke an RTAS firmware function without synchronization.
+ * @args: RTAS parameter block to be used for the call, must obey RTAS addressing
+ *        constraints.
+ * @token: Identifies the function being invoked.
+ * @nargs: Number of input parameters. Does not include token.
+ * @nret: Number of output parameters, including the call status.
+ * @....: List of @nargs input parameters.
+ *
+ * Invokes the RTAS function indicated by @token, which the caller
+ * should obtain via rtas_function_token().
+ *
+ * This function is similar to rtas_call(), but must be used with a
+ * limited set of RTAS calls specifically exempted from the general
+ * requirement that only one RTAS call may be in progress at any
+ * time. Examples include stop-self and ibm,nmi-interlock.
+ */
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, ...)
 {
 	va_list list;
 
+	/*
+	 * Callers must not use rtas_args; otherwise they risk
+	 * corrupting the state of the rtas_call() path, which is
+	 * serialized by rtas_lock.
+	 */
+	WARN_ON(args == &rtas_args);
+
 	va_start(list, nret);
-	va_rtas_call_unlocked(args, token, nargs, nret, list);
+	va_rtas_call(args, token, nargs, nret, list);
 	va_end(list);
 }
 
@@ -1091,6 +1120,7 @@ static bool token_is_restricted_errinjct(s32 token)
  */
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
+	struct pin_cookie cookie;
 	va_list list;
 	int i;
 	unsigned long flags;
@@ -1117,11 +1147,13 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	}
 
 	raw_spin_lock_irqsave(&rtas_lock, flags);
+	cookie = lockdep_pin_lock(&rtas_lock);
+
 	/* We use the global rtas args buffer */
 	args = &rtas_args;
 
 	va_start(list, outputs);
-	va_rtas_call_unlocked(args, token, nargs, nret, list);
+	va_rtas_call(args, token, nargs, nret, list);
 	va_end(list);
 
 	/* A -1 return code indicates that the last command couldn't
@@ -1134,6 +1166,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 			outputs[i] = be32_to_cpu(args->rets[i + 1]);
 	ret = (nret > 0) ? be32_to_cpu(args->rets[0]) : 0;
 
+	lockdep_unpin_lock(&rtas_lock, cookie);
 	raw_spin_unlock_irqrestore(&rtas_lock, flags);
 
 	if (buff_copy) {
@@ -1832,18 +1865,25 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 
 	buff_copy = get_errorlog_buffer();
 
-	raw_spin_lock_irqsave(&rtas_lock, flags);
+	do {
+		struct pin_cookie cookie;
 
-	rtas_args = args;
-	do_enter_rtas(&rtas_args);
-	args = rtas_args;
+		raw_spin_lock_irqsave(&rtas_lock, flags);
+		cookie = lockdep_pin_lock(&rtas_lock);
 
-	/* A -1 return code indicates that the last command couldn't
-	   be completed due to a hardware error. */
-	if (be32_to_cpu(args.rets[0]) == -1)
-		errbuf = __fetch_rtas_last_error(buff_copy);
+		rtas_args = args;
+		do_enter_rtas(&rtas_args);
+		args = rtas_args;
 
-	raw_spin_unlock_irqrestore(&rtas_lock, flags);
+		/*
+		 * Handle error record retrieval before releasing the lock.
+		 */
+		if (be32_to_cpu(args.rets[0]) == -1)
+			errbuf = __fetch_rtas_last_error(buff_copy);
+
+		lockdep_unpin_lock(&rtas_lock, cookie);
+		raw_spin_unlock_irqrestore(&rtas_lock, flags);
+	} while (rtas_busy_delay(be32_to_cpu(args.rets[0])));
 
 	if (buff_copy) {
 		if (errbuf)
