@@ -11,6 +11,8 @@
 #ifndef _SELFTESTS_POWERPC_DSCR_DSCR_H
 #define _SELFTESTS_POWERPC_DSCR_DSCR_H
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,8 +88,24 @@ void set_default_dscr(unsigned long val)
 	}
 }
 
-double uniform_deviate(int seed)
+int restrict_to_one_cpu(void)
 {
-	return seed * (1.0 / (RAND_MAX + 1.0));
+	cpu_set_t cpus;
+	int cpu;
+
+	FAIL_IF(sched_getaffinity(0, sizeof(cpu_set_t), &cpus));
+
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++)
+		if (CPU_ISSET(cpu, &cpus))
+			break;
+
+	FAIL_IF(cpu == CPU_SETSIZE);
+
+	CPU_ZERO(&cpus);
+	CPU_SET(cpu, &cpus);
+	FAIL_IF(sched_setaffinity(0, sizeof(cpu_set_t), &cpus));
+
+	return 0;
 }
+
 #endif	/* _SELFTESTS_POWERPC_DSCR_DSCR_H */
