@@ -11,7 +11,6 @@
 #ifndef CS35L45_H
 #define CS35L45_H
 
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
