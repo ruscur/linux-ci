@@ -1219,10 +1219,15 @@ static int tce_iommu_take_ownership(struct tce_container *container,
 
 		rc = iommu_take_ownership(tbl);
 		if (rc) {
-			for (j = 0; j < i; ++j)
-				iommu_release_ownership(
-						table_group->tables[j]);
+			for (j = 0; j < i; ++j) {
+				struct iommu_table *tbl =
+					table_group->tables[j];
 
+				if (!tbl || !tbl->it_map)
+					continue;
+
+				iommu_release_ownership(table_group->tables[j]);
+			}
 			return rc;
 		}
 	}
