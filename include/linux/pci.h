@@ -1444,10 +1444,16 @@ int devm_request_pci_bus_resources(struct device *dev,
 /* Temporary until new and working PCI SBR API in place */
 int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 
-#define pci_bus_for_each_resource(bus, res, i)				\
-	for (i = 0;							\
-	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \
-	     i++)
+#define __pci_bus_for_each_resource(bus, res, __i, vartype)			\
+	for (vartype __i = 0;							\
+	     res = pci_bus_resource_n(bus, __i), __i < PCI_BRIDGE_RESOURCE_NUM;	\
+	     __i++)
+
+#define pci_bus_for_each_resource(bus, res, i)					\
+	__pci_bus_for_each_resource(bus, res, i, )
+
+#define pci_bus_for_each_resource_p(bus, res)					\
+	__pci_bus_for_each_resource(bus, res, __i, unsigned int)
 
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,
@@ -1994,14 +2000,25 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma);
  * These helpers provide future and backwards compatibility
  * for accessing popular PCI BAR info
  */
+#define pci_resource_n(dev, bar)	(&(dev)->resource[(bar)])
 #define pci_resource_start(dev, bar)	((dev)->resource[(bar)].start)
 #define pci_resource_end(dev, bar)	((dev)->resource[(bar)].end)
 #define pci_resource_flags(dev, bar)	((dev)->resource[(bar)].flags)
 #define pci_resource_len(dev,bar) \
 	((pci_resource_end((dev), (bar)) == 0) ? 0 :	\
 							\
-	 (pci_resource_end((dev), (bar)) -		\
-	  pci_resource_start((dev), (bar)) + 1))
+	 resource_size(pci_resource_n((dev), (bar))))
+
+#define __pci_dev_for_each_resource(dev, res, __i, vartype)		\
+	for (vartype __i = 0;						\
+	     res = pci_resource_n(dev, __i), __i < PCI_NUM_RESOURCES;	\
+	     __i++)
+
+#define pci_dev_for_each_resource(dev, res, i)				\
+       __pci_dev_for_each_resource(dev, res, i, )
+
+#define pci_dev_for_each_resource_p(dev, res)				\
+	__pci_dev_for_each_resource(dev, res, __i, unsigned int)
 
 /*
  * Similar to the helpers above, these manipulate per-pci_dev
