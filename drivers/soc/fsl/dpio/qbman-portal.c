@@ -477,24 +477,26 @@ void qbman_swp_mc_submit(struct qbman_swp *p, void *cmd, u8 cmd_verb)
  */
 void *qbman_swp_mc_result(struct qbman_swp *p)
 {
-	u32 *ret, verb;
+	u32 *ret, verb, result;
 
 	if ((p->desc->qman_version & QMAN_REV_MASK) < QMAN_REV_5000) {
 		ret = qbman_get_cmd(p, QBMAN_CENA_SWP_RR(p->mc.valid_bit));
+		result = le32_to_cpu(ret[0]);
 		/* Remove the valid-bit - command completed if the rest
 		 * is non-zero.
 		 */
-		verb = ret[0] & ~QB_VALID_BIT;
+		verb = result & ~QB_VALID_BIT;
 		if (!verb)
 			return NULL;
 		p->mc.valid_bit ^= QB_VALID_BIT;
 	} else {
 		ret = qbman_get_cmd(p, QBMAN_CENA_SWP_RR_MEM);
+		result = le32_to_cpu(ret[0]);
 		/* Command completed if the valid bit is toggled */
-		if (p->mr.valid_bit != (ret[0] & QB_VALID_BIT))
+		if (p->mr.valid_bit != (result & QB_VALID_BIT))
 			return NULL;
 		/* Command completed if the rest is non-zero */
-		verb = ret[0] & ~QB_VALID_BIT;
+		verb = result & ~QB_VALID_BIT;
 		if (!verb)
 			return NULL;
 		p->mr.valid_bit ^= QB_VALID_BIT;
