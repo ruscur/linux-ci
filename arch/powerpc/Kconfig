@@ -1036,6 +1036,20 @@ config PPC_MEM_KEYS
 
 	  If unsure, say y.
 
+config PPC_DEXCR_DEFAULT
+	hex "Default DEXCR value"
+	default 0x0000000004000000
+	depends on PPC_BOOK3S_64
+	help
+	  Power10 introduces the Dynamic Execution Control Register (DEXCR)
+	  to provide fine grained control over various speculation and
+	  security capabilities. This is used as the default DEXCR value.
+
+	  It is a 64 bit value that splits into 32 bits for supervisor mode
+	  and 32 bits for problem state. The default config value enables
+	  the hashst/hashck instructions in userspace. See the ISA for
+	  specifics of what each bit controls.
+
 config PPC_SECURE_BOOT
 	prompt "Enable secure boot support"
 	bool

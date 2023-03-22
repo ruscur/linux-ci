@@ -10,6 +10,7 @@
 #include <asm/reg.h>
 #include <asm/synch.h>
 #include <linux/bitops.h>
+#include <linux/kconfig.h>
 #include <asm/cputable.h>
 #include <asm/cpu_setup.h>
 
@@ -124,6 +125,12 @@ static void init_PMU_ISA31(void)
 	mtspr(SPRN_MMCR3, 0);
 	mtspr(SPRN_MMCRA, MMCRA_BHRB_DISABLE);
 	mtspr(SPRN_MMCR0, MMCR0_FC | MMCR0_PMCCEXT);
+}
+
+static void init_DEXCR(void)
+{
+	mtspr(SPRN_DEXCR, CONFIG_PPC_DEXCR_DEFAULT);
+	mtspr(SPRN_HASHKEYR, 0);
 }
 
 /*
@@ -241,6 +248,7 @@ void __setup_cpu_power10(unsigned long offset, struct cpu_spec *t)
 	init_FSCR_power10();
 	init_PMU();
 	init_PMU_ISA31();
+	init_DEXCR();
 
 	if (!init_hvmode_206(t))
 		return;
@@ -263,6 +271,7 @@ void __restore_cpu_power10(void)
 	init_FSCR_power10();
 	init_PMU();
 	init_PMU_ISA31();
+	init_DEXCR();
 
 	msr = mfmsr();
 	if (!(msr & MSR_HV))

@@ -384,7 +384,14 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+#define SPRN_HASHKEYR	0x1D4	/* Non-privileged hashst/hashchk key register */
 #define SPRN_ASDR	0x330	/* Access segment descriptor register */
+#define SPRN_DEXCR	0x33C	/* Dynamic execution control register */
+#define   DEXCR_PR_BIT(aspect)	PPC_BIT(32 + (aspect))
+#define   DEXCR_PR_SBHE		DEXCR_PR_BIT(0)	/* Speculative Branch Hint Enable */
+#define   DEXCR_PR_IBRTPD	DEXCR_PR_BIT(3)	/* Indirect Branch Recurrent Target Prediction Disable */
+#define   DEXCR_PR_SRAPD	DEXCR_PR_BIT(4)	/* Subroutine Return Address Prediction Disable */
+#define   DEXCR_PR_NPHIE	DEXCR_PR_BIT(5)	/* Non-Privileged Hash Instruction Enable */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
 #define SPRN_LDBAR	0x352	/* LD Base Address Register */
