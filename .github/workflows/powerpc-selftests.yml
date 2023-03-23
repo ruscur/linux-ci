@@ -15,8 +15,6 @@ on:
       - 'tools/testing/selftests/**'
       # Some files in arch are symlinked by selftests
       - 'arch/powerpc/**'
-      # Change to workflow triggers a build
-      - '.github/workflows/powerpc-selftests.yml'
 
 jobs:
   selftests:
@@ -48,13 +46,6 @@ jobs:
       with:
         path: ~/.ccache
         key: ${{ matrix.image }}-${{ matrix.subarch }}-${{ matrix.defconfig }}
-
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build
       run: |
