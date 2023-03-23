@@ -26,6 +26,7 @@
 
 #include <linux/mod_devicetable.h>
 
+#include <linux/args.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -1445,10 +1446,19 @@ int devm_request_pci_bus_resources(struct device *dev,
 /* Temporary until new and working PCI SBR API in place */
 int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 
-#define pci_bus_for_each_resource(bus, res, i)				\
-	for (i = 0;							\
-	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \
-	     i++)
+#define __pci_bus_for_each_resource_0(bus, res, ...)			       \
+	for (unsigned int __b = 0;					       \
+	     res = pci_bus_resource_n(bus, __b), __b < PCI_BRIDGE_RESOURCE_NUM;\
+	     __b++)
+
+#define __pci_bus_for_each_resource_1(bus, res, __b)			       \
+	for (__b = 0;							       \
+	     res = pci_bus_resource_n(bus, __b), __b < PCI_BRIDGE_RESOURCE_NUM;\
+	     __b++)
+
+#define pci_bus_for_each_resource(bus, res, ...)			       \
+	CONCATENATE(__pci_bus_for_each_resource_, COUNT_ARGS(__VA_ARGS__))     \
+		    (bus, res, __VA_ARGS__)
 
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,
@@ -1995,14 +2005,27 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma);
  * These helpers provide future and backwards compatibility
  * for accessing popular PCI BAR info
  */
-#define pci_resource_start(dev, bar)	((dev)->resource[(bar)].start)
-#define pci_resource_end(dev, bar)	((dev)->resource[(bar)].end)
-#define pci_resource_flags(dev, bar)	((dev)->resource[(bar)].flags)
-#define pci_resource_len(dev,bar) \
-	((pci_resource_end((dev), (bar)) == 0) ? 0 :	\
-							\
-	 (pci_resource_end((dev), (bar)) -		\
-	  pci_resource_start((dev), (bar)) + 1))
+#define pci_resource_n(dev, bar)	(&(dev)->resource[(bar)])
+#define pci_resource_start(dev, bar)	(pci_resource_n(dev, bar)->start)
+#define pci_resource_end(dev, bar)	(pci_resource_n(dev, bar)->end)
+#define pci_resource_flags(dev, bar)	(pci_resource_n(dev, bar)->flags)
+#define pci_resource_len(dev,bar)					\
+	(pci_resource_end((dev), (bar)) ? 				\
+	 resource_size(pci_resource_n((dev), (bar))) : 0)
+
+#define __pci_dev_for_each_resource_0(dev, res, ...)			\
+	for (unsigned int __b = 0;					\
+	     res = pci_resource_n(dev, __b), __b < PCI_NUM_RESOURCES;	\
+	     __b++)
+
+#define __pci_dev_for_each_resource_1(dev, res, __b)			\
+	for (__b = 0;							\
+	     res = pci_resource_n(dev, __b), __b < PCI_NUM_RESOURCES;	\
+	     __b++)
+
+#define pci_dev_for_each_resource(dev, res, ...)			   \
+	CONCATENATE(__pci_dev_for_each_resource_, COUNT_ARGS(__VA_ARGS__)) \
+		    (dev, res, __VA_ARGS__)
 
 /*
  * Similar to the helpers above, these manipulate per-pci_dev
