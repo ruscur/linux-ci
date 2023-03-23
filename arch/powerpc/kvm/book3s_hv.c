@@ -2968,13 +2968,17 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 			pr_devel("KVM: collision on id %u", id);
 			vcore = NULL;
 		} else if (!vcore) {
+			vcore = kvmppc_vcore_create(kvm,
+					id & ~(kvm->arch.smt_mode - 1));
+			if (unlikely(!vcore)) {
+				mutex_unlock(&kvm->lock);
+				return -ENOMEM;
+			}
+
 			/*
 			 * Take mmu_setup_lock for mutual exclusion
 			 * with kvmppc_update_lpcr().
 			 */
-			err = -ENOMEM;
-			vcore = kvmppc_vcore_create(kvm,
-					id & ~(kvm->arch.smt_mode - 1));
 			mutex_lock(&kvm->arch.mmu_setup_lock);
 			kvm->arch.vcores[core] = vcore;
 			kvm->arch.online_vcores++;
