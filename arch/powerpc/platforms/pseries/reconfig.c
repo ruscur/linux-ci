@@ -23,15 +23,17 @@
 static int pSeries_reconfig_add_node(const char *path, struct property *proplist)
 {
 	struct device_node *np;
-	int err = -ENOMEM;
+	int err;
 
 	np = kzalloc(sizeof(*np), GFP_KERNEL);
 	if (!np)
-		goto out_err;
+		return -ENOMEM;
 
 	np->full_name = kstrdup(kbasename(path), GFP_KERNEL);
-	if (!np->full_name)
-		goto out_err;
+	if (!np->full_name) {
+		err = -ENOMEM;
+		goto free_device_node;
+	}
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);
@@ -40,25 +42,25 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	np->parent = pseries_of_derive_parent(path);
 	if (IS_ERR(np->parent)) {
 		err = PTR_ERR(np->parent);
-		goto out_err;
+		goto free_name;
 	}
 
 	err = of_attach_node(np);
 	if (err) {
 		printk(KERN_ERR "Failed to add device node %s\n", path);
-		goto out_err;
+		goto put_node;
 	}
 
 	of_node_put(np->parent);
 
 	return 0;
 
-out_err:
-	if (np) {
-		of_node_put(np->parent);
-		kfree(np->full_name);
-		kfree(np);
-	}
+put_node:
+	of_node_put(np->parent);
+free_name:
+	kfree(np->full_name);
+free_device_node:
+	kfree(np);
 	return err;
 }
 
