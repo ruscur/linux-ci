@@ -105,6 +105,7 @@ struct kvm_vm {
 	bool pgd_created;
 	vm_paddr_t ucall_mmio_addr;
 	vm_paddr_t pgd;
+	vm_paddr_t prtb; // powerpc process table
 	vm_vaddr_t gdt;
 	vm_vaddr_t tss;
 	vm_vaddr_t idt;
@@ -160,6 +161,7 @@ enum vm_guest_mode {
 	VM_MODE_PXXV48_4K,	/* For 48bits VA but ANY bits PA */
 	VM_MODE_P47V64_4K,
 	VM_MODE_P44V64_4K,
+	VM_MODE_P52V52_64K,
 	VM_MODE_P36V48_4K,
 	VM_MODE_P36V48_16K,
 	VM_MODE_P36V48_64K,
@@ -196,6 +198,17 @@ extern enum vm_guest_mode vm_mode_default;
 #define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
+
+#elif defined(__powerpc64__)
+
+/* Radix guest EA and RA are 52-bit on POWER9 and POWER10 */
+#define VM_MODE_DEFAULT			VM_MODE_P52V52_64K
+#define MIN_PAGE_SHIFT			12U /// XXX: hack to allocate more page table memory because we aren't allocating page tables well on 64K base page size
+#define ptes_per_page(page_size)	((page_size) / 8)
+
+#else
+
+#error "KVM selftests not implemented for architecture"
 
 #endif
 
