@@ -323,8 +323,8 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	struct resource rsrc_cfg;
 	struct resource rsrc_reg;
 	struct resource dma_window;
-	struct pci_controller *hose = NULL;
-	void __iomem *reg = NULL;
+	struct pci_controller *hose;
+	void __iomem *reg;
 	const int *bus_range;
 	int primary = 0;
 
@@ -358,13 +358,13 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
 		printk(KERN_ERR "%pOF: Can't map registers !", np);
-		goto fail;
+		return;
 	}
 
 	/* Allocate the host controller data structure */
 	hose = pcibios_alloc_controller(np);
 	if (!hose)
-		goto fail;
+		goto unmap_io;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
@@ -383,8 +383,10 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	pci_process_bridge_OF_ranges(hose, np, primary);
 
 	/* Parse inbound mapping resources */
-	if (ppc4xx_parse_dma_ranges(hose, reg, &dma_window) != 0)
-		goto fail;
+	if (ppc4xx_parse_dma_ranges(hose, reg, &dma_window)) {
+		pcibios_free_controller(hose);
+		goto unmap_io;
+	}
 
 	/* Configure outbound ranges POMs */
 	ppc4xx_configure_pci_PMMs(hose, reg);
@@ -393,14 +395,8 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	ppc4xx_configure_pci_PTMs(hose, reg, &dma_window);
 
 	/* We don't need the registers anymore */
+unmap_io:
 	iounmap(reg);
-	return;
-
- fail:
-	if (hose)
-		pcibios_free_controller(hose);
-	if (reg)
-		iounmap(reg);
 }
 
 /*
@@ -527,8 +523,8 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	struct resource rsrc_cfg;
 	struct resource rsrc_reg;
 	struct resource dma_window;
-	struct pci_controller *hose = NULL;
-	void __iomem *reg = NULL;
+	struct pci_controller *hose;
+	void __iomem *reg;
 	const int *bus_range;
 	int big_pim = 0, msi = 0, primary = 0;
 
@@ -564,13 +560,13 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
 		printk(KERN_ERR "%pOF: Can't map registers !", np);
-		goto fail;
+		return;
 	}
 
 	/* Allocate the host controller data structure */
 	hose = pcibios_alloc_controller(np);
 	if (!hose)
-		goto fail;
+		goto unmap_io;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
@@ -595,8 +591,10 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	pci_process_bridge_OF_ranges(hose, np, primary);
 
 	/* Parse inbound mapping resources */
-	if (ppc4xx_parse_dma_ranges(hose, reg, &dma_window) != 0)
-		goto fail;
+	if (ppc4xx_parse_dma_ranges(hose, reg, &dma_window)) {
+		pcibios_free_controller(hose);
+		goto unmap_io;
+	}
 
 	/* Configure outbound ranges POMs */
 	ppc4xx_configure_pcix_POMs(hose, reg);
@@ -605,14 +603,8 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	ppc4xx_configure_pcix_PIMs(hose, reg, &dma_window, big_pim, msi);
 
 	/* We don't need the registers anymore */
+unmap_io:
 	iounmap(reg);
-	return;
-
- fail:
-	if (hose)
-		pcibios_free_controller(hose);
-	if (reg)
-		iounmap(reg);
 }
 
 #ifdef CONFIG_PPC4xx_PCI_EXPRESS
@@ -1411,7 +1403,7 @@ static struct ppc4xx_pciex_hwops ppc_476fpe_pcie_hwops __initdata =
 static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 {
 	static int core_init;
-	int count = -ENODEV;
+	int count;
 
 	if (core_init++)
 		return 0;
@@ -1913,10 +1905,10 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 {
 	struct resource dma_window;
-	struct pci_controller *hose = NULL;
+	struct pci_controller *hose;
 	const int *bus_range;
 	int primary = 0, busses;
-	void __iomem *mbase = NULL, *cfg_data = NULL;
+	void __iomem *mbase, *cfg_data = NULL;
 	const u32 *pval;
 	u32 val;
 
@@ -1930,7 +1922,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	/* Allocate the host controller data structure */
 	hose = pcibios_alloc_controller(port->node);
 	if (!hose)
-		goto fail;
+		return;
 
 	/* We stick the port number in "indirect_type" so the config space
 	 * ops can retrieve the port data structure easily
@@ -1962,7 +1954,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 		if (cfg_data == NULL) {
 			printk(KERN_ERR "%pOF: Can't map external config space !",
 			       port->node);
-			goto fail;
+			goto free_controller;
 		}
 		hose->cfg_data = cfg_data;
 	}
@@ -1974,7 +1966,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	if (mbase == NULL) {
 		printk(KERN_ERR "%pOF: Can't map internal config space !",
 		       port->node);
-		goto fail;
+		goto recheck_cfg_data;
 	}
 	hose->cfg_addr = mbase;
 
@@ -2007,7 +1999,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 
 	/* Parse inbound mapping resources */
 	if (ppc4xx_parse_dma_ranges(hose, mbase, &dma_window) != 0)
-		goto fail;
+		goto unmap_io_mbase;
 
 	/* Configure outbound ranges POMs */
 	ppc4xx_configure_pciex_POMs(port, hose, mbase);
@@ -2064,13 +2056,14 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	}
 
 	return;
- fail:
-	if (hose)
-		pcibios_free_controller(hose);
+
+unmap_io_mbase:
+	iounmap(mbase);
+recheck_cfg_data:
 	if (cfg_data)
 		iounmap(cfg_data);
-	if (mbase)
-		iounmap(mbase);
+free_controller:
+	pcibios_free_controller(hose);
 }
 
 static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
