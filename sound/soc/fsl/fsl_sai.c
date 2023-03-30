@@ -519,13 +519,13 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	struct snd_dmaengine_dai_dma_data *dma_params;
 	struct fsl_sai_dl_cfg *dl_cfg = sai->dl_cfg;
+	u32 slot_width = params_physical_width(params);
 	u32 word_width = params_width(params);
 	int trce_mask = 0, dl_cfg_idx = 0;
 	int dl_cfg_cnt = sai->dl_cfg_cnt;
 	u32 dl_type = FSL_SAI_DL_I2S;
 	u32 val_cr4 = 0, val_cr5 = 0;
 	u32 slots = (channels == 1) ? 2 : channels;
-	u32 slot_width = word_width;
 	int adir = tx ? RX : TX;
 	u32 pins, bclk;
 	u32 watermark;
