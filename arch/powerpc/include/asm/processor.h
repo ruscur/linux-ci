@@ -264,6 +264,7 @@ struct thread_struct {
 	unsigned long   mmcr3;
 	unsigned long   sier2;
 	unsigned long   sier3;
+	unsigned long	hashkeyr;
 
 #endif
 };
@@ -454,6 +455,15 @@ int enter_vmx_usercopy(void);
 int exit_vmx_usercopy(void);
 int enter_vmx_ops(void);
 void *exit_vmx_ops(void *dest);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+int check_hashchk_trap(struct pt_regs const *regs);
+#else
+static inline int check_hashchk_trap(struct pt_regs const *regs)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */

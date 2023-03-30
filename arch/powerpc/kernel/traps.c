@@ -1516,6 +1516,16 @@ static void do_program_check(struct pt_regs *regs)
 				return;
 			}
 		}
+
+		switch (check_hashchk_trap(regs)) {
+		case 0:
+			_exception(SIGILL, regs, ILL_ILLOPN, regs->nip);
+			return;
+		case -EFAULT:
+			_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+			return;
+		}
+
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 		return;
 	}
