@@ -321,7 +321,9 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 			if (vcpu->mmio_is_write)
 				dsisr |= DSISR_ISSTORE;
 
-			kvmppc_core_queue_data_storage(vcpu, vcpu->arch.vaddr_accessed, dsisr);
+			kvmppc_core_queue_data_storage(vcpu,
+					kvmppc_get_msr(vcpu) & SRR1_PREFIXED,
+					vcpu->arch.vaddr_accessed, dsisr);
 		} else {
 			/*
 			 * BookE does not send a SIGBUS on a bad
