@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/pgtable.h>
+#include <linux/sysfs.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -44,6 +45,8 @@
 #include <asm/kvm_guest.h>
 
 #include "pseries.h"
+
+int pseries_smt;
 
 /*
  * The Primary thread of each non-boot processor was started from the OF client
@@ -280,3 +283,39 @@ void __init smp_init_pseries(void)
 
 	pr_debug(" <- smp_init_pSeries()\n");
 }
+
+static ssize_t pseries_smt_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	int smt;
+
+	if (kstrtou32(buf, 0, &smt) || !smt || smt > (u32) threads_per_core) {
+		pr_err("Invalid pseries_smt specified.\n");
+		return -EINVAL;
+	}
+
+	WRITE_ONCE(pseries_smt, smt);
+
+	return count;
+}
+
+static ssize_t pseries_smt_show(struct class *class, struct class_attribute *attr,
+			  char *buf)
+{
+	return sysfs_emit(buf, "%d\n", pseries_smt);
+}
+
+static CLASS_ATTR_RW(pseries_smt);
+
+static int __init pseries_smt_init(void)
+{
+	int rc;
+
+	pseries_smt = smt_enabled_at_boot;
+	rc = sysfs_create_file(kernel_kobj, &class_attr_pseries_smt.attr);
+	if (rc)
+		pr_err("Can't create pseries_smt sysfs/kernel entry.\n");
+	return rc;
+}
+machine_device_initcall(pseries, pseries_smt_init);
