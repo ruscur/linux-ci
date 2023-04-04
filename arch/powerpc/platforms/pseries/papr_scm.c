@@ -1428,6 +1428,13 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/*
+	 * open firmware  platform device create won't update the
+	 * numa distance table. For papr scm device we use numa_map_to_online_node
+	 * to find the nearest online numa node and that requires corrrect
+	 * distance table information.
+	 */
+	update_numa_distance(dn);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
