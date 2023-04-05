@@ -9,6 +9,7 @@
 #include <linux/smp.h>
 #include <linux/swap.h>
 #include <linux/rmap.h>
+#include <linux/context_tracking_state.h>
 
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -191,7 +192,27 @@ static void tlb_remove_table_smp_sync(void *arg)
 	/* Simply deliver the interrupt */
 }
 
-void tlb_remove_table_sync_one(void)
+
+#ifdef CONFIG_CONTEXT_TRACKING
+static bool cpu_in_kernel(int cpu, void *info)
+{
+	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
+	int state = atomic_read(&ct->state);
+	/* will return true only for cpus in kernel space */
+	return state & CT_STATE_MASK == CONTEXT_KERNEL;
+}
+#define CONTEXT_PREDICATE cpu_in_kernel
+#else
+#define CONTEXT_PREDICATE NULL
+#endif /* CONFIG_CONTEXT_TRACKING */
+
+#ifdef CONFIG_ARCH_HAS_CPUMASK_BITS
+#define REMOVE_TABLE_IPI_MASK mm_cpumask(mm)
+#else
+#define REMOVE_TABLE_IPI_MASK NULL
+#endif /* CONFIG_ARCH_HAS_CPUMASK_BITS */
+
+void tlb_remove_table_sync_one(struct mm_struct *mm)
 {
 	/*
 	 * This isn't an RCU grace period and hence the page-tables cannot be
@@ -200,7 +221,8 @@ void tlb_remove_table_sync_one(void)
 	 * It is however sufficient for software page-table walkers that rely on
 	 * IRQ disabling.
 	 */
-	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
+	on_each_cpu_cond_mask(CONTEXT_PREDICATE, tlb_remove_table_smp_sync,
+			NULL, true, REMOVE_TABLE_IPI_MASK);
 }
 
 static void tlb_remove_table_rcu(struct rcu_head *head)
@@ -237,9 +259,9 @@ static inline void tlb_table_invalidate(struct mmu_gather *tlb)
 	}
 }
 
-static void tlb_remove_table_one(void *table)
+static void tlb_remove_table_one(struct mm_struct *mm, void *table)
 {
-	tlb_remove_table_sync_one();
+	tlb_remove_table_sync_one(mm);
 	__tlb_remove_table(table);
 }
 
@@ -262,7 +284,7 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 		*batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
 		if (*batch == NULL) {
 			tlb_table_invalidate(tlb);
-			tlb_remove_table_one(table);
+			tlb_remove_table_one(tlb->mm, table);
 			return;
 		}
 		(*batch)->nr = 0;
