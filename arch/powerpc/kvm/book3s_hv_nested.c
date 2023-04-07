@@ -446,7 +446,7 @@ long kvmhv_nested_init(void)
 		ptb_order = 12;
 	pseries_partition_tb = kmalloc(sizeof(struct patb_entry) << ptb_order,
 				       GFP_KERNEL);
-	if (!pseries_partition_tb) {
+	if (unlikely(!pseries_partition_tb)) {
 		pr_err("kvm-hv: failed to allocated nested partition table\n");
 		return -ENOMEM;
 	}
@@ -575,7 +575,7 @@ long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu)
 		return H_PARAMETER;
 
 	buf = kzalloc(n, GFP_KERNEL | __GFP_NOWARN);
-	if (!buf)
+	if (unlikely(!buf))
 		return H_NO_MEM;
 
 	gp = kvmhv_get_nested(vcpu->kvm, l1_lpid, false);
@@ -689,7 +689,7 @@ static struct kvm_nested_guest *kvmhv_alloc_nested(struct kvm *kvm, unsigned int
 	long shadow_lpid;
 
 	gp = kzalloc(sizeof(*gp), GFP_KERNEL);
-	if (!gp)
+	if (unlikely(!gp))
 		return NULL;
 	gp->l1_host = kvm;
 	gp->l1_lpid = lpid;
@@ -1633,7 +1633,7 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	/* 4. Insert the pte into our shadow_pgtable */
 
 	n_rmap = kzalloc(sizeof(*n_rmap), GFP_KERNEL);
-	if (!n_rmap)
+	if (unlikely(!n_rmap))
 		return RESUME_GUEST; /* Let the guest try again */
 	n_rmap->rmap = (n_gpa & RMAP_NESTED_GPA_MASK) |
 		(((unsigned long) gp->l1_lpid) << RMAP_NESTED_LPID_SHIFT);
