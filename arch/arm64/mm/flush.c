@@ -7,8 +7,10 @@
  */
 
 #include <linux/export.h>
+#include <linux/jump_label.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/sysctl.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
@@ -106,4 +108,71 @@ void arch_invalidate_pmem(void *addr, size_t size)
 	dcache_inval_poc((unsigned long)addr, (unsigned long)addr + size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
+#endif
+
+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+
+DEFINE_STATIC_KEY_FALSE(batched_tlb_enabled);
+
+static bool batched_tlb_flush_supported(void)
+{
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+	/*
+	 * TLB flush deferral is not required on systems, which are affected with
+	 * ARM64_WORKAROUND_REPEAT_TLBI, as __tlbi()/__tlbi_user() implementation
+	 * will have two consecutive TLBI instructions with a dsb(ish) in between
+	 * defeating the purpose (i.e save overall 'dsb ish' cost).
+	 */
+	if (unlikely(cpus_have_const_cap(ARM64_WORKAROUND_REPEAT_TLBI)))
+		return false;
+#endif
+	return true;
+}
+
+int batched_tlb_enabled_handler(struct ctl_table *table, int write,
+				      void *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned int enabled = static_branch_unlikely(&batched_tlb_enabled);
+	struct ctl_table t;
+	int err;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	t = *table;
+	t.data = &enabled;
+	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	if (!err && write) {
+		if (enabled && batched_tlb_flush_supported())
+			static_branch_enable(&batched_tlb_enabled);
+		else
+			static_branch_disable(&batched_tlb_enabled);
+	}
+
+	return err;
+}
+
+static struct ctl_table batched_tlb_sysctls[] = {
+	{
+		.procname	= "batched_tlb_enabled",
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= batched_tlb_enabled_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{}
+};
+
+static int __init batched_tlb_sysctls_init(void)
+{
+	if (batched_tlb_flush_supported())
+		static_branch_enable(&batched_tlb_enabled);
+
+	register_sysctl_init("vm", batched_tlb_sysctls);
+	return 0;
+}
+late_initcall(batched_tlb_sysctls_init);
+
 #endif
