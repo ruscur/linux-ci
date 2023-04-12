@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -51,10 +50,11 @@ static void bench_test(char *s)
 static int testcase(void)
 {
 	char *s;
+	int ret;
 	unsigned long i;
 
-	s = memalign(128, SIZE);
-	if (!s) {
+	ret = posix_memalign((void **)&s, 128, SIZE);
+	if (ret < 0) {
 		perror("memalign");
 		exit(1);
 	}
