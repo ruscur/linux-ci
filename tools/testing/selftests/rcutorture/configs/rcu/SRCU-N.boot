@@ -1,2 +1,3 @@
 rcutorture.torture_type=srcu
 rcutorture.fwd_progress=3
+rcutorture.fwd_progress_holdoff=1

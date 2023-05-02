@@ -1,2 +1,3 @@
 rcutorture.torture_type=tasks-tracing
 rcutorture.fwd_progress=2
+rcutorture.fwd_progress_holdoff=1
