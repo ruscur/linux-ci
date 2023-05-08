@@ -435,7 +435,7 @@ yield_prev:
 
 	smp_rmb(); /* See __yield_to_locked_owner comment */
 
-	if (!node->locked) {
+	if (READ_ONCE(node->locked)) {
 		yield_to_preempted(prev_cpu, yield_count);
 		spin_begin();
 		return preempted;
@@ -566,7 +566,11 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 	node->lock = lock;
 	node->cpu = smp_processor_id();
 	node->yield_cpu = -1;
-	node->locked = 0;
+	node->locked = 1;
+	/*
+	 * Assign all attributes of a node before it can be published.
+	 */
+	barrier();
 
 	tail = encode_tail_cpu(node->cpu);
 
@@ -584,7 +588,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 		/* Wait for mcs node lock to be released */
 		spin_begin();
-		while (!node->locked) {
+		while (READ_ONCE(node->locked)) {
 			spec_barrier();
 
 			if (yield_to_prev(lock, node, old, paravirt))
@@ -693,13 +697,13 @@ again:
 	 */
 	if (paravirt && pv_prod_head) {
 		int next_cpu = next->cpu;
-		WRITE_ONCE(next->locked, 1);
+		WRITE_ONCE(next->locked, 0);
 		if (_Q_SPIN_MISO)
 			asm volatile("miso" ::: "memory");
 		if (vcpu_is_preempted(next_cpu))
 			prod_cpu(next_cpu);
 	} else {
-		WRITE_ONCE(next->locked, 1);
+		WRITE_ONCE(next->locked, 0);
 		if (_Q_SPIN_MISO)
 			asm volatile("miso" ::: "memory");
 	}

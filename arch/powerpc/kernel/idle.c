@@ -43,10 +43,12 @@ __setup("powersave=off", powersave_off);
 
 void arch_cpu_idle(void)
 {
+	void (*power_save)(void) = READ_ONCE(ppc_md.power_save);
+
 	ppc64_runlatch_off();
 
-	if (ppc_md.power_save) {
-		ppc_md.power_save();
+	if (power_save) {
+		power_save();
 		/*
 		 * Some power_save functions return with
 		 * interrupts enabled, some don't.

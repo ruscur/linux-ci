@@ -452,7 +452,7 @@ static inline bool irqd_affinity_on_activate(struct irq_data *d)
 
 static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
 {
-	return d->hwirq;
+	return READ_ONCE(d->hwirq);
 }
 
 /**
