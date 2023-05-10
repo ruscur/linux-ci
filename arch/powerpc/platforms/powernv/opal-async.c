@@ -146,7 +146,7 @@ int opal_async_wait_response(uint64_t token, struct opal_msg *msg)
 	 * functional.
 	 */
 	opal_wake_poller();
-	wait_event(opal_async_wait, opal_async_tokens[token].state
+	wait_event(opal_async_wait, READ_ONCE(opal_async_tokens[token].state)
 			== ASYNC_TOKEN_COMPLETED);
 	memcpy(msg, &opal_async_tokens[token].response, sizeof(*msg));
 
@@ -185,7 +185,7 @@ int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
 	 * interruptible version before doing anything else with the
 	 * token.
 	 */
-	if (opal_async_tokens[token].state == ASYNC_TOKEN_ALLOCATED) {
+	if (READ_ONCE(opal_async_tokens[token].state) == ASYNC_TOKEN_ALLOCATED) {
 		spin_lock_irqsave(&opal_async_comp_lock, flags);
 		if (opal_async_tokens[token].state == ASYNC_TOKEN_ALLOCATED)
 			opal_async_tokens[token].state = ASYNC_TOKEN_DISPATCHED;
@@ -199,7 +199,7 @@ int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
 	 */
 	opal_wake_poller();
 	ret = wait_event_interruptible(opal_async_wait,
-			opal_async_tokens[token].state ==
+			READ_ONCE(opal_async_tokens[token].state) ==
 			ASYNC_TOKEN_COMPLETED);
 	if (!ret)
 		memcpy(msg, &opal_async_tokens[token].response, sizeof(*msg));

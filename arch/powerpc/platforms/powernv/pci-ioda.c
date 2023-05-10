@@ -1986,7 +1986,7 @@ int64_t pnv_opal_pci_msi_eoi(struct irq_data *d)
 	struct pci_controller *hose = irq_data_get_irq_chip_data(d->parent_data);
 	struct pnv_phb *phb = hose->private_data;
 
-	return opal_pci_msi_eoi(phb->opal_id, d->parent_data->hwirq);
+	return opal_pci_msi_eoi(phb->opal_id, READ_ONCE(d->parent_data->hwirq));
 }
 
 /*
@@ -2162,11 +2162,11 @@ static void pnv_msi_compose_msg(struct irq_data *d, struct msi_msg *msg)
 	struct pnv_phb *phb = hose->private_data;
 	int rc;
 
-	rc = __pnv_pci_ioda_msi_setup(phb, pdev, d->hwirq,
+	rc = __pnv_pci_ioda_msi_setup(phb, pdev, READ_ONCE(d->hwirq),
 				      entry->pci.msi_attrib.is_64, msg);
 	if (rc)
 		dev_err(&pdev->dev, "Failed to setup %s-bit MSI #%ld : %d\n",
-			entry->pci.msi_attrib.is_64 ? "64" : "32", d->hwirq, rc);
+			entry->pci.msi_attrib.is_64 ? "64" : "32", data_race(d->hwirq), rc);
 }
 
 /*
@@ -2184,7 +2184,7 @@ static void pnv_msi_eoi(struct irq_data *d)
 		 * since it is translated into a vector number in
 		 * OPAL, use that directly.
 		 */
-		WARN_ON_ONCE(opal_pci_msi_eoi(phb->opal_id, d->hwirq));
+		WARN_ON_ONCE(opal_pci_msi_eoi(phb->opal_id, READ_ONCE(d->hwirq)));
 	}
 
 	irq_chip_eoi_parent(d);
@@ -2263,9 +2263,9 @@ static void pnv_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 	struct pnv_phb *phb = hose->private_data;
 
 	pr_debug("%s bridge %pOF %d/%lx #%d\n", __func__, hose->dn,
-		 virq, d->hwirq, nr_irqs);
+		 virq, data_race(d->hwirq), nr_irqs);
 
-	msi_bitmap_free_hwirqs(&phb->msi_bmp, d->hwirq, nr_irqs);
+	msi_bitmap_free_hwirqs(&phb->msi_bmp, READ_ONCE(d->hwirq), nr_irqs);
 	/* XIVE domain is cleared through ->msi_free() */
 }
 

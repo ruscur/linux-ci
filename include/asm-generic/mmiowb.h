@@ -37,25 +37,29 @@ static inline void mmiowb_set_pending(void)
 	struct mmiowb_state *ms = __mmiowb_state();
 
 	if (likely(ms->nesting_count))
-		ms->mmiowb_pending = ms->nesting_count;
+		WRITE_ONCE(ms->mmiowb_pending, ms->nesting_count);
 }
 
 static inline void mmiowb_spin_lock(void)
 {
 	struct mmiowb_state *ms = __mmiowb_state();
-	ms->nesting_count++;
+
+	/* Increment need not be atomic. Nestedness is balanced over interrupts. */
+	WRITE_ONCE(ms->nesting_count, READ_ONCE(ms->nesting_count) + 1);
 }
 
 static inline void mmiowb_spin_unlock(void)
 {
 	struct mmiowb_state *ms = __mmiowb_state();
+	u16 pending = READ_ONCE(ms->mmiowb_pending);
 
-	if (unlikely(ms->mmiowb_pending)) {
-		ms->mmiowb_pending = 0;
+	WRITE_ONCE(ms->mmiowb_pending, 0);
+	if (unlikely(pending)) {
 		mmiowb();
 	}
 
-	ms->nesting_count--;
+	/* Decrement need not be atomic. Nestedness is balanced over interrupts. */
+	WRITE_ONCE(ms->nesting_count, READ_ONCE(ms->nesting_count) - 1);
 }
 #else
 #define mmiowb_set_pending()		do { } while (0)

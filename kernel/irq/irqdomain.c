@@ -549,7 +549,7 @@ static void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 		 "virq%i doesn't exist; cannot disassociate\n", irq))
 		return;
 
-	hwirq = irq_data->hwirq;
+	hwirq = READ_ONCE(irq_data->hwirq);
 
 	mutex_lock(&domain->root->mutex);
 
@@ -948,7 +948,7 @@ struct irq_desc *__irq_resolve_mapping(struct irq_domain *domain,
 	if (irq_domain_is_nomap(domain)) {
 		if (hwirq < domain->hwirq_max) {
 			data = irq_domain_get_irq_data(domain, hwirq);
-			if (data && data->hwirq == hwirq)
+			if (data && READ_ONCE(data->hwirq) == hwirq)
 				desc = irq_data_to_desc(data);
 			if (irq && desc)
 				*irq = hwirq;
