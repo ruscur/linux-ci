@@ -96,6 +96,8 @@
 #define AT_FDCWD		-100    /* Special value used to indicate
                                            openat should use the current
                                            working directory. */
+#define AT_XATTR_CREATE	        0x1	/* setxattrat(2): set value, fail if attr already exists */
+#define AT_XATTR_REPLACE	0x2	/* setxattrat(2): set value, fail if attr does not exist */
 #define AT_SYMLINK_NOFOLLOW	0x100   /* Do not follow symbolic links.  */
 #define AT_EACCESS		0x200	/* Test access permitted for
                                            effective IDs, not real IDs.  */
