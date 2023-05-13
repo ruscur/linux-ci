@@ -14,6 +14,7 @@
 #include <asm/udbg.h>
 
 void (*udbg_putc)(char c);
+EXPORT_SYMBOL(udbg_putc);
 void (*udbg_flush)(void);
 int (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
