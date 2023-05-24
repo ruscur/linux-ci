@@ -282,6 +282,33 @@ bool topology_smt_supported(void)
 }
 
 /**
+ * topology_smt_threads_supported - Check if the given number of SMT threads
+ *				    is supported.
+ *
+ * @threads:	The number of SMT threads.
+ */
+bool topology_smt_threads_supported(unsigned int threads)
+{
+	// Only support a single thread or all threads.
+	return threads == 1 || threads == smp_num_siblings;
+}
+
+/**
+ * topology_smt_thread_allowed - When enabling SMT check whether this particular
+ *				 CPU thread is allowed to be brought online.
+ * @cpu:	CPU to check
+ */
+bool topology_smt_thread_allowed(unsigned int cpu)
+{
+	/*
+	 * No extra logic s required here to support different thread values
+	 * because threads will always == 1 or smp_num_siblings because of
+	 * topology_smt_threads_supported().
+	 */
+	return true;
+}
+
+/**
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  *
  * Returns logical package id or -1 if not found

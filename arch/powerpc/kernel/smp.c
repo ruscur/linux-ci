@@ -1152,6 +1152,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	if (smp_ops && smp_ops->probe)
 		smp_ops->probe();
+
+	// Initalise the generic SMT topology support
+	cpu_smt_check_topology(threads_per_core);
 }
 
 void smp_prepare_boot_cpu(void)

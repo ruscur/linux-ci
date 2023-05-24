@@ -414,6 +414,8 @@ void __weak arch_smt_update(void) { }
 
 #ifdef CONFIG_HOTPLUG_SMT
 enum cpuhp_smt_control cpu_smt_control __read_mostly = CPU_SMT_ENABLED;
+static unsigned int cpu_smt_max_threads __ro_after_init;
+unsigned int cpu_smt_num_threads;
 
 void __init cpu_smt_disable(bool force)
 {
@@ -433,10 +435,18 @@ void __init cpu_smt_disable(bool force)
  * The decision whether SMT is supported can only be done after the full
  * CPU identification. Called from architecture code.
  */
-void __init cpu_smt_check_topology(void)
+void __init cpu_smt_check_topology(unsigned int num_threads)
 {
 	if (!topology_smt_supported())
 		cpu_smt_control = CPU_SMT_NOT_SUPPORTED;
+
+	cpu_smt_max_threads = num_threads;
+
+	// May already be disabled by nosmt command line parameter
+	if (cpu_smt_control != CPU_SMT_ENABLED)
+		cpu_smt_num_threads = 1;
+	else
+		cpu_smt_num_threads = num_threads;
 }
 
 static int __init smt_cmdline_disable(char *str)
@@ -448,7 +458,7 @@ early_param("nosmt", smt_cmdline_disable);
 
 static inline bool cpu_smt_allowed(unsigned int cpu)
 {
-	if (cpu_smt_control == CPU_SMT_ENABLED)
+	if (cpu_smt_control == CPU_SMT_ENABLED && topology_smt_thread_allowed(cpu))
 		return true;
 
 	if (topology_is_primary_thread(cpu))
@@ -2263,6 +2273,12 @@ int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval)
 	for_each_online_cpu(cpu) {
 		if (topology_is_primary_thread(cpu))
 			continue;
+		/*
+		 * Disable can be called with CPU_SMT_ENABLED when changing
+		 * from a higher to lower number of SMT threads per core.
+		 */
+		if (ctrlval == CPU_SMT_ENABLED && topology_smt_thread_allowed(cpu))
+			continue;
 		ret = cpu_down_maps_locked(cpu, CPUHP_OFFLINE);
 		if (ret)
 			break;
@@ -2296,6 +2312,8 @@ int cpuhp_smt_enable(void)
 	for_each_present_cpu(cpu) {
 		/* Skip online CPUs and CPUs on offline nodes */
 		if (cpu_online(cpu) || !node_online(cpu_to_node(cpu)))
+			continue;
+		if (!topology_smt_thread_allowed(cpu))
 			continue;
 		ret = _cpu_up(cpu, 0, CPUHP_ONLINE);
 		if (ret)
@@ -2479,16 +2497,7 @@ static ssize_t
 __store_smt_control(struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
-	int ctrlval, ret;
-
-	if (sysfs_streq(buf, "on"))
-		ctrlval = CPU_SMT_ENABLED;
-	else if (sysfs_streq(buf, "off"))
-		ctrlval = CPU_SMT_DISABLED;
-	else if (sysfs_streq(buf, "forceoff"))
-		ctrlval = CPU_SMT_FORCE_DISABLED;
-	else
-		return -EINVAL;
+	int ctrlval, ret, num_threads, orig_threads;
 
 	if (cpu_smt_control == CPU_SMT_FORCE_DISABLED)
 		return -EPERM;
@@ -2496,11 +2505,38 @@ __store_smt_control(struct device *dev, struct device_attribute *attr,
 	if (cpu_smt_control == CPU_SMT_NOT_SUPPORTED)
 		return -ENODEV;
 
+	if (sysfs_streq(buf, "on")) {
+		ctrlval = CPU_SMT_ENABLED;
+		num_threads = cpu_smt_max_threads;
+	} else if (sysfs_streq(buf, "off")) {
+		ctrlval = CPU_SMT_DISABLED;
+		num_threads = 1;
+	} else if (sysfs_streq(buf, "forceoff")) {
+		ctrlval = CPU_SMT_FORCE_DISABLED;
+		num_threads = 1;
+	} else if (kstrtoint(buf, 10, &num_threads) == 0) {
+		if (num_threads == 1)
+			ctrlval = CPU_SMT_DISABLED;
+		else if (num_threads > 1 && topology_smt_threads_supported(num_threads))
+			ctrlval = CPU_SMT_ENABLED;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
 	ret = lock_device_hotplug_sysfs();
 	if (ret)
 		return ret;
 
-	if (ctrlval != cpu_smt_control) {
+	orig_threads = cpu_smt_num_threads;
+	cpu_smt_num_threads = num_threads;
+
+	if (num_threads > orig_threads) {
+		ret = cpuhp_smt_enable();
+	} else if (num_threads < orig_threads) {
+		ret = cpuhp_smt_disable(ctrlval);
+	} else if (ctrlval != cpu_smt_control) {
 		switch (ctrlval) {
 		case CPU_SMT_ENABLED:
 			ret = cpuhp_smt_enable();
@@ -2537,6 +2573,15 @@ static ssize_t control_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	const char *state = smt_states[cpu_smt_control];
+
+	/*
+	 * If SMT is enabled but not all threads are enabled then show the
+	 * number of threads. If all threads are enabled show "on". Otherwise
+	 * show the state name.
+	 */
+	if (cpu_smt_control == CPU_SMT_ENABLED &&
+	    cpu_smt_num_threads != cpu_smt_max_threads)
+		return sysfs_emit(buf, "%d\n", cpu_smt_num_threads);
 
 	return snprintf(buf, PAGE_SIZE - 2, "%s\n", state);
 }
