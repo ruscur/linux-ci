@@ -309,12 +309,12 @@ int __init opal_elog_init(void)
 
 	/* ELOG not supported by firmware */
 	if (!opal_check_token(OPAL_ELOG_READ))
-		return -1;
+		return -EPERM;
 
 	elog_kset = kset_create_and_add("elog", NULL, opal_kobj);
 	if (!elog_kset) {
 		pr_warn("%s: failed to create elog kset\n", __func__);
-		return -1;
+		return -EPERM;
 	}
 
 	irq = opal_event_request(ilog2(OPAL_EVENT_ERROR_LOG_AVAIL));
