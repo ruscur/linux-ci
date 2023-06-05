@@ -378,7 +378,7 @@ config SERIAL_8250_BCM2835AUX
 
 config SERIAL_8250_FSL
 	bool "Freescale 16550 UART support" if COMPILE_TEST && !(PPC || ARM || ARM64)
-	depends on SERIAL_8250_CONSOLE
+	depends on SERIAL_8250
 	default PPC || ARM || ARM64
 	help
 	  Selecting this option enables a workaround for a break-detection
