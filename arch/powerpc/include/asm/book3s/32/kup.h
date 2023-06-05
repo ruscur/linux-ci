@@ -11,8 +11,6 @@
 
 #include <linux/jump_label.h>
 
-extern struct static_key_false disable_kuap_key;
-
 static __always_inline bool kuep_is_disabled(void)
 {
 	return !IS_ENABLED(CONFIG_PPC_KUEP);
@@ -24,11 +22,6 @@ static __always_inline bool kuep_is_disabled(void)
 
 #define KUAP_NONE	(~0UL)
 #define KUAP_ALL	(~1UL)
-
-static __always_inline bool kuap_is_disabled(void)
-{
-	return static_branch_unlikely(&disable_kuap_key);
-}
 
 static inline void kuap_lock_one(unsigned long addr)
 {
@@ -77,10 +70,6 @@ static inline void kuap_unlock(unsigned long addr, bool ool)
 		kuap_unlock_all_ool();
 }
 
-static inline void __kuap_lock(void)
-{
-}
-
 static inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
 	unsigned long kuap = current->thread.kuap;
@@ -92,6 +81,7 @@ static inline void __kuap_save_and_lock(struct pt_regs *regs)
 	current->thread.kuap = KUAP_NONE;
 	kuap_lock_addr(kuap, false);
 }
+#define __kuap_save_and_lock __kuap_save_and_lock
 
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
@@ -120,6 +110,7 @@ static inline unsigned long __kuap_get_and_assert_locked(void)
 
 	return kuap;
 }
+#define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 
 static __always_inline void __allow_user_access(void __user *to, const void __user *from,
 						u32 size, unsigned long dir)
