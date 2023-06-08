@@ -641,6 +641,7 @@ int __init fadump_reserve_mem(void)
 			goto error_out;
 
 		if (memblock_reserve(base, size)) {
+			fw_dump.reserve_dump_area_size = 0;
 			pr_err("Failed to reserve memory!\n");
 			goto error_out;
 		}
