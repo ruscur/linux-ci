@@ -4784,6 +4784,9 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
+	if (kvm_dirty_ring_check_request(vcpu))
+		return 0;
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/*
 	 * Don't allow entry with a suspended transaction, because

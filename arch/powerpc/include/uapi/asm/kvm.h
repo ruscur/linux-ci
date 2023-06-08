@@ -33,6 +33,8 @@
 /* Not always available, but if it is, this is the correct offset.  */
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
+#define KVM_DIRTY_LOG_PAGE_OFFSET 64
+
 struct kvm_regs {
 	__u64 pc;
 	__u64 cr;

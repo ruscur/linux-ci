@@ -2133,3 +2133,45 @@ void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.hflags |= BOOK3S_HFLAG_SLB;
 }
+
+/*
+ * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
+ * dirty pages.
+ *
+ * It write protects selected pages to enable dirty logging for them.
+ */
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+					     struct kvm_memory_slot *slot,
+					     gfn_t gfn_offset,
+					     unsigned long mask)
+{
+	phys_addr_t base_gfn = slot->base_gfn + gfn_offset;
+	phys_addr_t start = (base_gfn +  __ffs(mask)) << PAGE_SHIFT;
+	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
+
+	while (start < end) {
+		pte_t *ptep;
+		unsigned int shift;
+
+		ptep = find_kvm_secondary_pte(kvm, start, &shift);
+
+		*ptep = __pte(pte_val(*ptep) & ~(_PAGE_WRITE));
+
+		start += PAGE_SIZE;
+	}
+}
+
+#ifdef CONFIG_NEED_KVM_DIRTY_RING_WITH_BITMAP
+bool kvm_arch_allow_write_without_running_vcpu(struct kvm *kvm)
+{
+	return true;
+}
+#endif
+
+#ifdef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
+void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
+					const struct kvm_memory_slot *memslot)
+{
+	kvm_flush_remote_tlbs(kvm);
+}
+#endif
