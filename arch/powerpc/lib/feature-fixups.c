@@ -193,7 +193,7 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	} else if (types & STF_BARRIER_EIEIO) {
 		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	} else if (types & STF_BARRIER_SYNC_ORI) {
-		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_HWSYNC();
 		instrs[i++] = PPC_RAW_LD(_R10, _R13, 0);
 		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
@@ -234,7 +234,7 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 			instrs[i++] = PPC_RAW_MTSPR(SPRN_SPRG2, _R13);
 			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_SPRG1);
 	        }
-		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_HWSYNC();
 		instrs[i++] = PPC_RAW_LD(_R13, _R13, 0);
 		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 		if (cpu_has_feature(CPU_FTR_HVMODE))
@@ -543,7 +543,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	if (enable) {
 		pr_info("barrier-nospec: using isync; sync as speculation barrier\n");
 		instr[0] = PPC_RAW_ISYNC();
-		instr[1] = PPC_RAW_SYNC();
+		instr[1] = PPC_RAW_HWSYNC();
 	}
 
 	i = do_patch_fixups(start, end, instr, ARRAY_SIZE(instr));

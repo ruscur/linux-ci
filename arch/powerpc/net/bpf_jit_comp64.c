@@ -719,7 +719,7 @@ emit_clear:
 				EMIT(PPC_RAW_EIEIO() | 0x02000000);
 				break;
 			case STF_BARRIER_SYNC_ORI:
-				EMIT(PPC_RAW_SYNC());
+				EMIT(PPC_RAW_HWSYNC());
 				EMIT(PPC_RAW_LD(tmp1_reg, _R13, 0));
 				EMIT(PPC_RAW_ORI(_R31, _R31, 0));
 				break;

@@ -9,7 +9,7 @@
 #include <asm/paca.h>
 
 #define arch_mmiowb_state()	(&local_paca->mmiowb_state)
-#define mmiowb()		mb()
+#define mmiowb()		wmb()
 
 #endif /* CONFIG_MMIOWB */
 

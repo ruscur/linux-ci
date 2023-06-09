@@ -550,7 +550,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			nip -= 2;
 		else if (*nip == PPC_RAW_ISYNC())
 			--nip;
-		if (*nip == PPC_RAW_SYNC() || get_op(*nip) == OP_TRAP) {
+		if (*nip == PPC_RAW_HWSYNC() || get_op(*nip) == OP_TRAP) {
 			unsigned int rb;
 
 			--nip;

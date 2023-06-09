@@ -6,6 +6,8 @@
 #define _ASM_POWERPC_BARRIER_H
 
 #include <asm/asm-const.h>
+#include <asm/cputable.h>
+#include <asm/feature-fixups.h>
 
 #ifndef __ASSEMBLY__
 #include <asm/ppc-opcode.h>
@@ -37,11 +39,16 @@
  */
 #define __mb()   __asm__ __volatile__ ("sync" : : : "memory")
 #define __rmb()  __asm__ __volatile__ ("sync" : : : "memory")
-#define __wmb()  __asm__ __volatile__ ("sync" : : : "memory")
+#define __wmb()  __asm__ __volatile__ (PPC_STSYNC : : : "memory")
 
 /* The sub-arch has lwsync */
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
-#    define SMPWMB      LWSYNC
+#    define SMPWMB					\
+	BEGIN_FTR_SECTION;				\
+	LWSYNC;						\
+	FTR_SECTION_ELSE;				\
+	.long PPC_RAW_STNCISYNC();			\
+	ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_31)
 #elif defined(CONFIG_BOOKE)
 #    define SMPWMB      mbar
 #else
