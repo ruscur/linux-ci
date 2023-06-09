@@ -23,6 +23,21 @@ enum {
 	HV_GPCI_CM_LAB = (1 << 5)
 };
 
+/* Counter request value to retrieve system information */
+#define PROCESSOR_BUS_TOPOLOGY	0XD0
+#define PROCESSOR_CONFIG	0X90
+#define AFFINITY_DOMAIN_VIA_VP	0xA0 /* affinity domain via virtual processor */
+#define AFFINITY_DOMAIN_VIA_DOM	0xB0 /* affinity domain via domain */
+#define AFFINITY_DOMAIN_VIA_PAR	0xB1 /* affinity domain via partition */
+
+/* Interface attribute array index to store system information */
+#define INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR	6
+#define INTERFACE_PROCESSOR_CONFIG_ATTR		7
+#define INTERFACE_AFFINITY_DOMAIN_VIA_VP_ATTR	8
+#define INTERFACE_AFFINITY_DOMAIN_VIA_DOM_ATTR	9
+#define INTERFACE_AFFINITY_DOMAIN_VIA_PAR_ATTR	10
+#define INTERFACE_NULL_ATTR			11
+
 #define REQUEST_FILE "../hv-gpci-requests.h"
 #define NAME_LOWER hv_gpci
 #define NAME_UPPER HV_GPCI

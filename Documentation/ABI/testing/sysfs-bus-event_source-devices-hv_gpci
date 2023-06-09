@@ -80,3 +80,92 @@ Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:	read only
 		This sysfs file exposes the cpumask which is designated to make
 		HCALLs to retrieve hv-gpci pmu event counter data.
+
+What:		/sys/devices/hv_gpci/interface/processor_bus_topology
+Date:		June 2023
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	admin read only
+		This sysfs file exposes the system topology information by making HCALL
+		H_GET_PERF_COUNTER_INFO. The HCALL is made with counter request value
+		PROCESSOR_BUS_TOPOLOGY(0xD0).
+		* This sysfs file is only be created for power10 and above platforms.
+		* User need root access to read data from this sysfs file.
+		* Incase the HCALL fails with hardware/permission issue, or the support for
+		  PROCESSOR_BUS_TOPOLOGY counter request value removed, this sysfs file still be
+		  created and give error when reading it.
+		* The end user reading this sysfs file need to decode sysfs file data as per
+		  underneath platform/firmware.
+
+		Possible error codes while reading this sysfs file:
+
+		* "-EPERM" : Partition is not permitted to retrieve performance information,
+			    required to set "Enable Performance Information Collection" option.
+
+		* "-EOPNOTSUPP" : Requested system information is not available for the firmware
+				  level and platform.
+
+		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address
+			   or because of some hardware error. Refer getPerfCountInfo documentation for
+			   more information.
+
+		* "-EFBIG" : System information exceeds PAGE_SIZE.
+
+What:		/sys/devices/hv_gpci/interface/processor_config
+Date:		June 2023
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	admin read only
+		This sysfs file exposes the system topology information by making HCALL
+		H_GET_PERF_COUNTER_INFO. The HCALL is made with counter request value
+		PROCESSOR_CONFIG(0x90).
+		* This sysfs file is only be created for power10 and above platforms.
+		* User need root access to read data from this sysfs file.
+		* Incase the HCALL fails with hardware/permission issue, or the support for
+		  PROCESSOR_CONFIG counter request value removed, this sysfs file still be
+		  created and give error when reading it.
+		* The end user reading this sysfs file need to decode sysfs file data as per
+		  underneath platform/firmware.
+
+What:		/sys/devices/hv_gpci/interface/affinity_domain_via_virtual_processor
+Date:		June 2023
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	admin read only
+		This sysfs file exposes the system topology information by making HCALL
+		H_GET_PERF_COUNTER_INFO. The HCALL is made with counter request value
+		AFFINITY_DOMAIN_INFORMATION_BY_VIRTUAL_PROCESSOR(0xA0).
+		* This sysfs file is only be created for power10 and above platforms.
+		* User need root access to read data from this sysfs file.
+		* Incase the HCALL fails with hardware/permission issue, or the support for
+		  AFFINITY_DOMAIN_INFORMATION_BY_VIRTUAL_PROCESSOR counter request value
+		  removed, this sysfs file still be created and give error when reading it.
+		* The end user reading this sysfs file need to decode sysfs file data as per
+		  underneath platform/firmware.
+
+What:		/sys/devices/hv_gpci/interface/affinity_domain_via_domain
+Date:		June 2023
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	admin read only
+		This sysfs file exposes the system topology information by making HCALL
+		H_GET_PERF_COUNTER_INFO. The HCALL is made with counter request value
+		AFFINITY_DOMAIN_INFORMATION_BY_DOMAIN(0xB0).
+		* This sysfs file is only be created for power10 and above platforms.
+		* User need root access to read data from this sysfs file.
+		* Incase the HCALL fails with hardware/permission issue, or the support for
+		  AFFINITY_DOMAIN_INFORMATION_BY_DOMAIN counter request value
+		  removed, this sysfs file still be created and give error when reading it.
+		* The end user reading this sysfs file need to decode sysfs file data as per
+		  underneath platform/firmware.
+
+What:		/sys/devices/hv_gpci/interface/affinity_domain_via_partition
+Date:		June 2023
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	admin read only
+		This sysfs file exposes the system topology information by making HCALL
+		H_GET_PERF_COUNTER_INFO. The HCALL is made with counter request value
+		AFFINITY_DOMAIN_INFORMATION_BY_PARTITION(0xB1).
+		* This sysfs file is only be created for power10 and above platforms.
+		* User need root access to read data from this sysfs file.
+		* Incase the HCALL fails with hardware/permission issue, or the support for
+		  AFFINITY_DOMAIN_INFORMATION_BY_PARTITION counter request value
+		  removed, this sysfs file still be created and give error when reading it.
+		* The end user reading this sysfs file need to decode sysfs file data as per
+		  underneath platform/firmware.
