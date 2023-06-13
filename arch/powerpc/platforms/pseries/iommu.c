@@ -357,6 +357,7 @@ struct dynamic_dma_window_prop {
 struct dma_win {
 	struct device_node *device;
 	const struct dynamic_dma_window_prop *prop;
+	bool    direct;
 	struct list_head list;
 };
 
@@ -1414,6 +1415,8 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		goto out_del_prop;
 
 	if (direct_mapping) {
+		window->direct = true;
+
 		/* DDW maps the whole partition, so enable direct DMA mapping */
 		ret = walk_system_ram_range(0, memblock_end_of_DRAM() >> PAGE_SHIFT,
 					    win64->value, tce_setrange_multi_pSeriesLP_walk);
@@ -1429,6 +1432,8 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		struct iommu_table *newtbl;
 		int i;
 		unsigned long start = 0, end = 0;
+
+		window->direct = false;
 
 		for (i = 0; i < ARRAY_SIZE(pci->phb->mem_resources); i++) {
 			const unsigned long mask = IORESOURCE_MEM_64 | IORESOURCE_MEM;
@@ -1592,8 +1597,10 @@ static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
 	case MEM_GOING_ONLINE:
 		spin_lock(&dma_win_list_lock);
 		list_for_each_entry(window, &dma_win_list, list) {
-			ret |= tce_setrange_multi_pSeriesLP(arg->start_pfn,
-					arg->nr_pages, window->prop);
+			if (window->direct) {
+				ret |= tce_setrange_multi_pSeriesLP(arg->start_pfn,
+						arg->nr_pages, window->prop);
+			}
 			/* XXX log error */
 		}
 		spin_unlock(&dma_win_list_lock);
@@ -1602,8 +1609,10 @@ static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
 	case MEM_OFFLINE:
 		spin_lock(&dma_win_list_lock);
 		list_for_each_entry(window, &dma_win_list, list) {
-			ret |= tce_clearrange_multi_pSeriesLP(arg->start_pfn,
-					arg->nr_pages, window->prop);
+			if (window->direct) {
+				ret |= tce_clearrange_multi_pSeriesLP(arg->start_pfn,
+						arg->nr_pages, window->prop);
+			}
 			/* XXX log error */
 		}
 		spin_unlock(&dma_win_list_lock);
