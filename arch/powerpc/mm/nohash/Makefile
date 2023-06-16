@@ -17,3 +17,6 @@ endif
 # This is necessary for booting with kcov enabled on book3e machines
 KCOV_INSTRUMENT_tlb.o := n
 KCOV_INSTRUMENT_e500.o := n
+
+OBJECT_FILES_NON_STANDARD_tlb_low_64e.o := y
+OBJECT_FILES_NON_STANDARD_tlb_low.o := y

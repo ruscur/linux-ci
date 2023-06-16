@@ -81,3 +81,28 @@ CFLAGS_xor_vmx.o += -maltivec $(call cc-option,-mabi=altivec)
 CFLAGS_xor_vmx.o += -isystem $(shell $(CC) -print-file-name=include)
 
 obj-$(CONFIG_PPC64) += $(obj64-y)
+
+OBJECT_FILES_NON_STANDARD_checksum_32.o := y
+OBJECT_FILES_NON_STANDARD_checksum_64.o := y
+OBJECT_FILES_NON_STANDARD_copy_32.o := y
+OBJECT_FILES_NON_STANDARD_copy_mc_64.o := y
+OBJECT_FILES_NON_STANDARD_copypage_64.o := y
+OBJECT_FILES_NON_STANDARD_copypage_power7.o := y
+OBJECT_FILES_NON_STANDARD_copyuser_64.o := y
+OBJECT_FILES_NON_STANDARD_copyuser_power7.o := y
+OBJECT_FILES_NON_STANDARD_crtsavres.o := y
+OBJECT_FILES_NON_STANDARD_div64.o := y
+OBJECT_FILES_NON_STANDARD_feature-fixups-test.o := y
+OBJECT_FILES_NON_STANDARD_hweight_64.o := y
+OBJECT_FILES_NON_STANDARD_ldstfp.o := y
+OBJECT_FILES_NON_STANDARD_mem_64.o := y
+OBJECT_FILES_NON_STANDARD_memcmp_32.o := y
+OBJECT_FILES_NON_STANDARD_memcmp_64.o := y
+OBJECT_FILES_NON_STANDARD_memcpy_64.o := y
+OBJECT_FILES_NON_STANDARD_memcpy_power7.o := y
+OBJECT_FILES_NON_STANDARD_quad.o := y
+OBJECT_FILES_NON_STANDARD_string_32.o := y
+OBJECT_FILES_NON_STANDARD_string_64.o := y
+OBJECT_FILES_NON_STANDARD_string.o := y
+OBJECT_FILES_NON_STANDARD_strlen_32.o := y
+OBJECT_FILES_NON_STANDARD_test_emulate_step_exec_instr.o := y

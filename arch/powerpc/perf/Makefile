@@ -20,3 +20,5 @@ obj-$(CONFIG_PPC_8xx) += 8xx-pmu.o
 
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 obj-$(CONFIG_PPC32)		+= $(obj32-y)
+
+OBJECT_FILES_NON_STANDARD_bhrb.o := y

@@ -51,3 +51,6 @@ obj-$(CONFIG_PPC_XICS)		+= xics/
 obj-$(CONFIG_PPC_XIVE)		+= xive/
 
 obj-$(CONFIG_GE_FPGA)		+= ge/
+
+OBJECT_FILES_NON_STANDARD_6xx-suspend.o := y
+OBJECT_FILES_NON_STANDARD_dcr-low.o := y

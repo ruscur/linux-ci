@@ -24,3 +24,6 @@ ifdef CONFIG_XMON_DISASSEMBLY
 obj-y			+= ppc-dis.o ppc-opc.o
 obj-$(CONFIG_SPU_BASE)	+= spu-dis.o spu-opc.o
 endif
+
+OBJECT_FILES_NON_STANDARD_spr_access.o := y
+OBJECT_FILES_NON_STANDARD_xmon_bpts.o := y

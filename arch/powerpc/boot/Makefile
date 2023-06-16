@@ -513,3 +513,20 @@ $(wrapper-installed): $(DESTDIR)$(WRAPPER_BINDIR) $(srctree)/$(obj)/wrapper | $(
 	$(call cmd,install_wrapper)
 
 $(obj)/bootwrapper_install: $(all-installed)
+
+OBJECT_FILES_NON_STANDARD_crt0.o := y
+OBJECT_FILES_NON_STANDARD_crtsavres.o := y
+OBJECT_FILES_NON_STANDARD_div64.o := y
+OBJECT_FILES_NON_STANDARD_fixed-head.o := y
+OBJECT_FILES_NON_STANDARD_gamecube-head.o := y
+OBJECT_FILES_NON_STANDARD_motload-head.o := y
+OBJECT_FILES_NON_STANDARD_opal-calls.o := y
+OBJECT_FILES_NON_STANDARD_ps3-head.o := y
+OBJECT_FILES_NON_STANDARD_ps3-hvcall.o := y
+OBJECT_FILES_NON_STANDARD_pseries-head.o := y
+OBJECT_FILES_NON_STANDARD_string.o := y
+OBJECT_FILES_NON_STANDARD_util.o := y
+OBJECT_FILES_NON_STANDARD_wii-head.o := y
+OBJECT_FILES_NON_STANDARD_zImage.coff.lds.o := y
+OBJECT_FILES_NON_STANDARD_zImage.lds.o := y
+OBJECT_FILES_NON_STANDARD_zImage.ps3.lds.o := y

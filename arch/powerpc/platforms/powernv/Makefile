@@ -31,3 +31,6 @@ obj-$(CONFIG_PPC_VAS)	+= vas.o vas-window.o vas-debug.o vas-fault.o
 obj-$(CONFIG_OCXL_BASE)	+= ocxl.o
 obj-$(CONFIG_SCOM_DEBUGFS) += opal-xscom.o
 obj-$(CONFIG_PPC_SECURE_BOOT) += opal-secvar.o
+
+OBJECT_FILES_NON_STANDARD_opal-wrappers.o := y
+OBJECT_FILES_NON_STANDARD_subcore-asm.o := y

@@ -37,3 +37,5 @@ obj-$(CONFIG_ARCH_HAS_CC_PLATFORM)	+= cc_platform.o
 # nothing that operates in real mode is safe for KASAN
 KASAN_SANITIZE_ras.o := n
 KASAN_SANITIZE_kexec.o := n
+
+OBJECT_FILES_NON_STANDARD_hvCall.o := y

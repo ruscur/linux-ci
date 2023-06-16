@@ -13,3 +13,6 @@ $(obj)/purgatory.ro: $(obj)/trampoline_$(BITS).o FORCE
 $(obj)/kexec-purgatory.o: $(obj)/purgatory.ro
 
 obj-y	+= kexec-purgatory.o
+
+OBJECT_FILES_NON_STANDARD_kexec-purgatory.o := y
+OBJECT_FILES_NON_STANDARD_trampoline_64.o := y

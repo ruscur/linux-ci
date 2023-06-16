@@ -14,3 +14,6 @@ obj-$(CONFIG_PM)		+= mpc52xx_sleep.o mpc52xx_pm.o
 ifdef CONFIG_PPC_LITE5200
 	obj-$(CONFIG_PM)	+= lite5200_sleep.o lite5200_pm.o
 endif
+
+OBJECT_FILES_NON_STANDARD_lite5200_sleep.o := y
+OBJECT_FILES_NON_STANDARD_mpc52xx_sleep.o := y

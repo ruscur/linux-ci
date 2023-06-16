@@ -61,3 +61,6 @@ cmd_hexdump   = ( \
 quiet_cmd_hexdump = HEXDUMP $@
 $(obj)/%_dump.h: $(obj)/%.bin
 	$(call if_changed,hexdump)
+
+OBJECT_FILES_NON_STANDARD_spu_restore_crt0.o := y
+OBJECT_FILES_NON_STANDARD_spu_save_crt0.o := y

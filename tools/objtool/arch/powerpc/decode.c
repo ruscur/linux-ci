@@ -43,24 +43,72 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			    unsigned long offset, unsigned int maxlen,
 			    struct instruction *insn)
 {
-	unsigned int opcode;
+	unsigned int opcode, xop;
+	unsigned int rs, ra, rb, bo, bi, to, uimm, l;
 	enum insn_type typ;
 	unsigned long imm;
 	u32 ins;
 
 	ins = bswap_if_needed(file->elf, *(u32 *)(sec->data->d_buf + offset));
 	opcode = ins >> 26;
-	typ = INSN_OTHER;
-	imm = 0;
+	xop = (ins >> 1) & 0x3ff;
+	rs = bo = to = (ins >> 21) & 0x1f;
+	ra = bi = (ins >> 16) & 0x1f;
+	rb = (ins >> 11) & 0x1f;
+	uimm = (ins >> 0) & 0xffff;
+	l = ins & 1;
 
 	switch (opcode) {
+	case 16: /* bc[l][a] */
+		if (ins & 1)	/* bcl[a] */
+			typ = INSN_OTHER;
+		else		/* bc[a] */
+			typ = INSN_JUMP_CONDITIONAL;
+
+		imm = ins & 0xfffc;
+		if (imm & 0x8000)
+			imm -= 0x10000;
+		imm |= ins & 2;	/* AA flag */
+		insn->immediate = imm;
+		break;
 	case 18: /* b[l][a] */
-		if ((ins & 3) == 1) /* bl */
+		if (ins & 1)	/* bl[a] */
 			typ = INSN_CALL;
+		else		/* b[a] */
+			typ = INSN_JUMP_UNCONDITIONAL;
 
 		imm = ins & 0x3fffffc;
 		if (imm & 0x2000000)
 			imm -= 0x4000000;
+		imm |= ins & 2;	/* AA flag */
+		insn->immediate = imm;
+		break;
+	case 19:
+		if (xop == 16 && bo == 20 && bi == 0)	/* blr */
+			typ = INSN_RETURN;
+		else if (xop == 50)	/* rfi */
+			typ = INSN_JUMP_DYNAMIC;
+		else if (xop == 528 && bo == 20 && bi ==0 && !l)	/* bctr */
+			typ = INSN_JUMP_DYNAMIC;
+		else if (xop == 528 && bo == 20 && bi ==0 && l)		/* bctrl */
+			typ = INSN_CALL_DYNAMIC;
+		else
+			typ = INSN_OTHER;
+		break;
+	case 24:
+		if (rs == 0 && ra == 0 && uimm == 0)
+			typ = INSN_NOP;
+		else
+			typ = INSN_OTHER;
+		break;
+	case 31:
+		if (xop == 4 && to == 31 && ra == 0 && rb == 0) /* trap */
+			typ = INSN_BUG;
+		else
+			typ = INSN_OTHER;
+		break;
+	default:
+		typ = INSN_OTHER;
 		break;
 	}
 
@@ -70,13 +118,15 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		insn->len = 4;
 
 	insn->type = typ;
-	insn->immediate = imm;
 
 	return 0;
 }
 
 unsigned long arch_jump_destination(struct instruction *insn)
 {
+	if (insn->immediate & 2)
+		return insn->immediate & ~2;
+
 	return insn->offset + insn->immediate;
 }
 

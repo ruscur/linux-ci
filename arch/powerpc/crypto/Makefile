@@ -34,3 +34,16 @@ $(obj)/aesp10-ppc.S $(obj)/ghashp10-ppc.S: $(obj)/%.S: $(src)/%.pl FORCE
 
 OBJECT_FILES_NON_STANDARD_aesp10-ppc.o := y
 OBJECT_FILES_NON_STANDARD_ghashp10-ppc.o := y
+
+OBJECT_FILES_NON_STANDARD_aes-gcm-p10.o := y
+OBJECT_FILES_NON_STANDARD_aes-spe-core.o := y
+OBJECT_FILES_NON_STANDARD_aes-spe-keys.o := y
+OBJECT_FILES_NON_STANDARD_aes-spe-modes.o := y
+OBJECT_FILES_NON_STANDARD_aes-tab-4k.o := y
+OBJECT_FILES_NON_STANDARD_crc32c-vpmsum_asm.o := y
+OBJECT_FILES_NON_STANDARD_crc32-vpmsum_core.o := y
+OBJECT_FILES_NON_STANDARD_crct10dif-vpmsum_asm.o := y
+OBJECT_FILES_NON_STANDARD_md5-asm.o := y
+OBJECT_FILES_NON_STANDARD_sha1-powerpc-asm.o := y
+OBJECT_FILES_NON_STANDARD_sha1-spe-asm.o := y
+OBJECT_FILES_NON_STANDARD_sha256-spe-asm.o := y

@@ -137,3 +137,16 @@ obj-y += $(kvm-book3s_64-builtin-objs-y)
 ifdef CONFIG_PPC_BOOK3S_64
 KASAN_SANITIZE := n
 endif
+
+OBJECT_FILES_NON_STANDARD_book3s_32_sr.o := y
+OBJECT_FILES_NON_STANDARD_book3s_64_entry.o := y
+OBJECT_FILES_NON_STANDARD_book3s_64_slb.o := y
+OBJECT_FILES_NON_STANDARD_book3s_hv_interrupts.o := y
+OBJECT_FILES_NON_STANDARD_book3s_hv_rmhandlers.o := y
+OBJECT_FILES_NON_STANDARD_book3s_interrupts.o := y
+OBJECT_FILES_NON_STANDARD_book3s_rmhandlers.o := y
+OBJECT_FILES_NON_STANDARD_book3s_segment.o := y
+OBJECT_FILES_NON_STANDARD_bookehv_interrupts.o := y
+OBJECT_FILES_NON_STANDARD_booke_interrupts.o := y
+OBJECT_FILES_NON_STANDARD_fpu.o := y
+OBJECT_FILES_NON_STANDARD_tm.o := y

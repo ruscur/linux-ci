@@ -25,3 +25,7 @@ GCOV_PROFILE_ftrace.o := n
 KCOV_INSTRUMENT_ftrace.o := n
 KCSAN_SANITIZE_ftrace.o := n
 UBSAN_SANITIZE_ftrace.o := n
+
+OBJECT_FILES_NON_STANDARD_ftrace_64_pg.o := y
+OBJECT_FILES_NON_STANDARD_ftrace_low.o := y
+OBJECT_FILES_NON_STANDARD_ftrace_mprofile.o := y

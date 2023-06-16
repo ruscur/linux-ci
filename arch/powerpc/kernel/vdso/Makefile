@@ -114,3 +114,14 @@ quiet_cmd_vdso64as = VDSO64A $@
       cmd_vdso64as = $(VDSOCC) $(a_flags) $(AS64FLAGS) -c -o $@ $<
 
 OBJECT_FILES_NON_STANDARD := y
+
+OBJECT_FILES_NON_STANDARD_cacheflush.o := y
+OBJECT_FILES_NON_STANDARD_datapage.o := y
+OBJECT_FILES_NON_STANDARD_getcpu.o := y
+OBJECT_FILES_NON_STANDARD_gettimeofday.o := y
+OBJECT_FILES_NON_STANDARD_note.o := y
+OBJECT_FILES_NON_STANDARD_sigtramp32.o := y
+OBJECT_FILES_NON_STANDARD_sigtramp64.o := y
+OBJECT_FILES_NON_STANDARD_vdso32.lds.o := y
+OBJECT_FILES_NON_STANDARD_vdso64.lds.o := y
+OBJECT_FILES_NON_STANDARD_vgetrandom-chacha.o := y

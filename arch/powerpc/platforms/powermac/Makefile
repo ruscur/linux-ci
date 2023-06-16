@@ -23,3 +23,6 @@ obj-$(CONFIG_PMAC_BACKLIGHT)	+= backlight.o
 obj-$(CONFIG_NVRAM:m=y)		+= nvram.o
 obj-$(CONFIG_PPC32)		+= bootx_init.o
 obj-$(CONFIG_SMP)		+= smp.o
+
+OBJECT_FILES_NON_STANDARD_cache.o := y
+OBJECT_FILES_NON_STANDARD_sleep.o := y
