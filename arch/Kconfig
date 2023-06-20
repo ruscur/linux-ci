@@ -1466,6 +1466,14 @@ config ARCH_HAS_NONLEAF_PMD_YOUNG
 	  address translations. Page table walkers that clear the accessed bit
 	  may use this capability to reduce their search space.
 
+config ARCH_HAS_CPUMASK_BITS
+	bool
+	help
+	  Architectures that select this option set bits on the mm_cpumask
+	  to mark which cpus loaded the mm, The mask can then be used to
+	  control mm specific actions such as tlb_flush.
+
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"
