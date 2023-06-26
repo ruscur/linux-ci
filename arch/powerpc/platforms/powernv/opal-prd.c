@@ -30,7 +30,10 @@
  */
 struct opal_prd_msg_queue_item {
 	struct list_head		list;
-	struct opal_prd_msg_header	msg;
+	union {
+		struct opal_prd_msg_header	msg;
+		DECLARE_FLEX_ARRAY(__u8, msg_flex);
+	};
 };
 
 static struct device_node *prd_node;
@@ -352,7 +355,7 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	if (!item)
 		return -ENOMEM;
 
-	memcpy(&item->msg, msg->params, msg_size);
+	memcpy(&item->msg_flex, msg->params, msg_size);
 
 	spin_lock_irqsave(&opal_prd_msg_queue_lock, flags);
 	list_add_tail(&item->list, &opal_prd_msg_queue);
