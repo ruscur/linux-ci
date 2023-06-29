@@ -14,6 +14,19 @@ config SND_SOC_FSL_ASRC
 	  This option is only useful for out-of-tree drivers since
 	  in-tree drivers select it automatically.
 
+config SND_SOC_FSL_ASRC_M2M
+	tristate "Asynchronous Sample Rate Converter (ASRC) M2M support"
+	depends on SND_SOC_FSL_ASRC
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on MEDIA_SUPPORT
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  Say Y if you want to add ASRC M2M support for NXP CPUs.
+	  It is a completement for ASRC M2P and ASRC P2M features.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
 config SND_SOC_FSL_SAI
 	tristate "Synchronous Audio Interface (SAI) module support"
 	select REGMAP_MMIO

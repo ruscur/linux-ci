@@ -4,6 +4,10 @@
  *
  */
 
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+
 #ifndef _FSL_ASRC_COMMON_H
 #define _FSL_ASRC_COMMON_H
 
@@ -34,6 +38,13 @@ enum asrc_pair_index {
  * @pos: hardware pointer position
  * @req_dma_chan: flag to release dev_to_dev chan
  * @private: pair private area
+ * @complete: dma task complete
+ * @fh: v4l2 file handler
+ * @ctrl_handler: v4l2 control handler
+ * @sample_format: format of m2m
+ * @rate: rate of m2m
+ * @buf_len: buffer length of m2m
+ * @req_pair: flag for request pair
  */
 struct fsl_asrc_pair {
 	struct fsl_asrc *asrc;
@@ -49,6 +60,15 @@ struct fsl_asrc_pair {
 	bool req_dma_chan;
 
 	void *private;
+
+	/* used for m2m */
+	struct completion complete[2];
+	struct v4l2_fh fh;
+	struct v4l2_ctrl_handler ctrl_handler;
+	snd_pcm_format_t sample_format[2];
+	unsigned int rate[2];
+	unsigned int buf_len[2];
+	bool req_pair;
 };
 
 /**
@@ -63,6 +83,10 @@ struct fsl_asrc_pair {
  * @ipg_clk: clock source to drive peripheral
  * @spba_clk: SPBA clock (optional, depending on SoC design)
  * @lock: spin lock for resource protection
+ * @v4l2_dev: v4l2 device structure
+ * @m2m_dev: pointer to v4l2_m2m_dev
+ * @dec_vdev: pointer to video_device
+ * @mlock: v4l2 ioctls serialization
  * @pair: pair pointers
  * @channel_avail: non-occupied channel numbers
  * @asrc_rate: default sample rate for ASoC Back-Ends
@@ -72,6 +96,17 @@ struct fsl_asrc_pair {
  * @request_pair: function pointer
  * @release_pair: function pointer
  * @get_fifo_addr: function pointer
+ * @m2m_start_part_one: function pointer
+ * @m2m_start_part_two: function pointer
+ * @m2m_stop_part_one: function pointer
+ * @m2m_stop_part_two: function pointer
+ * @m2m_check_format: function pointer
+ * @m2m_calc_out_len: function pointer
+ * @m2m_get_maxburst: function pointer
+ * @m2m_pair_suspend: function pointer
+ * @m2m_pair_resume: function pointer
+ * @m2m_set_ratio_mod: function pointer
+ * @get_output_fifo_size: function pointer
  * @pair_priv_size: size of pair private struct.
  * @private: private data structure
  */
@@ -86,6 +121,11 @@ struct fsl_asrc {
 	struct clk *spba_clk;
 	spinlock_t lock;      /* spin lock for resource protection */
 
+	struct v4l2_device v4l2_dev;
+	struct v4l2_m2m_dev *m2m_dev;
+	struct video_device *dec_vdev;
+	struct mutex mlock; /* v4l2 ioctls serialization */
+
 	struct fsl_asrc_pair *pair[PAIR_CTX_NUM];
 	unsigned int channel_avail;
 
@@ -97,6 +137,20 @@ struct fsl_asrc {
 	int (*request_pair)(int channels, struct fsl_asrc_pair *pair);
 	void (*release_pair)(struct fsl_asrc_pair *pair);
 	int (*get_fifo_addr)(u8 dir, enum asrc_pair_index index);
+
+	int (*m2m_start_part_one)(struct fsl_asrc_pair *pair);
+	int (*m2m_start_part_two)(struct fsl_asrc_pair *pair);
+	int (*m2m_stop_part_one)(struct fsl_asrc_pair *pair);
+	int (*m2m_stop_part_two)(struct fsl_asrc_pair *pair);
+
+	int (*m2m_check_format)(u8 dir, u32 rate, u32 channels, u32 format);
+	int (*m2m_calc_out_len)(struct fsl_asrc_pair *pair, int input_buffer_length);
+	int (*m2m_get_maxburst)(u8 dir, struct fsl_asrc_pair *pair);
+	int (*m2m_pair_suspend)(struct fsl_asrc_pair *pair);
+	int (*m2m_pair_resume)(struct fsl_asrc_pair *pair);
+	int (*m2m_set_ratio_mod)(struct fsl_asrc_pair *pair, int val);
+
+	unsigned int (*get_output_fifo_size)(struct fsl_asrc_pair *pair);
 	size_t pair_priv_size;
 
 	void *private;
