@@ -4,6 +4,7 @@
 #include <string.h>
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
@@ -14,8 +15,12 @@ static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 	struct bpf_object *obj;
 
 	obj = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
-	if (libbpf_get_error(obj))
+	if (libbpf_get_error(obj)) {
+		/* Skip if there is no BTF support */
+		if (errno == ENOENT)
+			return TEST_SKIP;
 		return TEST_FAIL;
+	}
 	bpf_object__close(obj);
 	return TEST_OK;
 }
