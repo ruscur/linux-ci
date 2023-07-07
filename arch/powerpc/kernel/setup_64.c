@@ -369,6 +369,10 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* -------- printk is now safe to use ------- */
 
+#ifdef CONFIG_KASAN
+	kasan_early_init();
+#endif
+
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && (mfmsr() & MSR_HV))
 		enable_machine_check();
 

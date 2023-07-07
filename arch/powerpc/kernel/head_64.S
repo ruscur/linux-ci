@@ -1004,9 +1004,6 @@ start_here_multiplatform:
 	 * and SLB setup before we turn on relocation.
 	 */
 
-#ifdef CONFIG_KASAN
-	bl	CFUNC(kasan_early_init)
-#endif
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
 	LOAD_REG_ADDR(r12, DOTSYM(early_setup))
