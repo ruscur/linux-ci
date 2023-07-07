@@ -352,7 +352,9 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	if (!item)
 		return -ENOMEM;
 
-	memcpy(&item->msg, msg->params, msg_size);
+	item->msg = *hdr;
+	hdr++;
+	memcpy((char *)&item->msg + sizeof(*hdr), hdr, msg_size - sizeof(*hdr));
 
 	spin_lock_irqsave(&opal_prd_msg_queue_lock, flags);
 	list_add_tail(&item->list, &opal_prd_msg_queue);
