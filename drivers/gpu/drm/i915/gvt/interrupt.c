@@ -435,7 +435,7 @@ static int inject_virtual_interrupt(struct intel_vgpu *vgpu)
 	 */
 	if (!test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
 		return -ESRCH;
-	if (vgpu->msi_trigger && eventfd_signal(vgpu->msi_trigger, 1) != 1)
+	if (vgpu->msi_trigger && !eventfd_signal(vgpu->msi_trigger))
 		return -EFAULT;
 	return 0;
 }

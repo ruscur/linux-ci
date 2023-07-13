@@ -1028,9 +1028,9 @@ static int mtty_trigger_interrupt(struct mdev_state *mdev_state)
 	}
 
 	if (mdev_state->irq_index == VFIO_PCI_MSI_IRQ_INDEX)
-		ret = eventfd_signal(mdev_state->msi_evtfd, 1);
+		ret = eventfd_signal(mdev_state->msi_evtfd);
 	else
-		ret = eventfd_signal(mdev_state->intx_evtfd, 1);
+		ret = eventfd_signal(mdev_state->intx_evtfd);
 
 #if defined(DEBUG_INTR)
 	pr_info("Intx triggered\n");
