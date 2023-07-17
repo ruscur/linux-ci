@@ -325,8 +325,11 @@ static void imx_audmux_remove(struct platform_device *pdev)
 static int imx_audmux_suspend(struct device *dev)
 {
 	int i;
+	ssize_t ret;
 
-	clk_prepare_enable(audmux_clk);
+	ret = clk_prepare_enable(audmux_clk);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < reg_max; i++)
 		regcache[i] = readl(audmux_base + i * 4);
