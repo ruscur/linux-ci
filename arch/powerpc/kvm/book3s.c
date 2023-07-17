@@ -32,6 +32,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/xive.h>
+#include <asm/book3s/64/radix.h>
 
 #include "book3s.h"
 #include "trace.h"
@@ -1069,6 +1070,51 @@ int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
 }
 
 #endif /* CONFIG_KVM_XICS */
+
+/*
+ * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
+ * dirty pages.
+ *
+ * It write protects selected pages to enable dirty logging for them.
+ */
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+					     struct kvm_memory_slot *slot,
+					     gfn_t gfn_offset,
+					     unsigned long mask)
+{
+	phys_addr_t base_gfn = slot->base_gfn + gfn_offset;
+	phys_addr_t start = (base_gfn +  __ffs(mask)) << PAGE_SHIFT;
+	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
+
+	while (start < end) {
+		pte_t *ptep;
+		unsigned int shift;
+
+		ptep = find_kvm_secondary_pte(kvm, start, &shift);
+
+		if (radix_enabled())
+			__radix_pte_update(ptep, _PAGE_WRITE, 0);
+		else
+			*ptep = __pte(pte_val(*ptep) & ~(_PAGE_WRITE));
+
+		start += PAGE_SIZE;
+	}
+}
+
+#ifdef CONFIG_NEED_KVM_DIRTY_RING_WITH_BITMAP
+bool kvm_arch_allow_write_without_running_vcpu(struct kvm *kvm)
+{
+	return true;
+}
+#endif
+
+#ifdef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
+void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
+					const struct kvm_memory_slot *memslot)
+{
+	kvm_flush_remote_tlbs(kvm);
+}
+#endif
 
 static int kvmppc_book3s_init(void)
 {

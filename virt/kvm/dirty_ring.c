@@ -209,6 +209,7 @@ bool kvm_dirty_ring_check_request(struct kvm_vcpu *vcpu)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(kvm_dirty_ring_check_request);
 
 struct page *kvm_dirty_ring_get_page(struct kvm_dirty_ring *ring, u32 offset)
 {
