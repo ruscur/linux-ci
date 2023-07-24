@@ -38,8 +38,11 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 	/* Create EEH devices for the PHB */
 	eeh_phb_pe_create(phb);
 
-	if (dn->child)
+	if (dn->child) {
+		eeh_recovery_lock();
 		pseries_eeh_init_edev_recursive(PCI_DN(dn));
+		eeh_recovery_unlock();
+	}
 
 	pcibios_scan_phb(phb);
 	pcibios_finish_adding_to_bus(phb->bus);

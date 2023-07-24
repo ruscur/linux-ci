@@ -72,6 +72,7 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 	unsigned long addr, mask;
 	char buf[50];
 	int ret;
+	unsigned long flags;
 
 	if (!eeh_ops || !eeh_ops->err_inject)
 		return -ENXIO;
@@ -86,14 +87,21 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 		     &pe_no, &type, &func, &addr, &mask);
 	if (ret != 5)
 		return -EINVAL;
-
+	/*
+	 * Use the spinlock rather than the mutex so that errors can be
+	 * injected during slow recovery operations (for testing).
+	 */
+	eeh_serialize_lock(&flags);
 	/* Retrieve PE */
 	pe = eeh_pe_get(hose, pe_no);
-	if (!pe)
+	if (!pe) {
+		eeh_serialize_unlock(flags);
 		return -ENODEV;
+	}
 
 	/* Do error injection */
 	ret = eeh_ops->err_inject(pe, type, func, addr, mask);
+	eeh_serialize_unlock(flags);
 	return ret < 0 ? ret : count;
 }
 

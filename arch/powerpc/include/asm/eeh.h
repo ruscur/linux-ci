@@ -128,6 +128,7 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 #define EEH_DEV_NO_HANDLER	(1 << 8)	/* No error handler	*/
 #define EEH_DEV_SYSFS		(1 << 9)	/* Sysfs created	*/
 #define EEH_DEV_REMOVED		(1 << 10)	/* Removed permanently	*/
+#define EEH_DEV_RECOVERING	(1 << 11)	/* Recovering		*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
@@ -233,7 +234,7 @@ extern int eeh_subsystem_flags;
 extern u32 eeh_max_freezes;
 extern bool eeh_debugfs_no_recover;
 extern struct eeh_ops *eeh_ops;
-extern raw_spinlock_t confirm_error_lock;
+extern raw_spinlock_t eeh_pe_tree_spinlock;
 
 static inline void eeh_add_flag(int flag)
 {
@@ -257,12 +258,12 @@ static inline bool eeh_enabled(void)
 
 static inline void eeh_serialize_lock(unsigned long *flags)
 {
-	raw_spin_lock_irqsave(&confirm_error_lock, *flags);
+	raw_spin_lock_irqsave(&eeh_pe_tree_spinlock, *flags);
 }
 
 static inline void eeh_serialize_unlock(unsigned long flags)
 {
-	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+	raw_spin_unlock_irqrestore(&eeh_pe_tree_spinlock, flags);
 }
 
 static inline bool eeh_state_active(int state)
@@ -271,11 +272,15 @@ static inline bool eeh_state_active(int state)
 	== (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 }
 
+void eeh_recovery_lock(void);
+void eeh_recovery_unlock(void);
+void eeh_recovery_must_be_locked(void);
+
 typedef void (*eeh_edev_traverse_func)(struct eeh_dev *edev, void *flag);
 typedef void *(*eeh_pe_traverse_func)(struct eeh_pe *pe, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
-int eeh_wait_state(struct eeh_pe *pe, int max_wait);
+int eeh_wait_state(struct eeh_pe *pe, int max_wait, bool unlock);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no);

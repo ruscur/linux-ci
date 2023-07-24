@@ -12,11 +12,16 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/kthread.h>
+#include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
 #include <asm/pci-bridge.h>
 #include <asm/rtas.h>
+
+static atomic_t eeh_wu_id = ATOMIC_INIT(0);
 
 struct eeh_rmv_data {
 	struct list_head removed_vf_list;
@@ -247,93 +252,283 @@ static void eeh_set_irq_state(struct eeh_pe *root, bool enable)
 	}
 }
 
-typedef enum pci_ers_result (*eeh_report_fn)(struct eeh_dev *,
+typedef enum pci_ers_result (*eeh_report_fn)(unsigned int event_id,
+					     unsigned int id,
 					     struct pci_dev *,
 					     struct pci_driver *);
-static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
-			       enum pci_ers_result *result)
+static void eeh_pe_report_pdev(unsigned int event_id,
+			       unsigned int id,
+			       struct pci_dev *pdev,
+			       const char *fn_name, eeh_report_fn fn,
+			       enum pci_ers_result *result,
+			       bool late, bool removed, bool passed)
 {
-	struct pci_dev *pdev;
 	struct pci_driver *driver;
 	enum pci_ers_result new_result;
 
-	pci_lock_rescan_remove();
-	pdev = edev->pdev;
-	if (pdev)
-		get_device(&pdev->dev);
-	pci_unlock_rescan_remove();
-	if (!pdev) {
-		eeh_edev_info(edev, "no device");
-		return;
-	}
+	/*
+	 * Driver callbacks may end up calling back into EEH functions
+	 * (for example by removing a PCI device) which will deadlock
+	 * unless the EEH locks are released first. Note that it may be
+	 * re-acquired by the report functions, if necessary.
+	 */
 	device_lock(&pdev->dev);
-	if (eeh_edev_actionable(edev)) {
-		driver = eeh_pcid_get(pdev);
+	driver = eeh_pcid_get(pdev);
 
-		if (!driver)
-			eeh_edev_info(edev, "no driver");
-		else if (!driver->err_handler)
-			eeh_edev_info(edev, "driver not EEH aware");
-		else if (edev->mode & EEH_DEV_NO_HANDLER)
-			eeh_edev_info(edev, "driver bound too late");
-		else {
-			new_result = fn(edev, pdev, driver);
-			eeh_edev_info(edev, "%s driver reports: '%s'",
-				      driver->name,
-				      pci_ers_result_name(new_result));
-			if (result)
-				*result = pci_ers_merge_result(*result,
-							       new_result);
-		}
-		if (driver)
-			eeh_pcid_put(pdev);
+	if (!driver) {
+		pci_info(pdev, "EEH(%u): W%u: no driver", event_id, id);
+	} else if (!driver->err_handler) {
+		pci_info(pdev, "EEH(%u): W%u: driver not EEH aware", event_id, id);
+	} else if (late) {
+		pci_info(pdev, "EEH(%u): W%u: driver bound too late", event_id, id);
 	} else {
-		eeh_edev_info(edev, "not actionable (%d,%d,%d)", !!pdev,
-			      !eeh_dev_removed(edev), !eeh_pe_passed(edev->pe));
+		pci_info(pdev, "EEH(%u): EVENT=HANDLER_CALL HANDLER='%s'\n",
+			 event_id, fn_name);
+
+		new_result = fn(event_id, id, pdev, driver);
+
+		/*
+		 * It's not safe to use edev here, because the locks
+		 * have been released and devices could have changed.
+		 */
+		pr_warn("EEH(%u): EVENT=HANDLER_RETURN RESULT='%s'\n",
+			event_id, pci_ers_result_name(new_result));
+		pci_info(pdev, "EEH(%u): W%u: %s driver reports: '%s'",
+			 event_id, id, driver->name,
+			 pci_ers_result_name(new_result));
+		if (result) {
+			eeh_recovery_lock();
+			*result = pci_ers_merge_result(*result,
+						       new_result);
+			eeh_recovery_unlock();
+		}
 	}
+	if (driver)
+		eeh_pcid_put(pdev);
 	device_unlock(&pdev->dev);
-	if (edev->pdev != pdev)
-		eeh_edev_warn(edev, "Device changed during processing!\n");
-	put_device(&pdev->dev);
 }
 
-static void eeh_pe_report(const char *name, struct eeh_pe *root,
-			  eeh_report_fn fn, enum pci_ers_result *result)
+struct pci_dev **pdev_cache_list_create(struct eeh_pe *root)
 {
 	struct eeh_pe *pe;
 	struct eeh_dev *edev, *tmp;
+	struct pci_dev **pdevs;
+	int i, n;
 
-	pr_info("EEH: Beginning: '%s'\n", name);
-	eeh_for_each_pe(root, pe) eeh_pe_for_each_dev(pe, edev, tmp)
-		eeh_pe_report_edev(edev, fn, result);
+	n = 0;
+	eeh_for_each_pe(root, pe) eeh_pe_for_each_dev(pe, edev, tmp) {
+		if (edev->pdev)
+			n++;
+	}
+	pdevs = kmalloc(sizeof(*pdevs) * (n + 1), GFP_KERNEL);
+	if (WARN_ON_ONCE(!pdevs))
+		return NULL;
+	i = 0;
+	eeh_for_each_pe(root, pe) eeh_pe_for_each_dev(pe, edev, tmp) {
+		if (i < n) {
+			get_device(&edev->pdev->dev);
+			pdevs[i++] = edev->pdev;
+		}
+	}
+	if (WARN_ON_ONCE(i < n))
+		n = i;
+	pdevs[n] = NULL; /* terminator */
+	return pdevs;
+}
+
+static void pdev_cache_list_destroy(struct pci_dev **pdevs)
+{
+	struct pci_dev **pdevp;
+
+	for (pdevp = pdevs; pdevp && *pdevp; pdevp++)
+		put_device(&(*pdevp)->dev);
+	kfree(pdevs);
+}
+
+struct work_unit {
+	unsigned int id;
+	struct work_struct work;
+	unsigned int event_id;
+	struct pci_dev *pdev;
+	struct eeh_pe *pe;
+	const char *fn_name;
+	eeh_report_fn fn;
+	enum pci_ers_result *result;
+	atomic_t *count;
+	struct completion *done;
+};
+
+static void eeh_pe_report_pdev_thread(struct work_struct *work);
+/*
+ * Traverse down from a PE through it's children, to find devices and enqueue
+ * jobs to call the handler (fn) on them.  But do not traverse below a PE that
+ * has devices, so that devices are always handled strictly before their
+ * children. (Traversal is continued by the jobs after handlers are called.)
+ * The recovery lock must be held.
+ * TODO: Convert away from recursive descent traversal?
+ */
+static bool enqueue_pe_work(struct eeh_pe *root, unsigned int event_id,
+			    const char *fn_name, eeh_report_fn fn,
+			    enum pci_ers_result *result, atomic_t *count,
+			    struct completion *done)
+{
+	struct eeh_pe *pe;
+	struct eeh_dev *edev, *tmp;
+	struct work_unit *wu;
+	bool work_added = false;
+
+	if (list_empty(&root->edevs)) {
+		list_for_each_entry(pe, &root->child_list, child)
+			work_added |= enqueue_pe_work(pe, event_id, fn_name,
+						      fn, result, count, done);
+	} else {
+		eeh_pe_for_each_dev(root, edev, tmp) {
+			work_added = true;
+			edev->mode |= EEH_DEV_RECOVERING;
+			atomic_inc(count);
+			WARN_ON(!(edev->mode & EEH_DEV_RECOVERING));
+			wu = kmalloc(sizeof(*wu), GFP_KERNEL);
+			wu->id = (unsigned int)atomic_inc_return(&eeh_wu_id);
+			wu->event_id = event_id;
+			get_device(&edev->pdev->dev);
+			wu->pdev = edev->pdev;
+			wu->pe = root;
+			wu->fn_name = fn_name;
+			wu->fn = fn;
+			wu->result = result;
+			wu->count = count;
+			wu->done = done;
+			INIT_WORK(&wu->work, eeh_pe_report_pdev_thread);
+			pr_debug("EEH(%u): Queue work unit W%u for device %s (count ~ %d)\n",
+				 event_id, wu->id, pci_name(edev->pdev),
+				 atomic_read(count));
+			queue_work(system_unbound_wq, &wu->work);
+		}
+		/* This PE has devices, so don't traverse further now */
+	}
+	return work_added;
+}
+
+static void eeh_pe_report_pdev_thread(struct work_struct *work)
+{
+	struct work_unit *wu = container_of(work, struct work_unit, work);
+	struct eeh_dev *edev, *oedev, *tmp;
+	struct eeh_pe *pe;
+	int todo;
+
+	/*
+	 * It would be convenient to continue to hold the recovery lock here
+	 * but driver callbacks can take a very long time or never return at
+	 * all.
+	 */
+	pr_debug("EEH(%u): W%u: start (device: %s)\n", wu->event_id, wu->id, pci_name(wu->pdev));
+	eeh_recovery_lock();
+	edev = pci_dev_to_eeh_dev(wu->pdev);
+	if (edev) {
+		bool late, removed, passed;
+
+		WARN_ON(!(edev->mode & EEH_DEV_RECOVERING));
+		removed = eeh_dev_removed(edev);
+		passed = eeh_pe_passed(edev->pe);
+		late = edev->mode & EEH_DEV_NO_HANDLER;
+		if (eeh_edev_actionable(edev)) {
+			eeh_recovery_unlock();
+			eeh_pe_report_pdev(wu->event_id, wu->id, wu->pdev,
+					   wu->fn_name, wu->fn, wu->result,
+					   late, removed, passed);
+			eeh_recovery_lock();
+		} else {
+			pci_info(wu->pdev, "EEH(%u): W%u: Not actionable (%d,%d,%d)\n",
+				 wu->event_id, wu->id, !!wu->pdev, !removed, !passed);
+		}
+		edev = pci_dev_to_eeh_dev(wu->pdev); // Re-acquire after lock release
+		if (edev)
+			edev->mode &= ~EEH_DEV_RECOVERING;
+		/* The edev may be lost, but not moved to a different PE! */
+		WARN_ON(eeh_dev_to_pe(edev) && (eeh_dev_to_pe(edev) != wu->pe));
+		todo = 0;
+		eeh_pe_for_each_dev(wu->pe, oedev, tmp)
+			if (oedev->mode & EEH_DEV_RECOVERING)
+				todo++;
+		pci_dbg(wu->pdev, "EEH(%u): W%u: Remaining devices in this PE: %d\n",
+			wu->event_id, wu->id, todo);
+		if (todo) {
+			pr_debug("EEH(%u): W%u: Remaining work units at this PE: %d\n",
+				 wu->event_id, wu->id, todo);
+		} else {
+			pr_debug("EEH(%u): W%u: All work for this PE complete, continuing traversal:\n",
+				 wu->event_id, wu->id);
+			list_for_each_entry(pe, &wu->pe->child_list, child)
+				enqueue_pe_work(pe, wu->event_id, wu->fn_name,
+						wu->fn, wu->result, wu->count,
+						wu->done);
+		}
+	} else {
+		pr_warn("EEH(%u): W%u: Device removed.\n", wu->event_id, wu->id);
+	}
+	eeh_recovery_unlock();
+	if (atomic_dec_and_test(wu->count)) {
+		pr_debug("EEH(%u): W%u: done\n", wu->event_id, wu->id);
+		complete(wu->done);
+	}
+	put_device(&wu->pdev->dev);
+	kfree(wu);
+}
+
+static void eeh_pe_report(unsigned int event_id, const char *name, struct eeh_pe *root,
+			  eeh_report_fn fn, enum pci_ers_result *result)
+{
+	atomic_t count = ATOMIC_INIT(0);
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	pr_info("EEH(%u): Beginning: '%s'\n", event_id, name);
+	if (enqueue_pe_work(root, event_id, name, fn, result, &count, &done)) {
+		pr_info("EEH(%u): Waiting for asynchronous recovery work to complete...\n",
+			event_id);
+		eeh_recovery_unlock();
+		wait_for_completion_interruptible(&done);
+		pr_info("EEH(%u): Asynchronous recovery work is complete.\n", event_id);
+		eeh_recovery_lock();
+	} else {
+		pr_info("EEH(%u): No recovery work do.\n", event_id);
+	}
+
 	if (result)
-		pr_info("EEH: Finished:'%s' with aggregate recovery state:'%s'\n",
-			name, pci_ers_result_name(*result));
+		pr_info("EEH(%u): Finished:'%s' with aggregate recovery state:'%s'\n",
+			event_id, name, pci_ers_result_name(*result));
 	else
-		pr_info("EEH: Finished:'%s'", name);
+		pr_info("EEH(%u): Finished:'%s'",event_id, name);
 }
 
 /**
  * eeh_report_error - Report pci error to each device driver
- * @edev: eeh device
+ * @pdev: eeh device
  * @driver: device's PCI driver
  *
  * Report an EEH error to each device driver.
  */
-static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
+static enum pci_ers_result eeh_report_error(unsigned int event_id,
+					    unsigned int id,
 					    struct pci_dev *pdev,
 					    struct pci_driver *driver)
 {
 	enum pci_ers_result rc;
+	struct eeh_dev *edev;
+	unsigned long flags;
 
 	if (!driver->err_handler->error_detected)
 		return PCI_ERS_RESULT_NONE;
 
-	eeh_edev_info(edev, "Invoking %s->error_detected(IO frozen)",
-		      driver->name);
+	pci_info(pdev, "EEH(%u): W%u: Invoking %s->error_detected(IO frozen)",
+		 event_id, id, driver->name);
 	rc = driver->err_handler->error_detected(pdev, pci_channel_io_frozen);
 
-	edev->in_error = true;
+	eeh_serialize_lock(&flags);
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (edev)
+		edev->in_error = true;
+	eeh_serialize_unlock(flags);
+
 	pci_uevent_ers(pdev, PCI_ERS_RESULT_NONE);
 	return rc;
 }
@@ -346,18 +541,21 @@ static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
  * Tells each device driver that IO ports, MMIO and config space I/O
  * are now enabled.
  */
-static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
+static enum pci_ers_result eeh_report_mmio_enabled(unsigned int event_id,
+						   unsigned int id,
 						   struct pci_dev *pdev,
 						   struct pci_driver *driver)
 {
 	if (!driver->err_handler->mmio_enabled)
 		return PCI_ERS_RESULT_NONE;
-	eeh_edev_info(edev, "Invoking %s->mmio_enabled()", driver->name);
+	pci_info(pdev, "EEH(%u): W%u: Invoking %s->mmio_enabled()",
+		 event_id, id, driver->name);
 	return driver->err_handler->mmio_enabled(pdev);
 }
 
 /**
  * eeh_report_reset - Tell device that slot has been reset
+ * @edev: eeh device
  * @edev: eeh device
  * @driver: device's PCI driver
  *
@@ -366,13 +564,23 @@ static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
  * some actions, usually to save data the driver needs so that the
  * driver can work again while the device is recovered.
  */
-static enum pci_ers_result eeh_report_reset(struct eeh_dev *edev,
+static enum pci_ers_result eeh_report_reset(unsigned int event_id,
+					    unsigned int id,
 					    struct pci_dev *pdev,
 					    struct pci_driver *driver)
 {
-	if (!driver->err_handler->slot_reset || !edev->in_error)
+	struct eeh_dev *edev;
+	unsigned long flags;
+
+	eeh_serialize_lock(&flags);
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!driver->err_handler->slot_reset || !edev->in_error) {
+		eeh_serialize_unlock(flags);
 		return PCI_ERS_RESULT_NONE;
-	eeh_edev_info(edev, "Invoking %s->slot_reset()", driver->name);
+	}
+	eeh_serialize_unlock(flags);
+	pci_info(pdev, "EEH(%u): W%u: Invoking %s->slot_reset()",
+		 event_id, id, driver->name);
 	return driver->err_handler->slot_reset(pdev);
 }
 
@@ -412,20 +620,32 @@ static void eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
  * could resume so that the device driver can do some initialization
  * to make the recovered device work again.
  */
-static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
+static enum pci_ers_result eeh_report_resume(unsigned int event_id,
+					     unsigned int id,
 					     struct pci_dev *pdev,
 					     struct pci_driver *driver)
 {
-	if (!driver->err_handler->resume || !edev->in_error)
-		return PCI_ERS_RESULT_NONE;
+	struct eeh_dev *edev;
+	unsigned long flags;
 
-	eeh_edev_info(edev, "Invoking %s->resume()", driver->name);
+	eeh_serialize_lock(&flags);
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!driver->err_handler->resume || !edev->in_error) {
+		eeh_serialize_unlock(flags);
+		return PCI_ERS_RESULT_NONE;
+	}
+	eeh_serialize_unlock(flags);
+
+	pci_info(pdev, "EEH(%u): W%u Invoking %s->resume()",
+		 event_id, id, driver->name);
 	driver->err_handler->resume(pdev);
 
-	pci_uevent_ers(edev->pdev, PCI_ERS_RESULT_RECOVERED);
+	pci_uevent_ers(pdev, PCI_ERS_RESULT_RECOVERED);
 #ifdef CONFIG_PCI_IOV
+	eeh_serialize_lock(&flags);
 	if (eeh_ops->notify_resume)
 		eeh_ops->notify_resume(edev);
+	eeh_serialize_unlock(flags);
 #endif
 	return PCI_ERS_RESULT_NONE;
 }
@@ -438,7 +658,8 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
  * This informs the device driver that the device is permanently
  * dead, and that no further recovery attempts will be made on it.
  */
-static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
+static enum pci_ers_result eeh_report_failure(unsigned int event_id,
+					      unsigned int id,
 					      struct pci_dev *pdev,
 					      struct pci_driver *driver)
 {
@@ -447,8 +668,8 @@ static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 	if (!driver->err_handler->error_detected)
 		return PCI_ERS_RESULT_NONE;
 
-	eeh_edev_info(edev, "Invoking %s->error_detected(permanent failure)",
-		      driver->name);
+	pci_info(pdev, "EEH(%u): W%u: Invoking %s->error_detected(permanent failure)",
+		 event_id, id, driver->name);
 	rc = driver->err_handler->error_detected(pdev,
 						 pci_channel_io_perm_failure);
 
@@ -476,16 +697,39 @@ static void *eeh_add_virt_device(struct eeh_dev *edev)
 	}
 
 #ifdef CONFIG_PCI_IOV
-	pci_iov_add_virtfn(edev->physfn, edev->vf_index);
+	{
+		struct pci_dev *physfn = edev->physfn;
+		int vf_index = edev->vf_index;
+
+		get_device(&physfn->dev);
+		eeh_recovery_unlock();
+		/*
+		 * This PCI operation will call back into EEH code where the
+		 * recovery lock will be acquired, so it must be released here,
+		 * first:
+		 */
+		pci_iov_add_virtfn(physfn, vf_index);
+		put_device(&physfn->dev);
+		eeh_recovery_lock();
+	}
 #endif
 	return NULL;
 }
 
-static void eeh_rmv_device(struct eeh_dev *edev, void *userdata)
+static void eeh_rmv_device(unsigned int event_id,
+			   struct pci_dev *pdev, void *userdata)
 {
+	unsigned long flags;
+	struct eeh_dev *edev;
 	struct pci_driver *driver;
-	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct eeh_rmv_data *rmv_data = (struct eeh_rmv_data *)userdata;
+
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!edev) {
+		pci_warn(pdev, "EEH(%u): Device removed during processing (#%d)\n",
+			 event_id, __LINE__);
+		return;
+	}
 
 	/*
 	 * Actually, we should remove the PCI bridges as well.
@@ -495,40 +739,51 @@ static void eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	 * simplicity here.
 	 */
 	if (!eeh_edev_actionable(edev) ||
-	    (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
+	    (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
 		return;
 
 	if (rmv_data) {
-		driver = eeh_pcid_get(dev);
+		driver = eeh_pcid_get(pdev);
 		if (driver) {
 			if (driver->err_handler &&
 			    driver->err_handler->error_detected &&
 			    driver->err_handler->slot_reset) {
-				eeh_pcid_put(dev);
+				eeh_pcid_put(pdev);
 				return;
 			}
-			eeh_pcid_put(dev);
+			eeh_pcid_put(pdev);
 		}
 	}
 
 	/* Remove it from PCI subsystem */
-	pr_info("EEH: Removing %s without EEH sensitive driver\n",
-		pci_name(dev));
+	pci_info(pdev, "EEH(%u): Removing device without EEH sensitive driver\n",
+		 event_id);
 	edev->mode |= EEH_DEV_DISCONNECTED;
 	if (rmv_data)
 		rmv_data->removed_dev_count++;
 
 	if (edev->physfn) {
 #ifdef CONFIG_PCI_IOV
+		eeh_recovery_unlock();
 		pci_iov_remove_virtfn(edev->physfn, edev->vf_index);
+		eeh_recovery_lock();
+		/* Both locks are required to make changes */
+		eeh_serialize_lock(&flags);
 		edev->pdev = NULL;
+		eeh_serialize_unlock(flags);
 #endif
 		if (rmv_data)
 			list_add(&edev->rmv_entry, &rmv_data->removed_vf_list);
 	} else {
+		/*
+		 * Lock ordering requires that the recovery lock be released
+		 * before acquiring the PCI rescan/remove lock.
+		 */
+		eeh_recovery_unlock();
 		pci_lock_rescan_remove();
-		pci_stop_and_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(pdev);
 		pci_unlock_rescan_remove();
+		eeh_recovery_lock();
 	}
 }
 
@@ -620,12 +875,14 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
  * During the reset, udev might be invoked because those affected
  * PCI devices will be removed and then added.
  */
-static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
+static int eeh_reset_device(unsigned int event_id,
+			    struct eeh_pe *pe, struct pci_bus *bus,
 			    struct eeh_rmv_data *rmv_data,
 			    bool driver_eeh_aware)
 {
 	time64_t tstamp;
 	int cnt, rc;
+	struct pci_dev **pdevs, **pdevp;
 	struct eeh_dev *edev;
 	struct eeh_pe *tmp_pe;
 	bool any_passed = false;
@@ -645,11 +902,23 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_KEEP);
 	if (any_passed || driver_eeh_aware || (pe->type & EEH_PE_VF)) {
-		eeh_pe_dev_traverse(pe, eeh_rmv_device, rmv_data);
+		/*
+		 * eeh_rmv_device() may need to release the recovery lock to
+		 * remove a PCI device so we can't rely on the PE lists staying
+		 * valid:
+		 */
+		pdevs = pdev_cache_list_create(pe);
+		/* eeh_rmv_device() may re-acquire the recovery lock */
+		for (pdevp = pdevs; pdevp && *pdevp; pdevp++)
+			eeh_rmv_device(event_id, *pdevp, rmv_data);
+		pdev_cache_list_destroy(pdevs);
+
 	} else {
+		eeh_recovery_unlock();
 		pci_lock_rescan_remove();
 		pci_hp_remove_devices(bus);
 		pci_unlock_rescan_remove();
+		eeh_recovery_lock();
 	}
 
 	/*
@@ -665,7 +934,13 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	if (rc)
 		return rc;
 
+	/*
+	 * The PCI rescan/remove lock must always be taken first, but we need
+	 * both here:
+	 */
+	eeh_recovery_unlock();
 	pci_lock_rescan_remove();
+	eeh_recovery_lock();
 
 	/* Restore PE */
 	eeh_ops->configure_bridge(pe);
@@ -673,10 +948,9 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 
 	/* Clear frozen state */
 	rc = eeh_clear_pe_frozen_state(pe, false);
-	if (rc) {
-		pci_unlock_rescan_remove();
+	pci_unlock_rescan_remove();
+	if (rc)
 		return rc;
-	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,
@@ -685,9 +959,11 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * potentially weird things happen.
 	 */
 	if (!driver_eeh_aware || rmv_data->removed_dev_count) {
-		pr_info("EEH: Sleep 5s ahead of %s hotplug\n",
-			(driver_eeh_aware ? "partial" : "complete"));
+		pr_info("EEH(%u): Sleep 5s ahead of %s hotplug\n",
+			event_id, (driver_eeh_aware ? "partial" : "complete"));
+		eeh_recovery_unlock();
 		ssleep(5);
+		eeh_recovery_lock();
 
 		/*
 		 * The EEH device is still connected with its parent
@@ -701,7 +977,17 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		} else {
 			if (!driver_eeh_aware)
 				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
+			/*
+			 * Lock ordering requires that the recovery lock be
+			 * released before acquiring the PCI rescan/remove
+			 * lock.
+			 */
+			eeh_recovery_unlock();
+			pci_lock_rescan_remove();
 			pci_hp_add_devices(bus);
+			pci_unlock_rescan_remove();
+			eeh_recovery_lock();
+
 		}
 	}
 	eeh_pe_state_clear(pe, EEH_PE_KEEP, true);
@@ -709,7 +995,6 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	pe->tstamp = tstamp;
 	pe->freeze_count = cnt;
 
-	pci_unlock_rescan_remove();
 	return 0;
 }
 
@@ -832,21 +1117,25 @@ static void eeh_clear_slot_attention(struct pci_dev *pdev)
  * drivers (which cause a second set of hotplug events to go out to
  * userspace).
  */
-void eeh_handle_normal_event(struct eeh_pe *pe)
+void eeh_handle_normal_event(unsigned int event_id, struct eeh_pe *pe)
 {
+	struct eeh_pe *tmp_pe;
+	struct pci_controller *phb = pe->phb;
 	struct pci_bus *bus;
 	struct eeh_dev *edev, *tmp;
-	struct eeh_pe *tmp_pe;
+	struct pci_dev **pdevs, **pdevp;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 	struct eeh_rmv_data rmv_data =
 		{LIST_HEAD_INIT(rmv_data.removed_vf_list), 0};
 	int devices = 0;
 
+	eeh_recovery_lock();
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
-			__func__, pe->phb->global_number, pe->addr);
+		pr_err("EEH(%u): %s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+			event_id, __func__, phb->global_number, pe->addr);
+		eeh_recovery_unlock();
 		return;
 	}
 
@@ -865,22 +1154,27 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 				devices++;
 
 	if (!devices) {
-		pr_debug("EEH: Frozen PHB#%x-PE#%x is empty!\n",
-			pe->phb->global_number, pe->addr);
+		pr_debug("EEH(%u): Frozen PHB#%x-PE#%x is empty!\n",
+			event_id, phb->global_number, pe->addr);
 		goto out; /* nothing to recover */
 	}
 
+	pe->freeze_count++;
+	pr_warn("EEH(%u): EVENT=RECOVERY_START TYPE=%s PHB=%#x PE=%#x COUNT=%d\n",
+		event_id, ((pe->type & EEH_PE_PHB) ? "PHB" : "PE"),
+		pe->phb->global_number, pe->addr, pe->freeze_count);
+
 	/* Log the event */
 	if (pe->type & EEH_PE_PHB) {
-		pr_err("EEH: Recovering PHB#%x, location: %s\n",
-			pe->phb->global_number, eeh_pe_loc_get(pe));
+		pr_err("EEH(%u): Recovering PHB#%x, location: %s\n",
+			event_id, phb->global_number, eeh_pe_loc_get(pe));
 	} else {
-		struct eeh_pe *phb_pe = eeh_phb_pe_get(pe->phb);
+		struct eeh_pe *phb_pe = eeh_phb_pe_get(phb);
 
-		pr_err("EEH: Recovering PHB#%x-PE#%x\n",
-		       pe->phb->global_number, pe->addr);
-		pr_err("EEH: PE location: %s, PHB location: %s\n",
-		       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
+		pr_err("EEH(%u): Recovering PHB#%x-PE#%x\n",
+		       event_id, phb->global_number, pe->addr);
+		pr_err("EEH(%u): PE location: %s, PHB location: %s\n",
+		       event_id, eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
 	}
 
 #ifdef CONFIG_STACKTRACE
@@ -892,13 +1186,13 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		void **ptrs = (void **) pe->stack_trace;
 		int i;
 
-		pr_err("EEH: Frozen PHB#%x-PE#%x detected\n",
-		       pe->phb->global_number, pe->addr);
+		pr_err("EEH(%u): Frozen PHB#%x-PE#%x detected\n",
+		       event_id, phb->global_number, pe->addr);
 
 		/* FIXME: Use the same format as dump_stack() */
-		pr_err("EEH: Call Trace:\n");
+		pr_err("EEH(%u): Call Trace:\n", event_id);
 		for (i = 0; i < pe->trace_entries; i++)
-			pr_err("EEH: [%pK] %pS\n", ptrs[i], ptrs[i]);
+			pr_err("EEH(%u): [%pK] %pS\n", event_id, ptrs[i], ptrs[i]);
 
 		pe->trace_entries = 0;
 	}
@@ -909,10 +1203,9 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			edev->mode &= ~EEH_DEV_NO_HANDLER;
 
 	eeh_pe_update_time_stamp(pe);
-	pe->freeze_count++;
 	if (pe->freeze_count > eeh_max_freezes) {
-		pr_err("EEH: PHB#%x-PE#%x has failed %d times in the last hour and has been permanently disabled.\n",
-		       pe->phb->global_number, pe->addr,
+		pr_err("EEH(%u): PHB#%x-PE#%x has failed %d times in the last hour and has been permanently disabled.\n",
+		       event_id, phb->global_number, pe->addr,
 		       pe->freeze_count);
 
 		goto recover_failed;
@@ -928,12 +1221,12 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * the error. Override the result if necessary to have partially
 	 * hotplug for this case.
 	 */
-	pr_warn("EEH: This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
-		pe->freeze_count, eeh_max_freezes);
-	pr_info("EEH: Notify device drivers to shutdown\n");
+	pr_warn("EEH(%u): This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
+		event_id, pe->freeze_count, eeh_max_freezes);
+	pr_info("EEH(%u): Notify device drivers to shutdown\n", event_id);
 	eeh_set_channel_state(pe, pci_channel_io_frozen);
 	eeh_set_irq_state(pe, false);
-	eeh_pe_report("error_detected(IO frozen)", pe,
+	eeh_pe_report(event_id, "error_detected(IO frozen)", pe,
 		      eeh_report_error, &result);
 	if (result == PCI_ERS_RESULT_DISCONNECT)
 		goto recover_failed;
@@ -948,9 +1241,9 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 300 seconds for certain systems.
 	 */
-	rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY * 1000);
+	rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY * 1000, true);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
-		pr_warn("EEH: Permanent failure\n");
+		pr_warn("EEH(%u): Permanent failure\n", event_id);
 		goto recover_failed;
 	}
 
@@ -958,16 +1251,16 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * don't post the error log until after all dev drivers
 	 * have been informed.
 	 */
-	pr_info("EEH: Collect temporary log\n");
-	eeh_slot_error_detail(pe, EEH_LOG_TEMP);
+	pr_info("EEH(%u): Collect temporary log\n", event_id);
+	eeh_slot_error_detail(event_id, pe, EEH_LOG_TEMP);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they
 	 * go down willingly, without panicing the system.
 	 */
 	if (result == PCI_ERS_RESULT_NONE) {
-		pr_info("EEH: Reset with hotplug activity\n");
-		rc = eeh_reset_device(pe, bus, NULL, false);
+		pr_info("EEH(%u): Reset with hotplug activity\n", event_id);
+		rc = eeh_reset_device(event_id, pe, bus, NULL, false);
 		if (rc) {
 			pr_warn("%s: Unable to reset, err=%d\n", __func__, rc);
 			goto recover_failed;
@@ -976,7 +1269,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		pr_info("EEH: Enable I/O for affected devices\n");
+		pr_info("EEH(%u): Enable I/O for affected devices\n", event_id);
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		if (rc < 0)
 			goto recover_failed;
@@ -984,13 +1277,13 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
-			pr_info("EEH: Notify device drivers to resume I/O\n");
-			eeh_pe_report("mmio_enabled", pe,
+			pr_info("EEH(%u): Notify device drivers to resume I/O\n", event_id);
+			eeh_pe_report(event_id, "mmio_enabled", pe,
 				      eeh_report_mmio_enabled, &result);
 		}
 	}
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		pr_info("EEH: Enabled DMA for affected devices\n");
+		pr_info("EEH(%u): Enabled DMA for affected devices\n", event_id);
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
 		if (rc < 0)
 			goto recover_failed;
@@ -1010,8 +1303,8 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
-		pr_info("EEH: Reset without hotplug activity\n");
-		rc = eeh_reset_device(pe, bus, &rmv_data, true);
+		pr_info("EEH(%u): Reset without hotplug activity\n", event_id);
+		rc = eeh_reset_device(event_id, pe, bus, &rmv_data, true);
 		if (rc) {
 			pr_warn("%s: Cannot reset, err=%d\n", __func__, rc);
 			goto recover_failed;
@@ -1020,7 +1313,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		result = PCI_ERS_RESULT_NONE;
 		eeh_set_channel_state(pe, pci_channel_io_normal);
 		eeh_set_irq_state(pe, true);
-		eeh_pe_report("slot_reset", pe, eeh_report_reset,
+		eeh_pe_report(event_id, "slot_reset", pe, eeh_report_reset,
 			      &result);
 	}
 
@@ -1037,10 +1330,10 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		}
 
 		/* Tell all device drivers that they can resume operations */
-		pr_info("EEH: Notify device driver to resume\n");
+		pr_info("EEH(%u): Notify device driver to resume\n", event_id);
 		eeh_set_channel_state(pe, pci_channel_io_normal);
 		eeh_set_irq_state(pe, true);
-		eeh_pe_report("resume", pe, eeh_report_resume, NULL);
+		eeh_pe_report(event_id, "resume", pe, eeh_report_resume, NULL);
 		eeh_for_each_pe(pe, tmp_pe) {
 			eeh_pe_for_each_dev(tmp_pe, edev, tmp) {
 				edev->mode &= ~EEH_DEV_NO_HANDLER;
@@ -1048,7 +1341,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			}
 		}
 
-		pr_info("EEH: Recovery successful.\n");
+		pr_info("EEH(%u): Recovery successful.\n", event_id);
 		goto out;
 	}
 
@@ -1058,17 +1351,18 @@ recover_failed:
 	 * are due to poorly seated PCI cards. Only 10% or so are
 	 * due to actual, failed cards.
 	 */
-	pr_err("EEH: Unable to recover from failure from PHB#%x-PE#%x.\n"
+	pr_err("EEH(%u): Unable to recover from failure from PHB#%x-PE#%x.\n"
 		"Please try reseating or replacing it\n",
-		pe->phb->global_number, pe->addr);
+		event_id, phb->global_number, pe->addr);
 
-	eeh_slot_error_detail(pe, EEH_LOG_PERM);
+	eeh_slot_error_detail(event_id, pe, EEH_LOG_PERM);
 
 	/* Notify all devices that they're about to go down. */
 	eeh_set_irq_state(pe, false);
-	eeh_pe_report("error_detected(permanent failure)", pe,
+	eeh_pe_report(event_id, "error_detected(permanent failure)", pe,
 		      eeh_report_failure, NULL);
 	eeh_set_channel_state(pe, pci_channel_io_perm_failure);
+	pr_crit("EEH(%u): EVENT=RECOVERY_END RESULT=failure\n", event_id);
 
 	/* Mark the PE to be removed permanently */
 	eeh_pe_state_mark(pe, EEH_PE_REMOVED);
@@ -1079,18 +1373,24 @@ recover_failed:
 	 * the their PCI config any more.
 	 */
 	if (pe->type & EEH_PE_VF) {
-		eeh_pe_dev_traverse(pe, eeh_rmv_device, NULL);
+		pdevs = pdev_cache_list_create(pe);
+		for (pdevp = pdevs; pdevp && *pdevp; pdevp++)
+			eeh_rmv_device(event_id, *pdevp, NULL);
+		pdev_cache_list_destroy(pdevs);
 		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 	} else {
 		eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
+		eeh_recovery_unlock();
 		pci_lock_rescan_remove();
 		pci_hp_remove_devices(bus);
 		pci_unlock_rescan_remove();
 		/* The passed PE should no longer be used */
 		return;
 	}
+
+	pr_info("EEH(%u): EVENT=RECOVERY_END RESULT=success\n", event_id);
 
 out:
 	/*
@@ -1105,6 +1405,31 @@ out:
 			eeh_clear_slot_attention(edev->pdev);
 
 	eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
+	eeh_recovery_unlock();
+}
+
+void eeh_handle_normal_event_work(struct work_struct *work)
+{
+	unsigned long flags;
+	struct eeh_event *event = container_of(work, struct eeh_event, work);
+	struct pci_controller *phb = event->pe->phb;
+
+	eeh_handle_normal_event(event->id, event->pe);
+
+	kfree(event);
+	spin_lock_irqsave(&phb->eeh_eventlist_lock, flags);
+	WARN_ON_ONCE(!phb->eeh_in_progress);
+	if (list_empty(&phb->eeh_eventlist)) {
+		phb->eeh_in_progress = false;
+		pr_debug("EEH(%u): No more work to do\n", event->id);
+	} else {
+		pr_warn("EEH(%u): More work to do\n", event->id);
+		event = list_entry(phb->eeh_eventlist.next,
+				   struct eeh_event, list);
+		list_del(&event->list);
+		queue_work(system_unbound_wq, &event->work);
+	}
+	spin_unlock_irqrestore(&phb->eeh_eventlist_lock, flags);
 }
 
 /**
@@ -1176,8 +1501,7 @@ void eeh_handle_special_event(void)
 		 */
 		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
 		    rc == EEH_NEXT_ERR_FENCED_PHB) {
-			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-			eeh_handle_normal_event(pe);
+			eeh_phb_event(pe);
 		} else {
 			eeh_for_each_pe(pe, tmp_pe)
 				eeh_pe_for_each_dev(tmp_pe, edev, tmp_edev)
@@ -1185,7 +1509,7 @@ void eeh_handle_special_event(void)
 
 			/* Notify all devices to be down */
 			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
-			eeh_pe_report(
+			eeh_pe_report(0,
 				"error_detected(permanent failure)", pe,
 				eeh_report_failure, NULL);
 			eeh_set_channel_state(pe, pci_channel_io_perm_failure);

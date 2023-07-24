@@ -108,12 +108,24 @@ bool eeh_debugfs_no_recover;
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
 
-/* Lock to avoid races due to multiple reports of an error */
-DEFINE_RAW_SPINLOCK(confirm_error_lock);
-EXPORT_SYMBOL_GPL(confirm_error_lock);
+/*
+ * eeh_pe_tree_spinlock and eeh_pe_tree_mutex are used together to provide
+ * safety during EEH operations.
+ *
+ * Generally, the spinlock is used in error detection where it's not possible
+ * to use a mutex or where there is potential to deadlock with the mutex, and
+ * the mutex is used during recovery and other PCI related operations. One must
+ * be held when reading and both must be held when making changes to the
+ * protected fields: eeh_pe.parent, child_list, child, edevs and eeh_dev.pe,
+ * .pdev.
+ *
+ */
+
+DEFINE_RAW_SPINLOCK(eeh_pe_tree_spinlock);
+EXPORT_SYMBOL_GPL(eeh_pe_tree_spinlock);
 
 /* Lock to protect passed flags */
-static DEFINE_MUTEX(eeh_dev_mutex);
+static DEFINE_MUTEX(eeh_pe_tree_mutex);
 
 /* Buffer for reporting pci register dumps. Its here in BSS, and
  * not dynamically alloced, so that it ends up in RMO where RTAS
@@ -160,12 +172,30 @@ void eeh_show_enabled(void)
 		pr_info("EEH: No capable adapters found: recovery disabled.\n");
 }
 
+void eeh_recovery_lock(void)
+{
+	mutex_lock(&eeh_pe_tree_mutex);
+}
+EXPORT_SYMBOL_GPL(eeh_recovery_lock);
+
+void eeh_recovery_unlock(void)
+{
+	mutex_unlock(&eeh_pe_tree_mutex);
+}
+EXPORT_SYMBOL_GPL(eeh_recovery_unlock);
+void eeh_recovery_must_be_locked(void)
+{
+	WARN_ON_ONCE(!mutex_is_locked(&eeh_pe_tree_mutex));
+}
+EXPORT_SYMBOL_GPL(eeh_recovery_must_be_locked);
+
 /*
  * This routine captures assorted PCI configuration space data
  * for the indicated PCI device, and puts them into a buffer
  * for RTAS error logging.
  */
-static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
+static size_t eeh_dump_dev_log(unsigned int event_id, struct eeh_dev *edev,
+			       char *buf, size_t len)
 {
 	u32 cfg;
 	int cap, i;
@@ -175,27 +205,29 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
 			edev->pe->phb->global_number, edev->bdfn >> 8,
 			PCI_SLOT(edev->bdfn), PCI_FUNC(edev->bdfn));
-	pr_warn("EEH: of node=%04x:%02x:%02x.%01x\n",
+	pr_warn("EEH(%u): of node=%04x:%02x:%02x.%01x\n",
+		event_id,
 		edev->pe->phb->global_number, edev->bdfn >> 8,
 		PCI_SLOT(edev->bdfn), PCI_FUNC(edev->bdfn));
 
 	eeh_ops->read_config(edev, PCI_VENDOR_ID, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
-	pr_warn("EEH: PCI device/vendor: %08x\n", cfg);
+	pr_warn("EEH(%u): PCI device/vendor: %08x\n",event_id, cfg);
 
 	eeh_ops->read_config(edev, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
-	pr_warn("EEH: PCI cmd/status register: %08x\n", cfg);
+	pr_warn("EEH(%u): PCI cmd/status register: %08x\n", event_id, cfg);
 
 	/* Gather bridge-specific registers */
 	if (edev->mode & EEH_DEV_BRIDGE) {
 		eeh_ops->read_config(edev, PCI_SEC_STATUS, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
-		pr_warn("EEH: Bridge secondary status: %04x\n", cfg);
+		pr_warn("EEH(%u): Bridge secondary status: %04x\n",
+			event_id, cfg);
 
 		eeh_ops->read_config(edev, PCI_BRIDGE_CONTROL, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
-		pr_warn("EEH: Bridge control: %04x\n", cfg);
+		pr_warn("EEH(%u): Bridge control: %04x\n", event_id, cfg);
 	}
 
 	/* Dump out the PCI-X command and status regs */
@@ -203,18 +235,19 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	if (cap) {
 		eeh_ops->read_config(edev, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
-		pr_warn("EEH: PCI-X cmd: %08x\n", cfg);
+		pr_warn("EEH(%u): PCI-X cmd: %08x\n", event_id, cfg);
 
 		eeh_ops->read_config(edev, cap+4, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
-		pr_warn("EEH: PCI-X status: %08x\n", cfg);
+		pr_warn("EEH(%u): PCI-X status: %08x\n", event_id, cfg);
 	}
 
 	/* If PCI-E capable, dump PCI-E cap 10 */
 	cap = edev->pcie_cap;
 	if (cap) {
 		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
-		pr_warn("EEH: PCI-E capabilities and status follow:\n");
+		pr_warn("EEH(%u): PCI-E capabilities and status follow:\n",
+			event_id);
 
 		for (i=0; i<=8; i++) {
 			eeh_ops->read_config(edev, cap+4*i, 4, &cfg);
@@ -225,8 +258,8 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 					pr_warn("%s\n", buffer);
 
 				l = scnprintf(buffer, sizeof(buffer),
-					      "EEH: PCI-E %02x: %08x ",
-					      4*i, cfg);
+					      "EEH(%u): PCI-E %02x: %08x ",
+					      event_id, 4*i, cfg);
 			} else {
 				l += scnprintf(buffer+l, sizeof(buffer)-l,
 					       "%08x ", cfg);
@@ -241,7 +274,8 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	cap = edev->aer_cap;
 	if (cap) {
 		n += scnprintf(buf+n, len-n, "pci-e AER:\n");
-		pr_warn("EEH: PCI-E AER capability register set follows:\n");
+		pr_warn("EEH(%u): PCI-E AER capability register set follows:\n",
+			event_id);
 
 		for (i=0; i<=13; i++) {
 			eeh_ops->read_config(edev, cap+4*i, 4, &cfg);
@@ -266,16 +300,13 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	return n;
 }
 
-static void *eeh_dump_pe_log(struct eeh_pe *pe, void *flag)
+static void eeh_dump_pe_log(unsigned int event_id, struct eeh_pe *pe, size_t *plen)
 {
 	struct eeh_dev *edev, *tmp;
-	size_t *plen = flag;
 
 	eeh_pe_for_each_dev(pe, edev, tmp)
-		*plen += eeh_dump_dev_log(edev, pci_regs_buf + *plen,
+		*plen += eeh_dump_dev_log(event_id, edev, pci_regs_buf + *plen,
 					  EEH_PCI_REGS_LOG_LEN - *plen);
-
-	return NULL;
 }
 
 /**
@@ -288,9 +319,10 @@ static void *eeh_dump_pe_log(struct eeh_pe *pe, void *flag)
  * out from the config space of the corresponding PCI device, while
  * the error log is fetched through platform dependent function call.
  */
-void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
+void eeh_slot_error_detail(unsigned int event_id, struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
+	struct eeh_pe *tmp_pe;
 
 	/*
 	 * When the PHB is fenced or dead, it's pointless to collect
@@ -330,7 +362,8 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 			eeh_pe_restore_bars(pe);
 
 			pci_regs_buf[0] = 0;
-			eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
+			eeh_for_each_pe(pe, tmp_pe)
+				eeh_dump_pe_log(event_id, tmp_pe, &loglen);
 		}
 	}
 
@@ -353,11 +386,12 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
  * On PowerNV platform, we might already have fenced PHB there.
  * For that case, it's meaningless to recover frozen PE. Intead,
  * We have to handle fenced PHB firstly.
+ *
+ * eeh_serialize_lock must be held when calling this function.
  */
 static int eeh_phb_check_failure(struct eeh_pe *pe)
 {
 	struct eeh_pe *phb_pe;
-	unsigned long flags;
 	int ret;
 
 	if (!eeh_has_flag(EEH_PROBE_MODE_DEV))
@@ -372,7 +406,6 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	}
 
 	/* If the PHB has been in problematic state */
-	eeh_serialize_lock(&flags);
 	if (phb_pe->state & EEH_PE_ISOLATED) {
 		ret = 0;
 		goto out;
@@ -388,14 +421,12 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 
 	/* Isolate the PHB and send event */
 	eeh_pe_mark_isolated(phb_pe);
-	eeh_serialize_unlock(flags);
 
 	pr_debug("EEH: PHB#%x failure detected, location: %s\n",
 		phb_pe->phb->global_number, eeh_pe_loc_get(phb_pe));
 	eeh_send_failure_event(phb_pe);
 	return 1;
 out:
-	eeh_serialize_unlock(flags);
 	return ret;
 }
 
@@ -423,12 +454,11 @@ static inline const char *eeh_driver_name(struct pci_dev *pdev)
  */
 int eeh_dev_check_failure(struct eeh_dev *edev)
 {
-	int ret;
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe;
-	int rc = 0;
+	int rc;
 	const char *location = NULL;
 
 	eeh_stats.total_mmio_ffs++;
@@ -440,6 +470,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		eeh_stats.no_dn++;
 		return 0;
 	}
+	eeh_serialize_lock(&flags);
 	dev = eeh_dev_to_pci_dev(edev);
 	pe = eeh_dev_to_pe(edev);
 
@@ -447,24 +478,27 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (!pe) {
 		eeh_stats.ignored_check++;
 		eeh_edev_dbg(edev, "Ignored check\n");
-		return 0;
+		rc = 0;
+		goto dn_unlock;
 	}
 
 	/*
 	 * On PowerNV platform, we might already have fenced PHB
 	 * there and we need take care of that firstly.
 	 */
-	ret = eeh_phb_check_failure(pe);
-	if (ret > 0)
-		return ret;
+	rc = eeh_phb_check_failure(pe);
+	if (rc > 0)
+		goto dn_unlock;
 
 	/*
 	 * If the PE isn't owned by us, we shouldn't check the
 	 * state. Instead, let the owner handle it if the PE has
 	 * been frozen.
 	 */
-	if (eeh_pe_passed(pe))
-		return 0;
+	if (eeh_pe_passed(pe)) {
+		rc = 0;
+		goto dn_unlock;
+	}
 
 	/* If we already have a pending isolation event for this
 	 * slot, we know it's bad already, we don't need to check.
@@ -472,8 +506,6 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * in one slot might report errors simultaneously, and we
 	 * only want one error recovery routine running.
 	 */
-	eeh_serialize_lock(&flags);
-	rc = 1;
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count == EEH_MAX_FAILS) {
@@ -489,6 +521,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 				eeh_driver_name(dev));
 			dump_stack();
 		}
+		rc = 1;
 		goto dn_unlock;
 	}
 
@@ -499,7 +532,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * function zero of a multi-function device.
 	 * In any case they must share a common PHB.
 	 */
-	ret = eeh_ops->get_state(pe, NULL);
+	rc = eeh_ops->get_state(pe, NULL);
 
 	/* Note that config-io to empty slots may fail;
 	 * they are empty when they don't have children.
@@ -507,8 +540,8 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * PE's state, EEH not support and Permanently unavailable
 	 * state, PE is in good state.
 	 */
-	if ((ret < 0) ||
-	    (ret == EEH_STATE_NOT_SUPPORT) || eeh_state_active(ret)) {
+	if (rc < 0 ||
+	    rc == EEH_STATE_NOT_SUPPORT || eeh_state_active(rc)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
@@ -527,8 +560,8 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 			break;
 
 		/* Frozen parent PE ? */
-		ret = eeh_ops->get_state(parent_pe, NULL);
-		if (ret > 0 && !eeh_state_active(ret)) {
+		rc = eeh_ops->get_state(parent_pe, NULL);
+		if (rc > 0 && !eeh_state_active(rc)) {
 			pe = parent_pe;
 			pr_err("EEH: Failure of PHB#%x-PE#%x will be handled at parent PHB#%x-PE#%x.\n",
 			       pe->phb->global_number, pe->addr,
@@ -546,15 +579,10 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * bridges.
 	 */
 	eeh_pe_mark_isolated(pe);
-	eeh_serialize_unlock(flags);
-
-	/* Most EEH events are due to device driver bugs.  Having
-	 * a stack trace will help the device-driver authors figure
-	 * out what happened.  So print that out.
-	 */
 	pr_debug("EEH: %s: Frozen PHB#%x-PE#%x detected\n",
 		__func__, pe->phb->global_number, pe->addr);
 	eeh_send_failure_event(pe);
+	eeh_serialize_unlock(flags);
 
 	return 1;
 
@@ -659,7 +687,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 
 	/* Check if the request is finished successfully */
 	if (active_flag) {
-		rc = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		rc = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC, false);
 		if (rc < 0)
 			return rc;
 
@@ -857,7 +885,7 @@ int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed)
 				pe->phb->global_number, pe->addr, i + 1);
 
 		/* Wait until the PE is in a functioning state */
-		state = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		state = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC, false);
 		if (state < 0) {
 			pr_warn("EEH: Unrecoverable slot failure on PHB#%x-PE#%x",
 				pe->phb->global_number, pe->addr);
@@ -933,7 +961,9 @@ static int eeh_device_notifier(struct notifier_block *nb,
 	 * the device's resources, which have not yet been set up.
 	 */
 	case BUS_NOTIFY_DEL_DEVICE:
+		eeh_recovery_lock();
 		eeh_remove_device(to_pci_dev(dev));
+		eeh_recovery_unlock();
 		break;
 	default:
 		break;
@@ -998,6 +1028,7 @@ int eeh_init(struct eeh_ops *ops)
 void eeh_probe_device(struct pci_dev *dev)
 {
 	struct eeh_dev *edev;
+	unsigned long flags;
 
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
 
@@ -1038,9 +1069,13 @@ void eeh_probe_device(struct pci_dev *dev)
 		edev->mode |= EEH_DEV_NO_HANDLER;
 	}
 
+	/* Both locks are required to make changes */
+	eeh_recovery_must_be_locked();
+	eeh_serialize_lock(&flags);
 	/* bind the pdev and the edev together */
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
+	eeh_serialize_unlock(flags);
 	eeh_addr_cache_insert_dev(dev);
 	eeh_sysfs_add_device(dev);
 }
@@ -1058,6 +1093,7 @@ void eeh_probe_device(struct pci_dev *dev)
 void eeh_remove_device(struct pci_dev *dev)
 {
 	struct eeh_dev *edev;
+	unsigned long flags;
 
 	if (!dev || !eeh_enabled())
 		return;
@@ -1071,6 +1107,9 @@ void eeh_remove_device(struct pci_dev *dev)
 		return;
 	}
 
+	/* Both locks are required to make changes */
+	eeh_recovery_must_be_locked();
+	eeh_serialize_lock(&flags);
 	/*
 	 * During the hotplug for EEH error recovery, we need the EEH
 	 * device attached to the parent PE in order for BAR restore
@@ -1078,6 +1117,7 @@ void eeh_remove_device(struct pci_dev *dev)
 	 * from the parent PE during the BAR resotre.
 	 */
 	edev->pdev = NULL;
+	eeh_serialize_unlock(flags);
 
 	/*
 	 * eeh_sysfs_remove_device() uses pci_dev_to_eeh_dev() so we need to
@@ -1103,7 +1143,11 @@ void eeh_remove_device(struct pci_dev *dev)
 	 * for the VF EEH device.
 	 */
 	edev->in_error = false;
+	/* Both locks are required to make changes */
+	eeh_recovery_must_be_locked();
+	eeh_serialize_lock(&flags);
 	dev->dev.archdata.edev = NULL;
+	eeh_serialize_unlock(flags);
 	if (!(edev->pe->state & EEH_PE_KEEP))
 		eeh_pe_tree_remove(edev);
 	else
@@ -1199,7 +1243,7 @@ int eeh_dev_open(struct pci_dev *pdev)
 	struct eeh_dev *edev;
 	int ret = -ENODEV;
 
-	mutex_lock(&eeh_dev_mutex);
+	eeh_recovery_lock();
 
 	/* No PCI device ? */
 	if (!pdev)
@@ -1222,11 +1266,11 @@ int eeh_dev_open(struct pci_dev *pdev)
 
 	/* Increase PE's pass through count */
 	atomic_inc(&edev->pe->pass_dev_cnt);
-	mutex_unlock(&eeh_dev_mutex);
+	eeh_recovery_unlock();
 
 	return 0;
 out:
-	mutex_unlock(&eeh_dev_mutex);
+	eeh_recovery_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(eeh_dev_open);
@@ -1243,7 +1287,7 @@ void eeh_dev_release(struct pci_dev *pdev)
 {
 	struct eeh_dev *edev;
 
-	mutex_lock(&eeh_dev_mutex);
+	eeh_recovery_lock();
 
 	/* No PCI device ? */
 	if (!pdev)
@@ -1258,7 +1302,7 @@ void eeh_dev_release(struct pci_dev *pdev)
 	WARN_ON(atomic_dec_if_positive(&edev->pe->pass_dev_cnt) < 0);
 	eeh_pe_change_owner(edev->pe);
 out:
-	mutex_unlock(&eeh_dev_mutex);
+	eeh_recovery_unlock();
 }
 EXPORT_SYMBOL(eeh_dev_release);
 
@@ -1646,6 +1690,7 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 	struct eeh_pe *pe;
 	char buf[20];
 	int ret;
+	unsigned long flags;
 
 	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
 	if (!ret)
@@ -1658,7 +1703,9 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 	 * recoveries can occur.
 	 */
 	if (!strncmp(buf, "hwcheck", 7)) {
+		eeh_serialize_lock(&flags);
 		__eeh_send_failure_event(NULL);
+		eeh_serialize_unlock(flags);
 		return count;
 	}
 
@@ -1682,7 +1729,9 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 	 * from an odd state (e.g. PE removed, or recovery of a
 	 * non-isolated PE)
 	 */
+	eeh_serialize_lock(&flags);
 	__eeh_send_failure_event(pe);
+	eeh_serialize_unlock(flags);
 
 	return ret < 0 ? ret : count;
 }

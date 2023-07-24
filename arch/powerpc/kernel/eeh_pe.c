@@ -81,6 +81,10 @@ int eeh_phb_pe_create(struct pci_controller *phb)
 {
 	struct eeh_pe *pe;
 
+	phb->eeh_in_progress = false; /* TODO: Necessary? */
+	INIT_LIST_HEAD(&phb->eeh_eventlist);
+	spin_lock_init(&phb->eeh_eventlist_lock);
+
 	/* Allocate PHB PE */
 	pe = eeh_pe_alloc(phb, EEH_PE_PHB);
 	if (!pe) {
@@ -103,8 +107,15 @@ int eeh_phb_pe_create(struct pci_controller *phb)
  *
  * Wait for the state of associated PE. It might take some time
  * to retrieve the PE's state.
+ *
+ * Note that if this function sleeps and unlock is true, the EEH recovery lock
+ * will be released and re-acquired.
+ * It is only safe to do this when the PE has the recovering flag set on it.
+ * This is important because the sleep may be
+ * very long (300 seconds) and device removal will be blocked by the recovery
+ * mutex. See eeh_device_notifier().
  */
-int eeh_wait_state(struct eeh_pe *pe, int max_wait)
+int eeh_wait_state(struct eeh_pe *pe, int max_wait, bool unlock)
 {
 	int ret;
 	int mwait;
@@ -119,6 +130,8 @@ int eeh_wait_state(struct eeh_pe *pe, int max_wait)
 	 */
 #define EEH_STATE_MIN_WAIT_TIME	(1000)
 #define EEH_STATE_MAX_WAIT_TIME	(300 * 1000)
+
+	WARN_ON_ONCE(unlock && !(pe->state & EEH_PE_RECOVERING));
 
 	while (1) {
 		ret = eeh_ops->get_state(pe, &mwait);
@@ -141,8 +154,11 @@ int eeh_wait_state(struct eeh_pe *pe, int max_wait)
 				__func__, mwait);
 			mwait = EEH_STATE_MAX_WAIT_TIME;
 		}
-
+		if (unlock)
+			eeh_recovery_unlock();
 		msleep(min(mwait, max_wait));
+		if (unlock)
+			eeh_recovery_lock();
 		max_wait -= mwait;
 	}
 }
@@ -308,6 +324,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 {
 	struct pci_controller *hose = edev->controller;
 	struct eeh_pe *pe, *parent;
+	unsigned long flags;
 
 	/*
 	 * Search the PE has been existing or not according
@@ -315,6 +332,8 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
 	 */
+	eeh_recovery_must_be_locked();
+	eeh_serialize_lock(&flags);
 	pe = eeh_pe_get(hose, edev->pe_config_addr);
 	if (pe) {
 		if (pe->type & EEH_PE_INVALID) {
@@ -343,8 +362,10 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 			list_add_tail(&edev->entry, &pe->edevs);
 			eeh_edev_dbg(edev, "Added to bus PE\n");
 		}
+		eeh_serialize_unlock(flags);
 		return 0;
 	}
+	eeh_serialize_unlock(flags);
 
 	/* Create a new EEH PE */
 	if (edev->physfn)
@@ -364,6 +385,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 	 * to PHB directly. Otherwise, we have to associate the
 	 * PE with its parent.
 	 */
+	eeh_serialize_lock(&flags);
 	if (!new_pe_parent) {
 		new_pe_parent = eeh_phb_pe_get(hose);
 		if (!new_pe_parent) {
@@ -371,6 +393,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 				__func__, hose->global_number);
 			edev->pe = NULL;
 			kfree(pe);
+			eeh_serialize_unlock(flags);
 			return -EEXIST;
 		}
 	}
@@ -385,6 +408,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 	 */
 	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
+	eeh_serialize_unlock(flags);
 	eeh_edev_dbg(edev, "Added to new (parent: PE#%x)\n",
 		     new_pe_parent->addr);
 
@@ -402,13 +426,18 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
  */
 int eeh_pe_tree_remove(struct eeh_dev *edev)
 {
+	unsigned long flags;
 	struct eeh_pe *pe, *parent, *child;
 	bool keep, recover;
 	int cnt;
 
+	/* Both locks are required to make changes */
+	eeh_recovery_must_be_locked();
+	eeh_serialize_lock(&flags);
 	pe = eeh_dev_to_pe(edev);
 	if (!pe) {
 		eeh_edev_dbg(edev, "No PE found for device.\n");
+		eeh_serialize_unlock(flags);
 		return -EEXIST;
 	}
 
@@ -475,6 +504,7 @@ int eeh_pe_tree_remove(struct eeh_dev *edev)
 		pe = parent;
 	}
 
+	eeh_serialize_unlock(flags);
 	return 0;
 }
 

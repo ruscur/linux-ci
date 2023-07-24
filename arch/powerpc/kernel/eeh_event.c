@@ -22,9 +22,12 @@
  *  work-queue, where a worker thread can drive recovery.
  */
 
-static DEFINE_SPINLOCK(eeh_eventlist_lock);
+DEFINE_SPINLOCK(eeh_eventlist_lock);
 static DECLARE_COMPLETION(eeh_eventlist_event);
 static LIST_HEAD(eeh_eventlist);
+
+/* Event ID 0 is reserved for special events */
+static atomic_t eeh_event_id = ATOMIC_INIT(1);
 
 /**
  * eeh_event_handler - Dispatch EEH events.
@@ -58,8 +61,8 @@ static int eeh_event_handler(void * dummy)
 			continue;
 
 		/* We might have event without binding PE */
-		if (event->pe)
-			eeh_handle_normal_event(event->pe);
+		if (event->pe) /* TODO: Unused now? */
+			eeh_handle_normal_event(event->id, event->pe);
 		else
 			eeh_handle_special_event();
 
@@ -91,6 +94,50 @@ int eeh_event_init(void)
 	return 0;
 }
 
+int eeh_phb_event(struct eeh_pe *pe)
+{
+	struct eeh_event *event;
+	unsigned long flags;
+	struct pci_controller *phb;
+
+	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event) {
+		pr_err("EEH: out of memory, event not handled\n");
+		return -ENOMEM;
+	}
+
+	do {
+		/* Skip over the special value (0) */
+		event->id = (unsigned int)atomic_inc_return(&eeh_event_id);
+	} while (!event->id);
+
+	if (pe) {
+		phb = pe->phb;
+		event->pe = pe;
+		INIT_WORK(&event->work, eeh_handle_normal_event_work);
+		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+		pr_err("EEH(%u): EVENT=ERROR_DETECTED PHB=%#x PE=%#x\n",
+		       event->id, phb->global_number, pe->addr);
+		spin_lock_irqsave(&phb->eeh_eventlist_lock, flags);
+		if (phb->eeh_in_progress) {
+			pr_info("EEH: EEH already in progress on this PHB, queueing.\n");
+			list_add(&event->list, &phb->eeh_eventlist);
+		} else {
+			pr_info("EEH: Beginning recovery on this PHB.\n");
+			WARN_ON_ONCE(!list_empty(&phb->eeh_eventlist));
+			phb->eeh_in_progress = true;
+			queue_work(system_unbound_wq, &event->work);
+		}
+		spin_unlock_irqrestore(&phb->eeh_eventlist_lock, flags);
+	} else {
+		spin_lock_irqsave(&eeh_eventlist_lock, flags);
+		list_add(&event->list, &eeh_eventlist);
+		complete(&eeh_eventlist_event);
+		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+	}
+	return 0;
+}
+
 /**
  * eeh_send_failure_event - Generate a PCI error event
  * @pe: EEH PE
@@ -101,16 +148,6 @@ int eeh_event_init(void)
  */
 int __eeh_send_failure_event(struct eeh_pe *pe)
 {
-	unsigned long flags;
-	struct eeh_event *event;
-
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
-	if (!event) {
-		pr_err("EEH: out of memory, event not handled\n");
-		return -ENOMEM;
-	}
-	event->pe = pe;
-
 	/*
 	 * Mark the PE as recovering before inserting it in the queue.
 	 * This prevents the PE from being free()ed by a hotplug driver
@@ -126,18 +163,8 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 					 ARRAY_SIZE(pe->stack_trace), 0);
 #endif /* CONFIG_STACKTRACE */
 
-		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
 	}
-
-	/* We may or may not be called in an interrupt context */
-	spin_lock_irqsave(&eeh_eventlist_lock, flags);
-	list_add(&event->list, &eeh_eventlist);
-	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
-
-	/* For EEH deamon to knick in */
-	complete(&eeh_eventlist_event);
-
-	return 0;
+	return eeh_phb_event(pe);
 }
 
 int eeh_send_failure_event(struct eeh_pe *pe)

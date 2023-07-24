@@ -769,7 +769,6 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 	u16 sts, lsts;
 	u8 presence;
 	bool added;
-	unsigned long flags;
 	int ret;
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &sts);
@@ -807,10 +806,10 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 		edev = pchild ? pci_dev_to_eeh_dev(pchild) : NULL;
 		pe = edev ? edev->pe : NULL;
 		if (pe) {
-			eeh_serialize_lock(&flags);
+			eeh_recovery_lock();
 			eeh_pe_mark_isolated(pe);
-			eeh_serialize_unlock(flags);
 			eeh_pe_set_option(pe, EEH_OPT_FREEZE_PE);
+			eeh_recovery_unlock();
 		}
 	}
 
