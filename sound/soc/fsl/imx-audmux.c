@@ -324,9 +324,11 @@ static void imx_audmux_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int imx_audmux_suspend(struct device *dev)
 {
-	int i;
+	int i, ret;
 
-	clk_prepare_enable(audmux_clk);
+	ret = clk_prepare_enable(audmux_clk);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < reg_max; i++)
 		regcache[i] = readl(audmux_base + i * 4);
@@ -338,9 +340,11 @@ static int imx_audmux_suspend(struct device *dev)
 
 static int imx_audmux_resume(struct device *dev)
 {
-	int i;
+	int i, ret;
 
-	clk_prepare_enable(audmux_clk);
+	ret = clk_prepare_enable(audmux_clk);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < reg_max; i++)
 		writel(regcache[i], audmux_base + i * 4);
