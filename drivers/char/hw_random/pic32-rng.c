@@ -12,9 +12,8 @@
 #include <linux/hw_random.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -129,7 +128,7 @@ static struct platform_driver pic32_rng_driver = {
 	.remove		= pic32_rng_remove,
 	.driver		= {
 		.name	= "pic32-rng",
-		.of_match_table = of_match_ptr(pic32_rng_of_match),
+		.of_match_table = pic32_rng_of_match,
 	},
 };
 
