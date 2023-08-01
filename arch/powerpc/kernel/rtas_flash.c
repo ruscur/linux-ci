@@ -698,6 +698,12 @@ static const struct rtas_flash_file rtas_flash_files[] = {
 
 static int __init rtas_flash_init(void)
 {
+	const unsigned int objsize = RTAS_BLK_SIZE;
+	const unsigned int usersize = objsize;
+	const unsigned int align = objsize;
+	void (* const ctor)(void *) = NULL;
+	const unsigned int useroffset = 0;
+	const slab_flags_t flags = 0;
 	int i;
 
 	if (rtas_function_token(RTAS_FN_IBM_UPDATE_FLASH_64_AND_REBOOT) == RTAS_UNKNOWN_SERVICE) {
@@ -709,9 +715,9 @@ static int __init rtas_flash_init(void)
 	if (!rtas_validate_flash_data.buf)
 		return -ENOMEM;
 
-	flash_block_cache = kmem_cache_create("rtas_flash_cache",
-					      RTAS_BLK_SIZE, RTAS_BLK_SIZE, 0,
-					      NULL);
+	flash_block_cache = kmem_cache_create_usercopy("rtas_flash_cache",
+						       objsize, align, flags,
+						       useroffset, usersize, ctor);
 	if (!flash_block_cache) {
 		printk(KERN_ERR "%s: failed to create block cache\n",
 				__func__);
